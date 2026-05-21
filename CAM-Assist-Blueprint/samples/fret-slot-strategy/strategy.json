@@ -1,7 +1,6 @@
 {
-  "strategy_version": "1.1",
+  "strategy_version": "1.2",
   "strategy_id": "fret-slots-25500-22f-sample",
-  "operation_type": "fret_slots",
 
   "units": "inches",
 
@@ -15,9 +14,30 @@
 
   "provenance": {
     "source_spec_id": "sample-stratocaster-spec",
-    "cam_assist_version": "0.2.0",
+    "cam_assist_version": "0.3.0",
     "created_at": "2026-05-20T12:00:00Z",
     "created_by": "cam-assist-blueprint"
+  },
+
+  "operation_intent": {
+    "operation_type": "fret_slots",
+    "target_feature": "fretboard",
+    "cut_intent": "slot",
+    "non_execution_declaration": true
+  },
+
+  "material_context": {
+    "material_class": "hardwood",
+    "species": "Indian Rosewood",
+    "hardness_janka": 2440,
+    "grain_direction": "along_fretboard_length"
+  },
+
+  "safety_boundary": {
+    "non_execution_declaration": true,
+    "human_review_required": true,
+    "max_depth_inches": 0.060,
+    "tool_diameter_inches": 0.023
   },
 
   "geometry": {

@@ -2,7 +2,12 @@
 Tests for CAM Assist strategy package validator.
 
 These tests verify that the validator correctly accepts valid packages
-and rejects invalid packages according to the A1 schema contract.
+and rejects invalid packages according to the A2 schema contract.
+
+A2 adds semantic contract enforcement:
+- operation_intent with non_execution_declaration
+- material_context
+- safety_boundary with execution authority rejection
 """
 
 import json
@@ -27,15 +32,14 @@ VALID_DIR = EXAMPLES_DIR / "valid"
 INVALID_DIR = EXAMPLES_DIR / "invalid"
 
 
-# --- Fixture: minimal valid package ---
+# --- Fixture: minimal valid package (A2) ---
 
 @pytest.fixture
 def minimal_valid_package() -> dict:
-    """Return a minimal valid strategy package."""
+    """Return a minimal valid A2 strategy package."""
     return {
-        "strategy_version": "1.1",
+        "strategy_version": "1.2",
         "strategy_id": "test-package",
-        "operation_type": "fret_slots",
         "units": "inches",
         "coordinate_frame": {
             "origin": "nut_centerline",
@@ -43,8 +47,21 @@ def minimal_valid_package() -> dict:
             "y_axis": "across_fretboard",
         },
         "provenance": {
-            "cam_assist_version": "0.2.0",
+            "cam_assist_version": "0.3.0",
             "created_at": "2026-05-21T12:00:00Z",
+        },
+        "operation_intent": {
+            "operation_type": "fret_slots",
+            "target_feature": "fretboard",
+            "cut_intent": "slot",
+            "non_execution_declaration": True,
+        },
+        "material_context": {
+            "material_class": "hardwood",
+        },
+        "safety_boundary": {
+            "non_execution_declaration": True,
+            "human_review_required": True,
         },
         "geometry": {
             "dxf_file": "geometry.dxf",
@@ -109,6 +126,21 @@ class TestValidPackages:
             result = validate_strategy_package(minimal_valid_package)
             assert result.valid is True, f"State '{state}' should be valid"
 
+    def test_all_cut_intents(self, minimal_valid_package):
+        """All valid cut intents should pass."""
+        for intent in ["slot", "pocket", "profile", "drill", "contour", "channel"]:
+            minimal_valid_package["operation_intent"]["cut_intent"] = intent
+            result = validate_strategy_package(minimal_valid_package)
+            assert result.valid is True, f"Cut intent '{intent}' should be valid"
+
+    def test_all_material_classes(self, minimal_valid_package):
+        """All valid material classes should pass."""
+        for mat_class in ["softwood", "hardwood", "exotic", "figured",
+                          "laminate", "composite", "unknown"]:
+            minimal_valid_package["material_context"]["material_class"] = mat_class
+            result = validate_strategy_package(minimal_valid_package)
+            assert result.valid is True, f"Material class '{mat_class}' should be valid"
+
 
 # --- Tests: Missing required fields ---
 
@@ -147,6 +179,30 @@ class TestMissingRequiredFields:
             assert result.valid is False
             assert any("provenance" in error for error in result.errors)
 
+    def test_missing_operation_intent_example(self):
+        """The missing_operation_intent example should fail."""
+        invalid_file = INVALID_DIR / "missing_operation_intent.json"
+        if invalid_file.exists():
+            result = validate_file(invalid_file)
+            assert result.valid is False
+            assert any("operation_intent" in error for error in result.errors)
+
+    def test_missing_material_context_example(self):
+        """The missing_material_context example should fail."""
+        invalid_file = INVALID_DIR / "missing_material_context.json"
+        if invalid_file.exists():
+            result = validate_file(invalid_file)
+            assert result.valid is False
+            assert any("material_context" in error for error in result.errors)
+
+    def test_missing_safety_boundary_example(self):
+        """The missing_safety_boundary example should fail."""
+        invalid_file = INVALID_DIR / "missing_safety_boundary.json"
+        if invalid_file.exists():
+            result = validate_file(invalid_file)
+            assert result.valid is False
+            assert any("safety_boundary" in error for error in result.errors)
+
 
 # --- Tests: Invalid field values ---
 
@@ -178,6 +234,75 @@ class TestInvalidFieldValues:
         minimal_valid_package["strategy_id"] = "test_package!"
         result = validate_strategy_package(minimal_valid_package)
         assert result.valid is False
+
+    def test_invalid_cut_intent(self, minimal_valid_package):
+        """Invalid cut_intent should fail."""
+        minimal_valid_package["operation_intent"]["cut_intent"] = "invalid"
+        result = validate_strategy_package(minimal_valid_package)
+        assert result.valid is False
+        assert any("cut_intent" in error for error in result.errors)
+
+    def test_invalid_material_class(self, minimal_valid_package):
+        """Invalid material_class should fail."""
+        minimal_valid_package["material_context"]["material_class"] = "plastic"
+        result = validate_strategy_package(minimal_valid_package)
+        assert result.valid is False
+        assert any("material_class" in error for error in result.errors)
+
+
+# --- Tests: Execution authority rejection (A2 critical) ---
+
+class TestExecutionAuthorityRejection:
+    """Tests for execution authority rejection - critical A2 feature."""
+
+    def test_operation_intent_non_execution_false(self, minimal_valid_package):
+        """non_execution_declaration=false in operation_intent should fail."""
+        minimal_valid_package["operation_intent"]["non_execution_declaration"] = False
+        result = validate_strategy_package(minimal_valid_package)
+        assert result.valid is False
+        assert any("EXECUTION AUTHORITY" in error for error in result.errors)
+
+    def test_safety_boundary_non_execution_false(self, minimal_valid_package):
+        """non_execution_declaration=false in safety_boundary should fail."""
+        minimal_valid_package["safety_boundary"]["non_execution_declaration"] = False
+        result = validate_strategy_package(minimal_valid_package)
+        assert result.valid is False
+        assert any("EXECUTION AUTHORITY" in error for error in result.errors)
+
+    def test_human_review_not_required(self, minimal_valid_package):
+        """human_review_required=false should fail."""
+        minimal_valid_package["safety_boundary"]["human_review_required"] = False
+        result = validate_strategy_package(minimal_valid_package)
+        assert result.valid is False
+        assert any("SAFETY VIOLATION" in error for error in result.errors)
+
+    def test_execution_authority_claim_true(self, minimal_valid_package):
+        """execution_authority_claim=true should fail."""
+        minimal_valid_package["safety_boundary"]["execution_authority_claim"] = True
+        result = validate_strategy_package(minimal_valid_package)
+        assert result.valid is False
+        assert any("EXECUTION AUTHORITY" in error for error in result.errors)
+
+    def test_execution_authority_claim_false_allowed(self, minimal_valid_package):
+        """execution_authority_claim=false should pass."""
+        minimal_valid_package["safety_boundary"]["execution_authority_claim"] = False
+        result = validate_strategy_package(minimal_valid_package)
+        assert result.valid is True
+
+    def test_execution_authority_claim_absent_allowed(self, minimal_valid_package):
+        """Absent execution_authority_claim should pass."""
+        # It's not in minimal_valid_package by default
+        result = validate_strategy_package(minimal_valid_package)
+        assert result.valid is True
+
+    def test_execution_authority_claim_example(self):
+        """The execution_authority_claim example should fail."""
+        invalid_file = INVALID_DIR / "execution_authority_claim.json"
+        if invalid_file.exists():
+            result = validate_file(invalid_file)
+            assert result.valid is False
+            assert any("EXECUTION AUTHORITY" in error or "SAFETY VIOLATION" in error
+                      for error in result.errors)
 
 
 # --- Tests: Nested object validation ---
@@ -213,6 +338,30 @@ class TestNestedObjectValidation:
     def test_missing_provenance_created_at(self, minimal_valid_package):
         """Missing created_at in provenance should fail."""
         del minimal_valid_package["provenance"]["created_at"]
+        result = validate_strategy_package(minimal_valid_package)
+        assert result.valid is False
+
+    def test_missing_operation_intent_operation_type(self, minimal_valid_package):
+        """Missing operation_type in operation_intent should fail."""
+        del minimal_valid_package["operation_intent"]["operation_type"]
+        result = validate_strategy_package(minimal_valid_package)
+        assert result.valid is False
+
+    def test_missing_operation_intent_target_feature(self, minimal_valid_package):
+        """Missing target_feature in operation_intent should fail."""
+        del minimal_valid_package["operation_intent"]["target_feature"]
+        result = validate_strategy_package(minimal_valid_package)
+        assert result.valid is False
+
+    def test_missing_operation_intent_cut_intent(self, minimal_valid_package):
+        """Missing cut_intent in operation_intent should fail."""
+        del minimal_valid_package["operation_intent"]["cut_intent"]
+        result = validate_strategy_package(minimal_valid_package)
+        assert result.valid is False
+
+    def test_missing_material_context_material_class(self, minimal_valid_package):
+        """Missing material_class in material_context should fail."""
+        del minimal_valid_package["material_context"]["material_class"]
         result = validate_strategy_package(minimal_valid_package)
         assert result.valid is False
 
@@ -275,7 +424,7 @@ class TestWarnings:
 
     def test_old_version_warning(self, minimal_valid_package):
         """Old strategy_version should produce warning."""
-        minimal_valid_package["strategy_version"] = "1.0"
+        minimal_valid_package["strategy_version"] = "1.1"
         result = validate_strategy_package(minimal_valid_package)
         # Still valid but with warning
         assert len(result.warnings) > 0

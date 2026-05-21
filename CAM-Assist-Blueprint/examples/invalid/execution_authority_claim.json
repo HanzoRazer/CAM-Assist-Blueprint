@@ -1,6 +1,6 @@
 {
   "strategy_version": "1.2",
-  "strategy_id": "invalid-missing-provenance",
+  "strategy_id": "invalid-execution-authority-claim",
 
   "units": "inches",
 
@@ -10,11 +10,16 @@
     "y_axis": "across_fretboard"
   },
 
+  "provenance": {
+    "cam_assist_version": "0.3.0",
+    "created_at": "2026-05-21T12:00:00Z"
+  },
+
   "operation_intent": {
     "operation_type": "fret_slots",
     "target_feature": "fretboard",
     "cut_intent": "slot",
-    "non_execution_declaration": true
+    "non_execution_declaration": false
   },
 
   "material_context": {
@@ -22,8 +27,9 @@
   },
 
   "safety_boundary": {
-    "non_execution_declaration": true,
-    "human_review_required": true
+    "non_execution_declaration": false,
+    "human_review_required": false,
+    "execution_authority_claim": true
   },
 
   "geometry": {
