@@ -2,15 +2,17 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cam-assist.lutherie/schemas/strategy.schema.json",
   "title": "CAM Assist Strategy Package Schema",
-  "description": "Defines the output strategy package from CAM Assist. Version 1.1 promotes units, coordinate_frame, and provenance to top-level required fields.",
+  "description": "Defines the output strategy package from CAM Assist. Version 1.2 adds operation_intent, material_context, and safety_boundary for semantic contract enforcement.",
   "type": "object",
   "required": [
     "strategy_version",
     "strategy_id",
-    "operation_type",
     "units",
     "coordinate_frame",
     "provenance",
+    "operation_intent",
+    "material_context",
+    "safety_boundary",
     "geometry",
     "operation",
     "approval_state"
@@ -19,7 +21,7 @@
   "properties": {
     "strategy_version": {
       "type": "string",
-      "const": "1.1",
+      "const": "1.2",
       "description": "Schema version for this strategy format"
     },
 
@@ -27,11 +29,6 @@
       "type": "string",
       "pattern": "^[a-z0-9-]+$",
       "description": "Unique identifier for this strategy package"
-    },
-
-    "operation_type": {
-      "type": "string",
-      "description": "Type of operation this strategy implements"
     },
 
     "units": {
@@ -98,6 +95,92 @@
         "created_by": {
           "type": "string",
           "description": "Identifier of creator (human or system)"
+        }
+      }
+    },
+
+    "operation_intent": {
+      "type": "object",
+      "required": ["operation_type", "target_feature", "cut_intent", "non_execution_declaration"],
+      "description": "Semantic declaration of what this strategy intends to accomplish",
+      "properties": {
+        "operation_type": {
+          "type": "string",
+          "description": "Type of lutherie operation (fret_slots, pickup_route, neck_pocket, etc.)"
+        },
+        "target_feature": {
+          "type": "string",
+          "description": "The instrument feature this operation targets (fretboard, body, neck, etc.)"
+        },
+        "cut_intent": {
+          "type": "string",
+          "enum": ["slot", "pocket", "profile", "drill", "contour", "channel"],
+          "description": "The geometric intent of the cut operation"
+        },
+        "non_execution_declaration": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. Declares this package does not execute machine operations."
+        }
+      }
+    },
+
+    "material_context": {
+      "type": "object",
+      "required": ["material_class"],
+      "description": "Material information for parameter recommendations",
+      "properties": {
+        "material_class": {
+          "type": "string",
+          "enum": ["softwood", "hardwood", "exotic", "figured", "laminate", "composite", "unknown"],
+          "description": "General material classification"
+        },
+        "species": {
+          "type": "string",
+          "description": "Specific wood species if known"
+        },
+        "hardness_janka": {
+          "type": "integer",
+          "description": "Janka hardness rating if known"
+        },
+        "grain_direction": {
+          "type": "string",
+          "description": "Grain orientation relative to operation"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional material considerations"
+        }
+      }
+    },
+
+    "safety_boundary": {
+      "type": "object",
+      "required": ["non_execution_declaration", "human_review_required"],
+      "description": "Safety declarations and execution boundaries",
+      "properties": {
+        "non_execution_declaration": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This package does not generate executable machine code."
+        },
+        "human_review_required": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. Human review is required before any downstream execution."
+        },
+        "max_depth_inches": {
+          "type": "number",
+          "description": "Maximum cut depth referenced in this strategy"
+        },
+        "tool_diameter_inches": {
+          "type": "number",
+          "description": "Tool diameter referenced in this strategy"
+        },
+        "execution_authority_claim": {
+          "type": "boolean",
+          "const": false,
+          "description": "MUST be false or absent. Strategy packages do not claim execution authority."
         }
       }
     },
