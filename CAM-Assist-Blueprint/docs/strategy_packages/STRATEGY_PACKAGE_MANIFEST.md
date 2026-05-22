@@ -149,3 +149,4 @@ They are a **documentation and handoff format**, not an execution format.
 ## See Also
 
 - [STRATEGY_PACKAGE_ASSEMBLY.md](STRATEGY_PACKAGE_ASSEMBLY.md) — CLI for assembling complete packages
+- [STRATEGY_PACKAGE_INSPECTION.md](STRATEGY_PACKAGE_INSPECTION.md) — CLI for inspecting packages
