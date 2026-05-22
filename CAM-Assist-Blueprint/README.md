@@ -190,6 +190,20 @@ manifest.json
 
 ---
 
+### CAM-A6 — Strategy Package Inspection
+
+Read-only inspection utility for assembled packages.
+
+Provides:
+
+- package type and operation summary
+- authority status verification
+- file presence checking
+- provenance display
+- human-readable and JSON output
+
+---
+
 ## Repository Structure
 
 ```
@@ -211,6 +225,7 @@ scripts/                # CLI tools
   generate_review_packet.py
   validate_manifest.py
   assemble_strategy_package.py
+  inspect_strategy_package.py
   version.py
 
 tests/                  # Test suite
@@ -254,6 +269,9 @@ manifest generation (A4)
 portable review package (A5)
     |
     v
+package inspection (A6)
+    |
+    v
 human review
     |
     v
@@ -287,6 +305,14 @@ python scripts/validate_manifest.py examples/valid/fret_slot_strategy_manifest.j
 ```bash
 python scripts/assemble_strategy_package.py examples/valid/fret_slot_strategy.json
 python scripts/assemble_strategy_package.py strategy.json --out ./my_package --force
+```
+
+### Inspect Package
+
+```bash
+python scripts/inspect_strategy_package.py examples/packages/fret_slot_strategy_example/
+python scripts/inspect_strategy_package.py <package_dir> --json
+python scripts/inspect_strategy_package.py <package_dir> --quiet
 ```
 
 ### Run Tests
