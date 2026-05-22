@@ -231,6 +231,21 @@ Provides:
 
 ---
 
+### CAM-A9 — Strategy Package Archive Validator
+
+Validates archived `.zip` packages before import or review.
+
+Provides:
+
+- archive path safety checks (traversal, absolute paths)
+- required file verification
+- authority constraint validation
+- suspicious file warnings
+- safe temporary extraction
+- no execution or import side effects
+
+---
+
 ## Repository Structure
 
 ```
@@ -255,6 +270,7 @@ scripts/                # CLI tools
   inspect_strategy_package.py
   index_strategy_packages.py
   archive_strategy_package.py
+  validate_package_archive.py
   version.py
 
 tests/                  # Test suite
@@ -305,6 +321,9 @@ package index (A7)
     |
     v
 package archive (A8)
+    |
+    v
+archive validation (A9)
     |
     v
 human review
@@ -362,6 +381,14 @@ python scripts/index_strategy_packages.py examples/packages/ --json-out index.js
 ```bash
 python scripts/archive_strategy_package.py examples/packages/fret_slot_strategy_example/
 python scripts/archive_strategy_package.py <package_dir> --out /tmp/archive.zip --force
+```
+
+### Validate Archive
+
+```bash
+python scripts/validate_package_archive.py package.zip
+python scripts/validate_package_archive.py package.zip --json
+python scripts/validate_package_archive.py package.zip --quiet
 ```
 
 ### Run Tests
