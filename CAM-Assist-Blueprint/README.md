@@ -218,6 +218,19 @@ Provides:
 
 ---
 
+### CAM-A8 — Strategy Package Archive
+
+Creates portable `.zip` archives from validated packages.
+
+Provides:
+
+- validation before archiving
+- package-relative paths
+- overwrite protection
+- portable distribution format
+
+---
+
 ## Repository Structure
 
 ```
@@ -241,6 +254,7 @@ scripts/                # CLI tools
   assemble_strategy_package.py
   inspect_strategy_package.py
   index_strategy_packages.py
+  archive_strategy_package.py
   version.py
 
 tests/                  # Test suite
@@ -288,6 +302,9 @@ package inspection (A6)
     |
     v
 package index (A7)
+    |
+    v
+package archive (A8)
     |
     v
 human review
@@ -338,6 +355,13 @@ python scripts/inspect_strategy_package.py <package_dir> --quiet
 ```bash
 python scripts/index_strategy_packages.py examples/packages/
 python scripts/index_strategy_packages.py examples/packages/ --json-out index.json
+```
+
+### Archive Package
+
+```bash
+python scripts/archive_strategy_package.py examples/packages/fret_slot_strategy_example/
+python scripts/archive_strategy_package.py <package_dir> --out /tmp/archive.zip --force
 ```
 
 ### Run Tests

@@ -138,4 +138,5 @@ It produces **collection-level metadata** for navigating multiple packages.
 
 - [STRATEGY_PACKAGE_INSPECTION.md](STRATEGY_PACKAGE_INSPECTION.md) — Package inspection CLI
 - [STRATEGY_PACKAGE_ASSEMBLY.md](STRATEGY_PACKAGE_ASSEMBLY.md) — Package assembly CLI
+- [STRATEGY_PACKAGE_ARCHIVE.md](STRATEGY_PACKAGE_ARCHIVE.md) — Package archive CLI
 - [STRATEGY_PACKAGE_MANIFEST.md](STRATEGY_PACKAGE_MANIFEST.md) — Manifest format
