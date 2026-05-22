@@ -156,3 +156,4 @@ It is a **read-only inspection tool** for human review workflows.
 
 - [STRATEGY_PACKAGE_MANIFEST.md](STRATEGY_PACKAGE_MANIFEST.md) — Manifest format
 - [STRATEGY_PACKAGE_ASSEMBLY.md](STRATEGY_PACKAGE_ASSEMBLY.md) — Package assembly CLI
+- [STRATEGY_PACKAGE_INDEX.md](STRATEGY_PACKAGE_INDEX.md) — Package index generator
