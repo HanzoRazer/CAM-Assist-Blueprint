@@ -52,6 +52,15 @@ python scripts/generate_review_packet.py examples/valid/fret_slot_strategy.json 
 Generates a human-readable Markdown review packet from a validated strategy package.
 See [docs/REVIEW_PACKET_FORMAT.md](docs/REVIEW_PACKET_FORMAT.md) for format details.
 
+### Validate Strategy Package Manifest
+
+```bash
+python scripts/validate_manifest.py examples/valid/fret_slot_strategy_manifest.json
+```
+
+Validates a strategy package manifest that bundles strategy JSON, review packet, and geometry references.
+See [docs/strategy_packages/STRATEGY_PACKAGE_MANIFEST.md](docs/strategy_packages/STRATEGY_PACKAGE_MANIFEST.md) for format details.
+
 ## Repository Structure
 
 ```
@@ -62,14 +71,18 @@ docs/
   HUMAN_AUTHORITY_MODEL.md           # Human approval requirements
   ADOPTED_CAM_CAPABILITIES.md        # What CAM capabilities we adopt vs. avoid
   REVIEW_PACKET_FORMAT.md            # Review packet documentation
+  strategy_packages/
+    STRATEGY_PACKAGE_MANIFEST.md     # Manifest format documentation
 
 schemas/
   operation.schema.json              # Operation definition schema
   strategy.schema.json               # Strategy package schema (v1.2)
+  strategy_package_manifest.schema.json  # Manifest schema (A4)
 
 scripts/
   validate_strategy_package.py       # Schema validator (A2)
   generate_review_packet.py          # Review packet generator (A3)
+  validate_manifest.py               # Manifest validator (A4)
 
 examples/
   valid/                             # Valid strategy examples
@@ -95,9 +108,11 @@ samples/
 | CAM-A1 | Complete | Schema validation foundation |
 | CAM-A2 | Complete | Strategy package contract enforcement |
 | CAM-A3 | Complete | Review packet generator |
+| CAM-A4 | Complete | Strategy package manifest |
 
 Current capabilities:
 - Strategy packages validated against semantic contract
 - Execution authority claims rejected
 - Human-readable review packets generated
+- Strategy package manifests bundle artifacts for handoff
 - Non-execution boundary enforced throughout
