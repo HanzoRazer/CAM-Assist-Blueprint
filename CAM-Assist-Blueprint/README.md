@@ -31,6 +31,27 @@ Produces:
 
 See [docs/CAM_ASSIST_SYSTEM_DEFINITION.md](docs/CAM_ASSIST_SYSTEM_DEFINITION.md) for full product definition.
 
+## CLI Tools
+
+### Validate Strategy Package
+
+```bash
+python scripts/validate_strategy_package.py examples/valid/fret_slot_strategy.json
+python scripts/validate_strategy_package.py examples/
+```
+
+Validates strategy packages against the schema contract. Rejects execution authority claims.
+
+### Generate Review Packet
+
+```bash
+python scripts/generate_review_packet.py examples/valid/fret_slot_strategy.json
+python scripts/generate_review_packet.py examples/valid/fret_slot_strategy.json --out /tmp/review.md
+```
+
+Generates a human-readable Markdown review packet from a validated strategy package.
+See [docs/REVIEW_PACKET_FORMAT.md](docs/REVIEW_PACKET_FORMAT.md) for format details.
+
 ## Repository Structure
 
 ```
@@ -40,10 +61,19 @@ docs/
   CAM_ASSIST_OPERATION_TAXONOMY.md   # Supported operation types
   HUMAN_AUTHORITY_MODEL.md           # Human approval requirements
   ADOPTED_CAM_CAPABILITIES.md        # What CAM capabilities we adopt vs. avoid
+  REVIEW_PACKET_FORMAT.md            # Review packet documentation
 
 schemas/
   operation.schema.json              # Operation definition schema
-  strategy.schema.json               # Strategy package schema
+  strategy.schema.json               # Strategy package schema (v1.2)
+
+scripts/
+  validate_strategy_package.py       # Schema validator (A2)
+  generate_review_packet.py          # Review packet generator (A3)
+
+examples/
+  valid/                             # Valid strategy examples
+  invalid/                           # Invalid examples for testing
 
 samples/
   fret-slot-strategy/                # Reference implementation
@@ -59,12 +89,15 @@ samples/
 
 ## Project Status
 
-**CAM-A0: Repository Foundation and System Definition**
+| Milestone | Status | Description |
+|-----------|--------|-------------|
+| CAM-A0 | Complete | Repository foundation and system definition |
+| CAM-A1 | Complete | Schema validation foundation |
+| CAM-A2 | Complete | Strategy package contract enforcement |
+| CAM-A3 | Complete | Review packet generator |
 
-Current milestone establishes:
-- Product identity and boundaries
-- Non-goals (explicit)
-- First operation slice (fret slots)
-- Strategy export model
-- Human authority model
-- Adopted CAM capabilities map
+Current capabilities:
+- Strategy packages validated against semantic contract
+- Execution authority claims rejected
+- Human-readable review packets generated
+- Non-execution boundary enforced throughout
