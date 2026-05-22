@@ -61,6 +61,20 @@ python scripts/validate_manifest.py examples/valid/fret_slot_strategy_manifest.j
 Validates a strategy package manifest that bundles strategy JSON, review packet, and geometry references.
 See [docs/strategy_packages/STRATEGY_PACKAGE_MANIFEST.md](docs/strategy_packages/STRATEGY_PACKAGE_MANIFEST.md) for format details.
 
+### Assemble Strategy Package
+
+```bash
+python scripts/assemble_strategy_package.py examples/valid/fret_slot_strategy.json
+python scripts/assemble_strategy_package.py strategy.json --out ./my_package --force
+```
+
+Assembles a complete strategy package from a validated strategy JSON. Creates a directory with:
+- `strategy.json` — Copy of validated input
+- `review_packet.md` — Generated review document
+- `manifest.json` — Package manifest
+
+See [docs/strategy_packages/STRATEGY_PACKAGE_ASSEMBLY.md](docs/strategy_packages/STRATEGY_PACKAGE_ASSEMBLY.md) for details.
+
 ## Repository Structure
 
 ```
@@ -73,6 +87,7 @@ docs/
   REVIEW_PACKET_FORMAT.md            # Review packet documentation
   strategy_packages/
     STRATEGY_PACKAGE_MANIFEST.md     # Manifest format documentation
+    STRATEGY_PACKAGE_ASSEMBLY.md     # Assembly CLI documentation
 
 schemas/
   operation.schema.json              # Operation definition schema
@@ -83,10 +98,13 @@ scripts/
   validate_strategy_package.py       # Schema validator (A2)
   generate_review_packet.py          # Review packet generator (A3)
   validate_manifest.py               # Manifest validator (A4)
+  assemble_strategy_package.py       # Package assembler (A5)
+  version.py                         # Version constant
 
 examples/
   valid/                             # Valid strategy examples
   invalid/                           # Invalid examples for testing
+  packages/                          # Assembled package examples
 
 samples/
   fret-slot-strategy/                # Reference implementation
@@ -109,10 +127,12 @@ samples/
 | CAM-A2 | Complete | Strategy package contract enforcement |
 | CAM-A3 | Complete | Review packet generator |
 | CAM-A4 | Complete | Strategy package manifest |
+| CAM-A5 | Complete | Strategy package assembly CLI |
 
 Current capabilities:
 - Strategy packages validated against semantic contract
 - Execution authority claims rejected
 - Human-readable review packets generated
 - Strategy package manifests bundle artifacts for handoff
+- Complete packages assembled from single strategy input
 - Non-execution boundary enforced throughout

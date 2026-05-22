@@ -145,3 +145,7 @@ Strategy package manifests do **not**:
 - Bypass human review requirements
 
 They are a **documentation and handoff format**, not an execution format.
+
+## See Also
+
+- [STRATEGY_PACKAGE_ASSEMBLY.md](STRATEGY_PACKAGE_ASSEMBLY.md) — CLI for assembling complete packages
