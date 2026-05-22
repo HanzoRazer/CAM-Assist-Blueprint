@@ -204,6 +204,20 @@ Provides:
 
 ---
 
+### CAM-A7 — Strategy Package Index
+
+Generates navigable indexes of package collections.
+
+Provides:
+
+- recursive package discovery
+- validity summary
+- Markdown index output
+- optional JSON index
+- collection-level metadata
+
+---
+
 ## Repository Structure
 
 ```
@@ -226,6 +240,7 @@ scripts/                # CLI tools
   validate_manifest.py
   assemble_strategy_package.py
   inspect_strategy_package.py
+  index_strategy_packages.py
   version.py
 
 tests/                  # Test suite
@@ -272,6 +287,9 @@ portable review package (A5)
 package inspection (A6)
     |
     v
+package index (A7)
+    |
+    v
 human review
     |
     v
@@ -313,6 +331,13 @@ python scripts/assemble_strategy_package.py strategy.json --out ./my_package --f
 python scripts/inspect_strategy_package.py examples/packages/fret_slot_strategy_example/
 python scripts/inspect_strategy_package.py <package_dir> --json
 python scripts/inspect_strategy_package.py <package_dir> --quiet
+```
+
+### Index Packages
+
+```bash
+python scripts/index_strategy_packages.py examples/packages/
+python scripts/index_strategy_packages.py examples/packages/ --json-out index.json
 ```
 
 ### Run Tests
