@@ -336,7 +336,7 @@ Planned exploration areas include:
 
 ## License
 
-TBD
+MIT
 
 ---
 
