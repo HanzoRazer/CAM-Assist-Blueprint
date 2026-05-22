@@ -1,138 +1,354 @@
-# CAM Assist Blueprint
+# CAM-Assist-Blueprint
 
-**Human-guided lutherie manufacturing intelligence**
+Human-guided manufacturing intelligence for CNC lutherie workflows.
 
-CAM Assist is not a CAM system. It is a strategy assistant that helps luthiers translate instrument design intent into reviewable, portable manufacturing strategies.
+---
 
-## What CAM Assist Does
+## Overview
 
-- Translates lutherie operations into explicit, portable strategy packages
-- Produces DXF geometry + strategy metadata + human review checklists
-- Keeps humans in authority over all manufacturing decisions
-- Makes manufacturing intent visible before any machine runs
+CAM Assist Blueprint is a research and architecture project exploring how software can augment expert lutherie manufacturing workflows through:
 
-## What CAM Assist Does Not Do
+- geometry-aware machining assistance
+- operational review tooling
+- manufacturing strategy packaging
+- process intelligence
+- topology-sensitive workflow guidance
+- human-supervised CAM review systems
 
-- Generate G-code directly
-- Control machines
-- Replace CAM software
-- Make autonomous manufacturing decisions
-- Produce toolpaths without human approval
+The project focuses on helping instrument builders transform design intent into:
 
-## First Implementation Slice
+```
+reviewable
+manufacturable
+portable
+human-approved
+```
 
-**Strategy Export Assistant** for fret slot operations.
+manufacturing strategy packages.
 
-Produces:
-- DXF geometry with slot positions
-- Strategy JSON with operation parameters
-- Human review checklist
-- Approval workflow metadata
+CAM Assist is intentionally designed as an **assistance system**, not an autonomous manufacturing engine.
 
-See [docs/CAM_ASSIST_SYSTEM_DEFINITION.md](docs/CAM_ASSIST_SYSTEM_DEFINITION.md) for full product definition.
+---
+
+## Current Project Status
+
+```
+Blueprint / Architecture Phase
+```
+
+This repository currently defines:
+
+- manufacturing strategy schemas
+- validation contracts
+- review packet generation
+- package manifests
+- provenance-aware assembly workflows
+- human authority boundaries
+
+No production CAM runtime or machine execution engine exists in this repository.
+
+---
+
+## Core Philosophy
+
+CAM Assist is built around a simple principle:
+
+```
+Manufacturing assistance does not imply manufacturing authority.
+```
+
+The system may:
+
+- analyze
+- validate
+- organize
+- review
+- package
+- annotate
+
+manufacturing intent.
+
+The system may not:
+
+- autonomously authorize machining
+- claim execution authority
+- replace operator review
+- generate unattended manufacturing execution
+
+---
+
+## Non-Goals
+
+CAM Assist is **not**:
+
+- autonomous manufacturing AI
+- a push-button CNC generator
+- a machine controller
+- a generic CAM replacement
+- unattended machining automation
+- a self-authoring manufacturing system
+
+This project intentionally preserves:
+
+```
+human review
+operator authority
+craft expertise
+manufacturing accountability
+```
+
+---
+
+## Current Architecture
+
+### CAM-A0 — Repository Foundation
+
+Established:
+
+- repository identity
+- workflow philosophy
+- non-goals
+- operation taxonomy direction
+- human authority model
+
+---
+
+### CAM-A1 — Fret Slot Strategy Contract
+
+Introduced the first bounded manufacturing strategy:
+
+```
+fret_slot_strategy
+```
+
+Including:
+
+- strategy schema
+- coordinate frame definition
+- provenance requirements
+- material context
+- safety boundary metadata
+- review requirements
+
+---
+
+### CAM-A2 — Strategy Validation
+
+Added executable validation:
+
+- schema enforcement
+- authority rejection
+- execution-authority blocking
+- review requirement enforcement
+- validation CLI tooling
+
+Critical rule enforced:
+
+```
+execution_authority_claim == false
+```
+
+---
+
+### CAM-A3 — Review Packet Generator
+
+Generates human-readable review packets from validated strategy packages.
+
+Outputs include:
+
+- operation summaries
+- material assumptions
+- safety boundaries
+- review checklists
+- warnings
+- explicit non-execution declarations
+
+---
+
+### CAM-A4 — Strategy Package Manifest
+
+Introduced portable package manifests that bundle:
+
+- strategy JSON
+- review packet
+- provenance metadata
+- authority constraints
+
+---
+
+### CAM-A5 — Strategy Package Assembly
+
+Assembles complete reviewable package directories from validated manufacturing strategies.
+
+Package contents:
+
+```
+strategy.json
+review_packet.md
+manifest.json
+```
+
+---
+
+## Repository Structure
+
+```
+docs/
+  operations/           # Operation-specific documentation
+  strategy_packages/    # Package format documentation
+  workflow/             # Workflow models
+  vision/               # Future direction
+
+examples/
+  valid/                # Valid strategy examples
+  invalid/              # Invalid examples for testing
+  packages/             # Assembled package examples
+
+schemas/                # JSON Schema definitions
+
+scripts/                # CLI tools
+  validate_strategy_package.py
+  generate_review_packet.py
+  validate_manifest.py
+  assemble_strategy_package.py
+  version.py
+
+tests/                  # Test suite
+```
+
+---
+
+## First Operation Focus
+
+The first bounded operation is:
+
+```
+fret_slot_strategy
+```
+
+This operation was chosen because it is:
+
+- lutherie-specific
+- mathematically constrained
+- high-value
+- reviewable
+- does not require full 3D CAM generation
+
+---
+
+## Strategy Package Flow
+
+```
+strategy JSON
+    |
+    v
+validation (A2)
+    |
+    v
+review packet generation (A3)
+    |
+    v
+manifest generation (A4)
+    |
+    v
+portable review package (A5)
+    |
+    v
+human review
+    |
+    v
+downstream CAM tooling
+```
+
+---
 
 ## CLI Tools
 
-### Validate Strategy Package
+### Validate Strategy
 
 ```bash
 python scripts/validate_strategy_package.py examples/valid/fret_slot_strategy.json
-python scripts/validate_strategy_package.py examples/
 ```
-
-Validates strategy packages against the schema contract. Rejects execution authority claims.
 
 ### Generate Review Packet
 
 ```bash
 python scripts/generate_review_packet.py examples/valid/fret_slot_strategy.json
-python scripts/generate_review_packet.py examples/valid/fret_slot_strategy.json --out /tmp/review.md
 ```
 
-Generates a human-readable Markdown review packet from a validated strategy package.
-See [docs/REVIEW_PACKET_FORMAT.md](docs/REVIEW_PACKET_FORMAT.md) for format details.
-
-### Validate Strategy Package Manifest
+### Validate Manifest
 
 ```bash
 python scripts/validate_manifest.py examples/valid/fret_slot_strategy_manifest.json
 ```
 
-Validates a strategy package manifest that bundles strategy JSON, review packet, and geometry references.
-See [docs/strategy_packages/STRATEGY_PACKAGE_MANIFEST.md](docs/strategy_packages/STRATEGY_PACKAGE_MANIFEST.md) for format details.
-
-### Assemble Strategy Package
+### Assemble Package
 
 ```bash
 python scripts/assemble_strategy_package.py examples/valid/fret_slot_strategy.json
 python scripts/assemble_strategy_package.py strategy.json --out ./my_package --force
 ```
 
-Assembles a complete strategy package from a validated strategy JSON. Creates a directory with:
-- `strategy.json` — Copy of validated input
-- `review_packet.md` — Generated review document
-- `manifest.json` — Package manifest
+### Run Tests
 
-See [docs/strategy_packages/STRATEGY_PACKAGE_ASSEMBLY.md](docs/strategy_packages/STRATEGY_PACKAGE_ASSEMBLY.md) for details.
-
-## Repository Structure
-
-```
-docs/
-  CAM_ASSIST_SYSTEM_DEFINITION.md    # Product identity and boundaries
-  LUTHERIE_WORKFLOW_MODEL.md         # How lutherie manufacturing works
-  CAM_ASSIST_OPERATION_TAXONOMY.md   # Supported operation types
-  HUMAN_AUTHORITY_MODEL.md           # Human approval requirements
-  ADOPTED_CAM_CAPABILITIES.md        # What CAM capabilities we adopt vs. avoid
-  REVIEW_PACKET_FORMAT.md            # Review packet documentation
-  strategy_packages/
-    STRATEGY_PACKAGE_MANIFEST.md     # Manifest format documentation
-    STRATEGY_PACKAGE_ASSEMBLY.md     # Assembly CLI documentation
-
-schemas/
-  operation.schema.json              # Operation definition schema
-  strategy.schema.json               # Strategy package schema (v1.2)
-  strategy_package_manifest.schema.json  # Manifest schema (A4)
-
-scripts/
-  validate_strategy_package.py       # Schema validator (A2)
-  generate_review_packet.py          # Review packet generator (A3)
-  validate_manifest.py               # Manifest validator (A4)
-  assemble_strategy_package.py       # Package assembler (A5)
-  version.py                         # Version constant
-
-examples/
-  valid/                             # Valid strategy examples
-  invalid/                           # Invalid examples for testing
-  packages/                          # Assembled package examples
-
-samples/
-  fret-slot-strategy/                # Reference implementation
+```bash
+pytest
 ```
 
-## Design Principles
+---
 
-1. **Human authority is non-negotiable** — Every manufacturing decision requires human approval
-2. **Intent before execution** — Strategy packages make intent explicit before any machine runs
-3. **Lutherie-specific** — Designed for instrument making, not generic manufacturing
-4. **Portable output** — DXF + JSON can be used with any downstream CAM/machine
-5. **Reviewable** — Every strategy includes a human-readable checklist
+## Design Direction
 
-## Project Status
+CAM Assist is evolving toward:
 
-| Milestone | Status | Description |
-|-----------|--------|-------------|
-| CAM-A0 | Complete | Repository foundation and system definition |
-| CAM-A1 | Complete | Schema validation foundation |
-| CAM-A2 | Complete | Strategy package contract enforcement |
-| CAM-A3 | Complete | Review packet generator |
-| CAM-A4 | Complete | Strategy package manifest |
-| CAM-A5 | Complete | Strategy package assembly CLI |
+```
+geometry-aware manufacturing cognition
+for lutherie workflows
+```
 
-Current capabilities:
-- Strategy packages validated against semantic contract
-- Execution authority claims rejected
-- Human-readable review packets generated
-- Strategy package manifests bundle artifacts for handoff
-- Complete packages assembled from single strategy input
-- Non-execution boundary enforced throughout
+The long-term goal is not generic CAM replacement.
+
+The long-term goal is:
+
+- manufacturing strategy assistance
+- topology-aware operation planning
+- setup validation
+- review systems
+- fixture-aware workflow support
+- expert manufacturing augmentation
+
+---
+
+## Future Areas
+
+Planned exploration areas include:
+
+- neck profiling strategies
+- binding channel workflows
+- rosette machining strategies
+- fixture modeling
+- topology-sensitive operations
+- manufacturability review systems
+- simulation guidance
+- machine capability abstraction
+
+---
+
+## License
+
+TBD
+
+---
+
+## Status Notice
+
+This repository is currently:
+
+```
+research
+architecture
+workflow design
+manufacturing strategy exploration
+```
+
+It is not production machining software.
