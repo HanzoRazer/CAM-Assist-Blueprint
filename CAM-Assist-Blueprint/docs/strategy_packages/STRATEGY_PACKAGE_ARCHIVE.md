@@ -105,7 +105,10 @@ python scripts/assemble_strategy_package.py strategy.json --out ./my_package
 python scripts/inspect_strategy_package.py ./my_package
 python scripts/archive_strategy_package.py ./my_package
 
-# Verify archive contents
+# Validate archive before import
+python scripts/validate_package_archive.py my_package.zip
+
+# Verify archive contents manually
 python -m zipfile -l my_package.zip
 ```
 
@@ -131,6 +134,7 @@ It creates **portable archives** for sharing, attachment, and storage.
 
 ## See Also
 
+- [STRATEGY_PACKAGE_IMPORT_VALIDATION.md](STRATEGY_PACKAGE_IMPORT_VALIDATION.md) — Archive import validator
 - [STRATEGY_PACKAGE_INSPECTION.md](STRATEGY_PACKAGE_INSPECTION.md) — Package inspection CLI
 - [STRATEGY_PACKAGE_INDEX.md](STRATEGY_PACKAGE_INDEX.md) — Package index generator
 - [STRATEGY_PACKAGE_ASSEMBLY.md](STRATEGY_PACKAGE_ASSEMBLY.md) — Package assembly CLI
