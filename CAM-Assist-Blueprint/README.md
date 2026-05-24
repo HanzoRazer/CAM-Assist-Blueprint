@@ -260,6 +260,20 @@ Provides:
 
 ---
 
+### CAM-A11 — Staged Package Review Queue Index
+
+Generates review queue indexes from staged packages.
+
+Provides:
+
+- recursive staged package discovery
+- validity and warning summary
+- human review requirement visibility
+- Markdown and JSON queue output
+- no execution or approval authority
+
+---
+
 ## Repository Structure
 
 ```
@@ -286,6 +300,7 @@ scripts/                # CLI tools
   archive_strategy_package.py
   validate_package_archive.py
   stage_strategy_package.py
+  index_staged_packages.py
   version.py
 
 tests/                  # Test suite
@@ -342,6 +357,9 @@ archive validation (A9)
     |
     v
 import staging (A10)
+    |
+    v
+review queue (A11)
     |
     v
 human review
@@ -415,6 +433,14 @@ python scripts/validate_package_archive.py package.zip --quiet
 python scripts/stage_strategy_package.py package.zip
 python scripts/stage_strategy_package.py package.zip --out ./staging/ --force
 python scripts/stage_strategy_package.py package.zip --quiet
+```
+
+### Generate Review Queue
+
+```bash
+python scripts/index_staged_packages.py staged_packages/
+python scripts/index_staged_packages.py staged_packages/ --json-out review_queue.json
+python scripts/index_staged_packages.py staged_packages/ --quiet
 ```
 
 ### Run Tests

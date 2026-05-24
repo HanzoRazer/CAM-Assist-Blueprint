@@ -153,6 +153,7 @@ It stages validated archives for **human review**.
 
 ## See Also
 
+- [STAGED_PACKAGE_REVIEW_QUEUE.md](STAGED_PACKAGE_REVIEW_QUEUE.md) — Review queue generator
 - [STRATEGY_PACKAGE_IMPORT_VALIDATION.md](STRATEGY_PACKAGE_IMPORT_VALIDATION.md) — Archive validation CLI
 - [STRATEGY_PACKAGE_ARCHIVE.md](STRATEGY_PACKAGE_ARCHIVE.md) — Archive creation CLI
 - [STRATEGY_PACKAGE_INSPECTION.md](STRATEGY_PACKAGE_INSPECTION.md) — Package inspection CLI
