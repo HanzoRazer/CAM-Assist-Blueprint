@@ -154,6 +154,7 @@ It generates a **review queue** for human operators.
 
 ## See Also
 
+- [REVIEW_DECISION_RECORD.md](REVIEW_DECISION_RECORD.md) — Review decision recorder
 - [STRATEGY_PACKAGE_IMPORT_STAGING.md](STRATEGY_PACKAGE_IMPORT_STAGING.md) — Import staging CLI
 - [STRATEGY_PACKAGE_IMPORT_VALIDATION.md](STRATEGY_PACKAGE_IMPORT_VALIDATION.md) — Archive validation CLI
 - [STRATEGY_PACKAGE_INDEX.md](STRATEGY_PACKAGE_INDEX.md) — Package index generator
