@@ -180,6 +180,7 @@ It validates archives for **safe review and inspection**.
 
 ## See Also
 
+- [STRATEGY_PACKAGE_IMPORT_STAGING.md](STRATEGY_PACKAGE_IMPORT_STAGING.md) — Import staging CLI
 - [STRATEGY_PACKAGE_ARCHIVE.md](STRATEGY_PACKAGE_ARCHIVE.md) — Archive creation CLI
 - [STRATEGY_PACKAGE_INSPECTION.md](STRATEGY_PACKAGE_INSPECTION.md) — Package inspection CLI
 - [STRATEGY_PACKAGE_ASSEMBLY.md](STRATEGY_PACKAGE_ASSEMBLY.md) — Package assembly CLI

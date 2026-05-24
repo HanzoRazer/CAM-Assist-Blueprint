@@ -246,6 +246,20 @@ Provides:
 
 ---
 
+### CAM-A10 — Strategy Package Import Staging
+
+Stages validated archives into local review directories.
+
+Provides:
+
+- archive validation before staging
+- controlled extraction into review root
+- overwrite protection
+- subdirectory preservation
+- no execution or modification of staged content
+
+---
+
 ## Repository Structure
 
 ```
@@ -271,6 +285,7 @@ scripts/                # CLI tools
   index_strategy_packages.py
   archive_strategy_package.py
   validate_package_archive.py
+  stage_strategy_package.py
   version.py
 
 tests/                  # Test suite
@@ -324,6 +339,9 @@ package archive (A8)
     |
     v
 archive validation (A9)
+    |
+    v
+import staging (A10)
     |
     v
 human review
@@ -389,6 +407,14 @@ python scripts/archive_strategy_package.py <package_dir> --out /tmp/archive.zip 
 python scripts/validate_package_archive.py package.zip
 python scripts/validate_package_archive.py package.zip --json
 python scripts/validate_package_archive.py package.zip --quiet
+```
+
+### Stage Package
+
+```bash
+python scripts/stage_strategy_package.py package.zip
+python scripts/stage_strategy_package.py package.zip --out ./staging/ --force
+python scripts/stage_strategy_package.py package.zip --quiet
 ```
 
 ### Run Tests
