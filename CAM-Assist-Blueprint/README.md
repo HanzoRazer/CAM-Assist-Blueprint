@@ -274,6 +274,20 @@ Provides:
 
 ---
 
+### CAM-A12 — Review Decision Record
+
+Records human review decisions for staged packages.
+
+Provides:
+
+- decision recording (approve, reject, needs_revision)
+- reviewer identification
+- decision authority constraints
+- sibling file output (package not mutated)
+- no machine execution authorization
+
+---
+
 ## Repository Structure
 
 ```
@@ -287,6 +301,7 @@ examples/
   valid/                # Valid strategy examples
   invalid/              # Invalid examples for testing
   packages/             # Assembled package examples
+  review_decisions/     # Example review decisions
 
 schemas/                # JSON Schema definitions
 
@@ -301,6 +316,7 @@ scripts/                # CLI tools
   validate_package_archive.py
   stage_strategy_package.py
   index_staged_packages.py
+  record_review_decision.py
   version.py
 
 tests/                  # Test suite
@@ -363,6 +379,9 @@ review queue (A11)
     |
     v
 human review
+    |
+    v
+review decision (A12)
     |
     v
 downstream CAM tooling
@@ -441,6 +460,15 @@ python scripts/stage_strategy_package.py package.zip --quiet
 python scripts/index_staged_packages.py staged_packages/
 python scripts/index_staged_packages.py staged_packages/ --json-out review_queue.json
 python scripts/index_staged_packages.py staged_packages/ --quiet
+```
+
+### Record Review Decision
+
+```bash
+python scripts/record_review_decision.py staged_packages/package \
+    --decision approve_for_downstream_cam \
+    --reviewer "Reviewer Name" \
+    --notes "All checks passed."
 ```
 
 ### Run Tests
