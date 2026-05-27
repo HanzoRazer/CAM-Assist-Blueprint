@@ -34,6 +34,7 @@
   "safety_boundary": {
     "non_execution_declaration": true,
     "human_review_required": true,
+    "execution_authority_claim": false,
     "max_depth_inches": 0.06,
     "tool_diameter_inches": 0.023
   },
