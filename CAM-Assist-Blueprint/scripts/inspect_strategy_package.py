@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 KNOWN_MANIFEST_VERSIONS = ["1.0.0", "1.1.0"]
+VALID_SEVERITIES = ["info", "warning", "concern", "blocking"]
 MIN_REVIEW_PACKET_SIZE = 1024  # 1 KB
 
 
@@ -213,7 +214,55 @@ def inspect_package(package_dir: Path) -> InspectionResult:
     )
 
 
-def format_terminal_output(result: InspectionResult) -> str:
+def load_annotations(path: Path) -> tuple[dict | None, str | None]:
+    """Load annotations file. Returns (data, error)."""
+    if not path.exists():
+        return None, f"Annotations file not found: {path}"
+    data, error = load_json(path)
+    if error:
+        return None, f"Failed to load annotations: {error}"
+    return data, None
+
+
+def format_annotations_section(annotations_data: dict, quiet: bool = False) -> list[str]:
+    """Format annotations for terminal display."""
+    lines = []
+    lines.append("Review Annotations:")
+
+    annotations = annotations_data.get("annotations", [])
+    if not annotations:
+        lines.append("  total: 0")
+        return lines
+
+    # Count by severity
+    counts = {"blocking": 0, "concern": 0, "warning": 0, "info": 0}
+    for ann in annotations:
+        severity = ann.get("severity", "")
+        if severity in counts:
+            counts[severity] += 1
+
+    # Summary counts
+    lines.append(f"  total: {len(annotations)}")
+    lines.append(f"  blocking: {counts['blocking']}")
+    lines.append(f"  concerns: {counts['concern']}")
+    lines.append(f"  warnings: {counts['warning']}")
+    lines.append(f"  info: {counts['info']}")
+
+    # Individual entries (unless quiet)
+    if not quiet and annotations:
+        lines.append("")
+        for ann in annotations:
+            severity = ann.get("severity", "?")
+            category = ann.get("category", "?")
+            message = ann.get("message", "")
+
+            severity_tag = f"[{severity.upper()}]"
+            lines.append(f"  {severity_tag} {category} — {message}")
+
+    return lines
+
+
+def format_terminal_output(result: InspectionResult, annotations_data: dict | None = None) -> str:
     """Format inspection result for terminal display."""
     lines = []
     lines.append("CAM Assist Strategy Package Inspection")
@@ -298,7 +347,13 @@ def format_terminal_output(result: InspectionResult) -> str:
             lines.append(f"  [FAIL] {error}")
         lines.append("")
 
+    # Annotations section (if provided)
+    if annotations_data:
+        lines.append("")
+        lines.extend(format_annotations_section(annotations_data))
+
     # Non-execution notice
+    lines.append("")
     lines.append("-" * 39)
     lines.append("This package is advisory only.")
     lines.append("No machine execution authority is present.")
@@ -307,7 +362,7 @@ def format_terminal_output(result: InspectionResult) -> str:
     return "\n".join(lines)
 
 
-def format_json_output(result: InspectionResult) -> str:
+def format_json_output(result: InspectionResult, annotations_data: dict | None = None) -> str:
     """Format inspection result as JSON."""
     output = {
         "valid": result.valid,
@@ -322,6 +377,8 @@ def format_json_output(result: InspectionResult) -> str:
     }
     if result.errors:
         output["errors"] = result.errors
+    if annotations_data:
+        output["annotations"] = annotations_data.get("annotations", [])
     return json.dumps(output, indent=2)
 
 
@@ -354,6 +411,12 @@ def main() -> int:
         action="store_true",
         help="Only print pass/fail summary",
     )
+    parser.add_argument(
+        "--annotations",
+        type=Path,
+        default=None,
+        help="Path to a review annotations file to display alongside package inspection",
+    )
 
     args = parser.parse_args()
     package_dir: Path = args.package_dir
@@ -364,8 +427,31 @@ def main() -> int:
 
     result = inspect_package(package_dir)
 
+    # Load annotations if specified or found by convention
+    annotations_data = None
+    annotations_path = args.annotations
+
+    if annotations_path:
+        # Explicit path provided
+        if not annotations_path.exists():
+            print(f"Error: Annotations file not found: {annotations_path}", file=sys.stderr)
+            return 2
+    else:
+        # Check conventional path
+        conventional_path = (
+            package_dir.parent / "review_annotations" / f"{package_dir.name}_annotations.json"
+        )
+        if conventional_path.exists():
+            annotations_path = conventional_path
+
+    if annotations_path:
+        annotations_data, ann_error = load_annotations(annotations_path)
+        if ann_error:
+            print(f"Error: {ann_error}", file=sys.stderr)
+            return 2
+
     if args.json:
-        print(format_json_output(result))
+        print(format_json_output(result, annotations_data))
     elif args.quiet:
         output = format_quiet_output(result, package_dir)
         if result.valid:
@@ -373,7 +459,7 @@ def main() -> int:
         else:
             print(output, file=sys.stderr)
     else:
-        print(format_terminal_output(result))
+        print(format_terminal_output(result, annotations_data))
 
     return 0 if result.valid else 1
 

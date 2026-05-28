@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cam-assist.lutherie/schemas/review_annotations.schema.json",
+  "title": "CAM Assist Review Annotations Schema",
+  "description": "Portable reviewer annotations that travel with federated manufacturing review workflows without mutating source packages.",
+  "type": "object",
+  "required": ["record_type", "record_version", "package_reference", "annotations"],
+
+  "properties": {
+    "record_type": {
+      "type": "string",
+      "const": "cam_assist_review_annotations",
+      "description": "Must be 'cam_assist_review_annotations'"
+    },
+
+    "record_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of the annotation record format"
+    },
+
+    "package_reference": {
+      "type": "string",
+      "description": "Reference to the package being annotated. Accepts federated_package_id, relative path, or package directory name."
+    },
+
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when this annotation file was created"
+    },
+
+    "annotations": {
+      "type": "array",
+      "description": "List of review annotations. Annotations are informational only and do not grant execution authority.",
+      "items": {
+        "type": "object",
+        "required": ["annotation_id", "reviewer", "timestamp", "severity", "category", "message"],
+        "properties": {
+          "annotation_id": {
+            "type": "string",
+            "pattern": "^ann-[a-f0-9-]+$",
+            "description": "Unique annotation identifier (format: ann-<uuid>)"
+          },
+          "reviewer": {
+            "type": "string",
+            "description": "Informational reviewer identifier. No trust validation performed."
+          },
+          "jurisdiction": {
+            "type": "string",
+            "description": "Optional review jurisdiction (e.g., manufacturing_review, acoustic_review)"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO-8601 timestamp of the annotation"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["info", "warning", "concern", "blocking"],
+            "description": "Annotation severity level"
+          },
+          "category": {
+            "type": "string",
+            "description": "Free-text category (e.g., tooling, geometry, acoustic, runtime, safety, material, review)"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable annotation message"
+          },
+          "recommended_action": {
+            "type": "string",
+            "description": "Optional recommended action or guidance"
+          }
+        }
+      }
+    },
+
+    "authority": {
+      "type": "object",
+      "description": "Authority constraints for annotations",
+      "properties": {
+        "annotations_are_informational": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. Annotations do not grant execution authority."
+        },
+        "annotations_do_not_approve": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. Annotations do not constitute approval."
+        }
+      }
+    }
+  }
+}

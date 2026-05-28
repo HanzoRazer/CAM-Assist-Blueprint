@@ -288,6 +288,46 @@ Provides:
 
 ---
 
+### CAM-A14 — External Package Identity
+
+Optional federated identity metadata for cross-system interchange.
+
+Provides:
+
+- origin system identification
+- authority domain tagging
+- review jurisdiction metadata
+- federated package ID
+
+---
+
+### CAM-A15 — Federation Presentation + Preservation
+
+Renders and preserves federated identity through inspection and staging.
+
+Provides:
+
+- federated identity section in inspection output
+- archive round-trip preservation
+- staging flow preservation
+- CI invariant compatibility
+
+---
+
+### CAM-A16 — Portable Review Annotations
+
+External sidecar annotation files for federated review workflows.
+
+Provides:
+
+- reviewer annotations without package mutation
+- severity levels (info, warning, concern, blocking)
+- conventional path auto-discovery
+- review decision linkage
+- annotation validation
+
+---
+
 ## Repository Structure
 
 ```
@@ -317,6 +357,8 @@ scripts/                # CLI tools
   stage_strategy_package.py
   index_staged_packages.py
   record_review_decision.py
+  create_review_annotations.py
+  validate_review_annotations.py
   version.py
 
 tests/                  # Test suite
@@ -469,6 +511,23 @@ python scripts/record_review_decision.py staged_packages/package \
     --decision approve_for_downstream_cam \
     --reviewer "Reviewer Name" \
     --notes "All checks passed."
+```
+
+### Create Review Annotation
+
+```bash
+python scripts/create_review_annotations.py \
+    --package examples/packages/ltb_vcarve_synthetic_example \
+    --reviewer "Manufacturing Reviewer" \
+    --severity warning \
+    --category tooling \
+    --message "Tool deflection risk near tight radius."
+```
+
+### Validate Annotations
+
+```bash
+python scripts/validate_review_annotations.py examples/review_annotations/ltb_vcarve_synthetic_example_annotations.json
 ```
 
 ### Run Tests
