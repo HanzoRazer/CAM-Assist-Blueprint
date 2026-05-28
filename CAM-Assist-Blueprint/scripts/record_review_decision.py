@@ -73,6 +73,7 @@ def create_decision_record(
     decision: str,
     reviewer: str,
     notes: str = "",
+    annotation_files: list[str] | None = None,
 ) -> tuple[dict | None, str | None]:
     """
     Create a review decision record for a package.
@@ -122,6 +123,9 @@ def create_decision_record(
             "human_review_recorded": True,
         },
     }
+
+    if annotation_files:
+        record["annotation_files"] = annotation_files
 
     return record, None
 
@@ -213,6 +217,13 @@ def main() -> int:
         help="Optional reviewer notes",
     )
     parser.add_argument(
+        "--annotation-file",
+        type=str,
+        action="append",
+        dest="annotation_files",
+        help="Path to review annotation file that informed this decision (can be repeated)",
+    )
+    parser.add_argument(
         "--out",
         type=Path,
         default=None,
@@ -242,6 +253,7 @@ def main() -> int:
         args.decision,
         args.reviewer,
         args.notes,
+        args.annotation_files,
     )
 
     if error:

@@ -68,6 +68,14 @@
       "description": "Optional reviewer notes"
     },
 
+    "annotation_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Optional list of review annotation file paths that informed this decision"
+    },
+
     "authority": {
       "type": "object",
       "required": [
