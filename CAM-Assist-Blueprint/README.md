@@ -479,6 +479,16 @@ pytest
 
 ---
 
+## Optional Federated Identity
+
+Strategy packages may include optional federated identity metadata for cross-system interchange, such as origin system, authority domain, review jurisdiction, and federated package ID.
+
+These fields are informational only. They do not grant execution authority, validate origin legitimacy, or bypass human review.
+
+See `docs/federation/PACKAGE_IDENTITY_CONVENTIONS.md`.
+
+---
+
 ## Design Direction
 
 CAM Assist is evolving toward:
