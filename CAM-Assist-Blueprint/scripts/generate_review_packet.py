@@ -44,8 +44,13 @@ NON_EXECUTION_NOTICE = """
 """
 
 
-def generate_review_packet(data: dict) -> str:
-    """Generate a Markdown review packet from validated strategy data."""
+def generate_review_packet(data: dict, manifest_data: dict | None = None) -> str:
+    """Generate a Markdown review packet from validated strategy data.
+
+    Args:
+        data: Strategy JSON data
+        manifest_data: Optional manifest JSON for federation metadata
+    """
     lines: list[str] = []
 
     # Title
@@ -56,6 +61,24 @@ def generate_review_packet(data: dict) -> str:
     lines.append(f"**Strategy ID:** `{strategy_id}`")
     lines.append(f"**Generated:** {datetime.now().isoformat()}")
     lines.append("")
+
+    # Federation metadata (CAM-A15) - if manifest provided
+    federation = manifest_data.get("federation") if manifest_data else None
+    if federation:
+        lines.append("---")
+        lines.append("")
+        lines.append("## Federation Identity")
+        lines.append("")
+        lines.append("> *This package carries federal identity metadata for cross-system interchange.*")
+        lines.append("> *Federation metadata does not grant execution authority.*")
+        lines.append("")
+        lines.append("| Field | Value |")
+        lines.append("|-------|-------|")
+        lines.append(f"| Origin System | `{federation.get('origin_system', 'N/A')}` |")
+        lines.append(f"| Authority Domain | `{federation.get('authority_domain', 'N/A')}` |")
+        lines.append(f"| Review Jurisdiction | `{federation.get('review_jurisdiction', 'N/A')}` |")
+        lines.append(f"| Federated Package ID | `{federation.get('federated_package_id', 'N/A')}` |")
+        lines.append("")
 
     # Section 1: Non-Execution Notice
     lines.append("---")
@@ -367,6 +390,12 @@ def main() -> int:
         default=None,
         help="Output path for review packet (default: <input>_review_packet.md)",
     )
+    parser.add_argument(
+        "--manifest", "-m",
+        type=Path,
+        default=None,
+        help="Optional manifest.json for federation metadata (CAM-A14/A15)",
+    )
 
     args = parser.parse_args()
     input_path: Path = args.strategy_json
@@ -416,9 +445,17 @@ def main() -> int:
         )
         return 1
 
+    # Load optional manifest for federation metadata
+    manifest_data = None
+    if args.manifest:
+        manifest_data, manifest_error = load_json(args.manifest)
+        if manifest_error:
+            print(f"WARN: could not load manifest for federation metadata: {manifest_error}", file=sys.stderr)
+            manifest_data = None
+
     # Generate review packet
     try:
-        packet_content = generate_review_packet(data)
+        packet_content = generate_review_packet(data, manifest_data)
     except Exception as e:
         print(f"FAIL: error generating review packet: {e}", file=sys.stderr)
         return 2
