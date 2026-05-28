@@ -347,10 +347,13 @@ def format_terminal_output(result: InspectionResult, annotations_data: dict | No
             lines.append(f"  [FAIL] {error}")
         lines.append("")
 
-    # Annotations section (if provided)
+    # Annotations section (always show in verbose mode)
+    lines.append("")
     if annotations_data:
-        lines.append("")
         lines.extend(format_annotations_section(annotations_data))
+    else:
+        lines.append("Review Annotations:")
+        lines.append("  not declared")
 
     # Non-execution notice
     lines.append("")
@@ -438,9 +441,18 @@ def main() -> int:
             return 2
     else:
         # Check conventional path
-        conventional_path = (
-            package_dir.parent / "review_annotations" / f"{package_dir.name}_annotations.json"
-        )
+        # If under examples/packages/<name>, check examples/review_annotations/<name>_annotations.json
+        # Otherwise, check <package_parent>/review_annotations/<package_name>_annotations.json
+        package_parent = package_dir.parent
+        if package_parent.name == "packages" and package_parent.parent.name == "examples":
+            # examples/packages/<name> -> examples/review_annotations/<name>_annotations.json
+            conventional_path = (
+                package_parent.parent / "review_annotations" / f"{package_dir.name}_annotations.json"
+            )
+        else:
+            conventional_path = (
+                package_parent / "review_annotations" / f"{package_dir.name}_annotations.json"
+            )
         if conventional_path.exists():
             annotations_path = conventional_path
 

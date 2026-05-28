@@ -428,11 +428,20 @@ class TestAnnotationInspection:
         assert len(output["annotations"]) == 1
         assert output["annotations"][0]["severity"] == "concern"
 
+    def test_inspect_shows_not_declared_when_no_annotations(self, valid_package):
+        """Should show 'not declared' when no annotations exist."""
+        exit_code, stdout, stderr = run_script(INSPECT_SCRIPT, str(valid_package))
 
-    def test_inspect_conventional_path_fallback(self, tmp_path):
-        """Should auto-load annotations from conventional path."""
-        # Create package structure
-        packages_dir = tmp_path / "packages"
+        assert exit_code == 0
+        assert "Review Annotations:" in stdout
+        assert "not declared" in stdout
+
+    def test_inspect_conventional_path_fallback_examples(self, tmp_path):
+        """Should auto-load annotations from examples/review_annotations for examples/packages."""
+        # Create examples/packages/<name> structure
+        examples_dir = tmp_path / "examples"
+        examples_dir.mkdir()
+        packages_dir = examples_dir / "packages"
         packages_dir.mkdir()
         package_dir = packages_dir / "test_pkg"
         package_dir.mkdir()
@@ -461,8 +470,8 @@ class TestAnnotationInspection:
         }
         (package_dir / "manifest.json").write_text(json.dumps(manifest))
 
-        # Create annotation at conventional path
-        ann_dir = packages_dir / "review_annotations"
+        # Create annotation at examples/review_annotations/ (sibling of packages/)
+        ann_dir = examples_dir / "review_annotations"
         ann_dir.mkdir()
         ann_path = ann_dir / "test_pkg_annotations.json"
         run_script(
@@ -471,7 +480,7 @@ class TestAnnotationInspection:
             "--reviewer", "test",
             "--severity", "info",
             "--category", "test",
-            "--message", "Conventional path test",
+            "--message", "Examples conventional path test",
             "--out", str(ann_path),
         )
 
@@ -481,7 +490,61 @@ class TestAnnotationInspection:
         assert exit_code == 0
         assert "Review Annotations:" in stdout
         assert "total: 1" in stdout
-        assert "Conventional path test" in stdout
+        assert "Examples conventional path test" in stdout
+
+    def test_inspect_conventional_path_fallback_generic(self, tmp_path):
+        """Should auto-load annotations from sibling review_annotations for non-examples packages."""
+        # Create generic package structure (not under examples/packages)
+        packages_dir = tmp_path / "my_packages"
+        packages_dir.mkdir()
+        package_dir = packages_dir / "test_pkg"
+        package_dir.mkdir()
+
+        strategy = {
+            "strategy_version": "1.0",
+            "strategy_id": "test",
+            "units": "mm",
+            "coordinate_frame": {"origin": "nut", "x_axis": "x", "y_axis": "y", "z_axis": "z"},
+            "provenance": {"source_spec_id": "test", "cam_assist_version": "0.5.0", "created_at": "2026-05-28T00:00:00Z"},
+            "operation_intent": {"operation_type": "test", "target_feature": "test", "non_execution_declaration": True},
+            "material_context": {"material_class": "test"},
+            "safety_boundary": {"non_execution_declaration": True, "human_review_required": True, "execution_authority_claim": False},
+            "approval_state": "pending",
+        }
+        (package_dir / "strategy.json").write_text(json.dumps(strategy))
+        (package_dir / "review_packet.md").write_text("# Review\n\n" + "content " * 200)
+        manifest = {
+            "manifest_version": "1.0.0",
+            "package_type": "cam_assist_strategy_package",
+            "operation_type": "test",
+            "strategy_file": "strategy.json",
+            "review_packet_file": "review_packet.md",
+            "created_at": "2026-05-28T00:00:00Z",
+            "authority": {"non_execution_declaration": True, "execution_authority_claim": False, "requires_human_review": True},
+        }
+        (package_dir / "manifest.json").write_text(json.dumps(manifest))
+
+        # Create annotation at sibling review_annotations/
+        ann_dir = packages_dir / "review_annotations"
+        ann_dir.mkdir()
+        ann_path = ann_dir / "test_pkg_annotations.json"
+        run_script(
+            CREATE_SCRIPT,
+            "--package", str(package_dir),
+            "--reviewer", "test",
+            "--severity", "warning",
+            "--category", "test",
+            "--message", "Generic conventional path test",
+            "--out", str(ann_path),
+        )
+
+        # Inspect without --annotations flag
+        exit_code, stdout, stderr = run_script(INSPECT_SCRIPT, str(package_dir))
+
+        assert exit_code == 0
+        assert "Review Annotations:" in stdout
+        assert "total: 1" in stdout
+        assert "Generic conventional path test" in stdout
 
 
 class TestReviewDecisionIntegration:
