@@ -445,10 +445,18 @@ def main() -> int:
         )
         return 1
 
-    # Load optional manifest for federation metadata
+    # Load manifest for federation metadata (auto-detect or explicit)
     manifest_data = None
-    if args.manifest:
-        manifest_data, manifest_error = load_json(args.manifest)
+    manifest_path = args.manifest
+
+    # Auto-detect manifest.json in same directory as strategy file
+    if manifest_path is None:
+        auto_manifest = input_path.parent / "manifest.json"
+        if auto_manifest.exists():
+            manifest_path = auto_manifest
+
+    if manifest_path:
+        manifest_data, manifest_error = load_json(manifest_path)
         if manifest_error:
             print(f"WARN: could not load manifest for federation metadata: {manifest_error}", file=sys.stderr)
             manifest_data = None

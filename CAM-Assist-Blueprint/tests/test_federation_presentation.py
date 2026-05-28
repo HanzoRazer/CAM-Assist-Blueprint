@@ -21,6 +21,8 @@ EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
 
 INSPECT_SCRIPT = SCRIPTS_DIR / "inspect_strategy_package.py"
 ARCHIVE_SCRIPT = SCRIPTS_DIR / "archive_strategy_package.py"
+VALIDATE_ARCHIVE_SCRIPT = SCRIPTS_DIR / "validate_package_archive.py"
+STAGE_SCRIPT = SCRIPTS_DIR / "stage_strategy_package.py"
 INVARIANT_SCRIPT = SCRIPTS_DIR / "verify_non_execution_invariant.py"
 
 
@@ -113,11 +115,11 @@ class TestInspectionRendersFederation:
     """Tests for federation metadata rendering in inspection."""
 
     def test_inspect_terminal_shows_federation(self, federated_package):
-        """Terminal inspection output should include Federation section."""
+        """Terminal inspection output should include Federated Identity section."""
         exit_code, stdout, stderr = run_script(INSPECT_SCRIPT, str(federated_package))
 
         assert exit_code == 0, f"Inspection failed: {stderr}"
-        assert "Federation:" in stdout
+        assert "Federated Identity:" in stdout
         assert "origin_system: test-system" in stdout
         assert "authority_domain: test_authority" in stdout
         assert "review_jurisdiction: test_review" in stdout
@@ -138,8 +140,8 @@ class TestInspectionRendersFederation:
         assert output["federation"]["review_jurisdiction"] == "test_review"
         assert output["federation"]["federated_package_id"] == "test-system:test:001"
 
-    def test_inspect_shows_not_federated_when_missing(self, tmp_path):
-        """Non-federated packages should show '[not federated]'."""
+    def test_inspect_shows_not_declared_when_missing(self, tmp_path):
+        """Non-federated packages should show 'not declared'."""
         package_dir = tmp_path / "non_federated"
         package_dir.mkdir()
 
@@ -176,7 +178,7 @@ class TestInspectionRendersFederation:
         exit_code, stdout, stderr = run_script(INSPECT_SCRIPT, str(package_dir))
 
         assert exit_code == 0
-        assert "[not federated]" in stdout
+        assert "not declared" in stdout
 
 
 class TestArchiveRoundTrip:
@@ -233,6 +235,80 @@ class TestArchiveRoundTrip:
 
         # Verify federation preserved
         manifest_data = json.loads((extract_dir / "manifest.json").read_text())
+        assert "federation" in manifest_data
+        assert manifest_data["federation"]["origin_system"] == "luthiers-toolbox"
+
+
+class TestStagingPreservation:
+    """Tests for federation field preservation through full staging flow."""
+
+    def test_full_staging_flow_preserves_federation(self, federated_package, tmp_path):
+        """
+        Federation fields should survive full staging flow:
+        manifest → archive → validate → stage → staged manifest
+        """
+        archive_path = tmp_path / "test_archive.zip"
+        staging_dir = tmp_path / "staged"
+
+        # Step 1: Archive the package
+        exit_code, stdout, stderr = run_script(
+            ARCHIVE_SCRIPT, str(federated_package), "--out", str(archive_path)
+        )
+        assert exit_code == 0, f"Archive failed: {stderr}"
+        assert archive_path.exists()
+
+        # Step 2: Validate the archive
+        exit_code, stdout, stderr = run_script(
+            VALIDATE_ARCHIVE_SCRIPT, str(archive_path)
+        )
+        assert exit_code == 0, f"Archive validation failed: {stderr}"
+
+        # Step 3: Stage the archive
+        exit_code, stdout, stderr = run_script(
+            STAGE_SCRIPT, str(archive_path), "--out", str(staging_dir)
+        )
+        assert exit_code == 0, f"Staging failed: {stderr}"
+
+        # Step 4: Verify staged manifest has federation fields
+        staged_manifest = staging_dir / "test_archive" / "manifest.json"
+        assert staged_manifest.exists(), "Staged manifest not found"
+
+        manifest_data = json.loads(staged_manifest.read_text())
+        assert "federation" in manifest_data, "Federation fields lost during staging"
+
+        federation = manifest_data["federation"]
+        assert federation["origin_system"] == "test-system"
+        assert federation["authority_domain"] == "test_authority"
+        assert federation["review_jurisdiction"] == "test_review"
+        assert federation["federated_package_id"] == "test-system:test:001"
+
+    def test_ltb_example_full_staging_flow(self, tmp_path):
+        """LTB V-Carve example federation should survive full staging flow."""
+        example_dir = EXAMPLES_DIR / "packages" / "ltb_vcarve_synthetic_example"
+        if not example_dir.exists():
+            pytest.skip("LTB V-Carve example not found")
+
+        archive_path = tmp_path / "ltb_example.zip"
+        staging_dir = tmp_path / "staged"
+
+        # Archive → Validate → Stage
+        exit_code, _, stderr = run_script(
+            ARCHIVE_SCRIPT, str(example_dir), "--out", str(archive_path)
+        )
+        assert exit_code == 0, f"Archive failed: {stderr}"
+
+        exit_code, _, stderr = run_script(VALIDATE_ARCHIVE_SCRIPT, str(archive_path))
+        assert exit_code == 0, f"Validation failed: {stderr}"
+
+        exit_code, _, stderr = run_script(
+            STAGE_SCRIPT, str(archive_path), "--out", str(staging_dir)
+        )
+        assert exit_code == 0, f"Staging failed: {stderr}"
+
+        # Verify federation preserved
+        staged_manifest = staging_dir / "ltb_example" / "manifest.json"
+        manifest_data = json.loads(staged_manifest.read_text())
+
         assert "federation" in manifest_data
         assert manifest_data["federation"]["origin_system"] == "luthiers-toolbox"
 

@@ -271,15 +271,15 @@ def format_terminal_output(result: InspectionResult) -> str:
         lines.append("  [MISSING]")
     lines.append("")
 
-    # Federation (CAM-A14/A15)
-    lines.append("Federation:")
+    # Federated Identity (CAM-A14/A15)
+    lines.append("Federated Identity:")
     if result.federation:
         lines.append(f"  origin_system: {result.federation.get('origin_system', 'none')}")
         lines.append(f"  authority_domain: {result.federation.get('authority_domain', 'none')}")
         lines.append(f"  review_jurisdiction: {result.federation.get('review_jurisdiction', 'none')}")
         lines.append(f"  federated_package_id: {result.federation.get('federated_package_id', 'none')}")
     else:
-        lines.append("  [not federated]")
+        lines.append("  not declared")
     lines.append("")
 
     # Warnings
