@@ -1,0 +1,26 @@
+{
+  "manifest_version": "1.1.0",
+  "package_type": "cam_assist_strategy_package",
+  "operation_type": "v_carve",
+  "strategy_file": "strategy.json",
+  "review_packet_file": "review_packet.md",
+  "source_geometry_files": ["vcarve_inlay.dxf"],
+  "created_at": "2026-05-28T04:00:00Z",
+  "cam_assist_version": "0.6.0",
+  "authority": {
+    "non_execution_declaration": true,
+    "execution_authority_claim": false,
+    "requires_human_review": true
+  },
+  "provenance": {
+    "source_spec_id": "gibson-les-paul-custom-2024",
+    "created_by": "import_ltb_cam_output",
+    "derivation_notes": "Imported from luthiers-toolbox CAM output via CAM-A13 bridge infrastructure"
+  },
+  "federation": {
+    "origin_system": "luthiers-toolbox",
+    "authority_domain": "runtime_cam",
+    "review_jurisdiction": "manufacturing_review",
+    "federated_package_id": "luthiers-toolbox:vcarve:les-paul-custom-2024"
+  }
+}

@@ -105,6 +105,30 @@
     "notes": {
       "type": "string",
       "description": "Additional notes about this package"
+    },
+
+    "federation": {
+      "type": "object",
+      "description": "Optional federal identity metadata for cross-system interchange. These fields are self-declared by the origin system and do not grant execution authority.",
+      "properties": {
+        "origin_system": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.-]*$",
+          "description": "Self-declared identifier of the system that created this package (e.g., 'luthiers-toolbox', 'tap-tone-pi'). CAM Assist validates format, not legitimacy."
+        },
+        "authority_domain": {
+          "type": "string",
+          "description": "Domain of authority that created the package content (e.g., 'runtime_cam', 'acoustic_analysis'). Does not imply execution authority."
+        },
+        "review_jurisdiction": {
+          "type": "string",
+          "description": "Suggested review jurisdiction for this package. May differ from authority_domain to enable cross-system review routing."
+        },
+        "federated_package_id": {
+          "type": "string",
+          "description": "Informational package identifier in federated namespace (e.g., 'luthiers-toolbox:vcarve:example-001'). No uniqueness enforcement."
+        }
+      }
     }
   }
 }

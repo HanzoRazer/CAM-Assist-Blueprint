@@ -21,6 +21,7 @@ Exit codes:
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import NamedTuple
@@ -41,6 +42,8 @@ REQUIRED_AUTHORITY_FIELDS = [
     "execution_authority_claim",
     "requires_human_review",
 ]
+
+ORIGIN_SYSTEM_PATTERN = re.compile(r"^[a-z][a-z0-9_.-]*$")
 
 
 class ValidationResult(NamedTuple):
@@ -161,6 +164,23 @@ def validate_manifest(data: dict, manifest_path: Path) -> ValidationResult:
 
     if not data.get("cam_assist_version"):
         warnings.append("cam_assist_version is missing")
+
+    # Validate optional federation fields (CAM-A14)
+    federation = data.get("federation")
+    if federation is not None:
+        if not isinstance(federation, dict):
+            errors.append("federation must be an object")
+        else:
+            origin_system = federation.get("origin_system")
+            if origin_system is not None:
+                if not isinstance(origin_system, str):
+                    errors.append("federation.origin_system must be a string")
+                elif not ORIGIN_SYSTEM_PATTERN.match(origin_system):
+                    errors.append(
+                        f"Invalid federation.origin_system format: '{origin_system}'. "
+                        "Must be lowercase slug (letters, numbers, dots, hyphens, underscores) "
+                        "starting with a letter."
+                    )
 
     return ValidationResult(
         valid=len(errors) == 0,
