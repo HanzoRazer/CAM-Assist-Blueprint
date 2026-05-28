@@ -7,14 +7,24 @@ on:
       - 'schemas/**'
       - 'examples/**'
       - 'scripts/validate_strategy_package.py'
+      - 'scripts/verify_non_execution_invariant.py'
+      - 'scripts/ci_verify_non_execution_invariant.py'
+      - 'scripts/import_ltb_cam_output.py'
       - 'tests/test_validate_strategy_package.py'
+      - 'tests/test_ltb_cam_import.py'
+      - 'tests/test_non_execution_invariant_end_to_end.py'
   pull_request:
     branches: [main]
     paths:
       - 'schemas/**'
       - 'examples/**'
       - 'scripts/validate_strategy_package.py'
+      - 'scripts/verify_non_execution_invariant.py'
+      - 'scripts/ci_verify_non_execution_invariant.py'
+      - 'scripts/import_ltb_cam_output.py'
       - 'tests/test_validate_strategy_package.py'
+      - 'tests/test_ltb_cam_import.py'
+      - 'tests/test_non_execution_invariant_end_to_end.py'
 
 jobs:
   validate:
@@ -54,6 +64,11 @@ jobs:
       - name: Run pytest
         run: |
           pytest tests/test_validate_strategy_package.py -v
+
+      - name: Verify non-execution invariant
+        run: |
+          echo "=== Verifying non-execution invariant ==="
+          python scripts/ci_verify_non_execution_invariant.py
 
   lint-schemas:
     runs-on: ubuntu-latest
