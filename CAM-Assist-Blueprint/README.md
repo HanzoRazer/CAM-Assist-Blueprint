@@ -548,6 +548,16 @@ See `docs/federation/PACKAGE_IDENTITY_CONVENTIONS.md`.
 
 ---
 
+## Review Annotation Sidecars
+
+CAM Assist packages may have external review annotation files that record reviewer concerns, warnings, or notes without modifying the package.
+
+Annotation files are informational only. They do not grant execution authority, validate reviewer legitimacy, or bypass human review.
+
+See `docs/review/REVIEW_ANNOTATIONS.md`.
+
+---
+
 ## Design Direction
 
 CAM Assist is evolving toward:
