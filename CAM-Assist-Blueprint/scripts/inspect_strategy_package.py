@@ -24,7 +24,7 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
-KNOWN_MANIFEST_VERSIONS = ["1.0.0"]
+KNOWN_MANIFEST_VERSIONS = ["1.0.0", "1.1.0"]
 MIN_REVIEW_PACKET_SIZE = 1024  # 1 KB
 
 
@@ -36,6 +36,7 @@ class InspectionResult(NamedTuple):
     authority: dict | None
     files: dict
     provenance: dict | None
+    federation: dict | None
     warnings: list[str]
     errors: list[str]
 
@@ -69,6 +70,7 @@ def inspect_package(package_dir: Path) -> InspectionResult:
             authority=None,
             files={},
             provenance=None,
+            federation=None,
             warnings=[],
             errors=[f"Package directory not found: {package_dir}"],
         )
@@ -82,6 +84,7 @@ def inspect_package(package_dir: Path) -> InspectionResult:
             authority=None,
             files={},
             provenance=None,
+            federation=None,
             warnings=[],
             errors=[f"Path is not a directory: {package_dir}"],
         )
@@ -108,6 +111,7 @@ def inspect_package(package_dir: Path) -> InspectionResult:
     manifest_version = None
     authority = None
     provenance = None
+    federation = None
 
     if manifest_data:
         package_type = manifest_data.get("package_type")
@@ -115,6 +119,7 @@ def inspect_package(package_dir: Path) -> InspectionResult:
         manifest_version = manifest_data.get("manifest_version")
         authority = manifest_data.get("authority", {})
         provenance = manifest_data.get("provenance", {})
+        federation = manifest_data.get("federation")
 
         # Validate package_type
         if package_type != "cam_assist_strategy_package":
@@ -202,6 +207,7 @@ def inspect_package(package_dir: Path) -> InspectionResult:
         authority=authority,
         files=files,
         provenance=provenance,
+        federation=federation,
         warnings=warnings,
         errors=errors,
     )
@@ -265,6 +271,17 @@ def format_terminal_output(result: InspectionResult) -> str:
         lines.append("  [MISSING]")
     lines.append("")
 
+    # Federation (CAM-A14/A15)
+    lines.append("Federation:")
+    if result.federation:
+        lines.append(f"  origin_system: {result.federation.get('origin_system', 'none')}")
+        lines.append(f"  authority_domain: {result.federation.get('authority_domain', 'none')}")
+        lines.append(f"  review_jurisdiction: {result.federation.get('review_jurisdiction', 'none')}")
+        lines.append(f"  federated_package_id: {result.federation.get('federated_package_id', 'none')}")
+    else:
+        lines.append("  [not federated]")
+    lines.append("")
+
     # Warnings
     lines.append("Warnings:")
     if result.warnings:
@@ -300,6 +317,7 @@ def format_json_output(result: InspectionResult) -> str:
         "authority": result.authority,
         "files": result.files,
         "provenance": result.provenance,
+        "federation": result.federation,
         "warnings": result.warnings,
     }
     if result.errors:
