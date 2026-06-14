@@ -262,7 +262,67 @@ def format_annotations_section(annotations_data: dict, quiet: bool = False) -> l
     return lines
 
 
-def format_terminal_output(result: InspectionResult, annotations_data: dict | None = None) -> str:
+# CAM-A17 traceability sidecar conventions
+TRACEABILITY_SPECS = [
+    ("assumptions", "assumptions", "_assumptions.json"),
+    ("risk_assessment", "risk assessment", "_risk.json"),
+    ("decision_record", "decision record", "_decision_record.json"),
+]
+
+
+def conventional_traceability_path(package_dir: Path, suffix: str) -> Path:
+    """Conventional sidecar location: <parent>/traceability/<package><suffix>.
+
+    For examples/packages/<name>, look under examples/traceability/ instead.
+    """
+    parent = package_dir.parent
+    if parent.name == "packages" and parent.parent.name == "examples":
+        base = parent.parent / "traceability"
+    else:
+        base = parent / "traceability"
+    return base / f"{package_dir.name}{suffix}"
+
+
+def resolve_traceability(
+    package_dir: Path,
+    assumptions: Path | None = None,
+    risk: Path | None = None,
+    decision_record: Path | None = None,
+) -> dict:
+    """Resolve traceability sidecars: explicit flag first, then conventional fallback.
+
+    Does not broad-scan. Returns {key: {"present": bool, "path": str | None}}.
+    """
+    explicit = {"assumptions": assumptions, "risk_assessment": risk, "decision_record": decision_record}
+    out: dict = {}
+    for key, _label, suffix in TRACEABILITY_SPECS:
+        path = explicit.get(key)
+        if path is None:
+            candidate = conventional_traceability_path(package_dir, suffix)
+            if candidate.exists():
+                path = candidate
+        present = path is not None and Path(path).exists()
+        out[key] = {"present": present, "path": str(path) if present else None}
+    return out
+
+
+def format_traceability_section(traceability: dict) -> list[str]:
+    """Format the traceability section for terminal display."""
+    lines = ["Traceability:"]
+    if not any(traceability[key]["present"] for key, _label, _suffix in TRACEABILITY_SPECS):
+        lines.append("  not declared")
+        return lines
+    for key, label, _suffix in TRACEABILITY_SPECS:
+        status = "present" if traceability[key]["present"] else "not declared"
+        lines.append(f"  {label}: {status}")
+    return lines
+
+
+def format_terminal_output(
+    result: InspectionResult,
+    annotations_data: dict | None = None,
+    traceability: dict | None = None,
+) -> str:
     """Format inspection result for terminal display."""
     lines = []
     lines.append("CAM Assist Strategy Package Inspection")
@@ -355,6 +415,11 @@ def format_terminal_output(result: InspectionResult, annotations_data: dict | No
         lines.append("Review Annotations:")
         lines.append("  not declared")
 
+    # Traceability section (CAM-A17, always show in verbose mode)
+    if traceability is not None:
+        lines.append("")
+        lines.extend(format_traceability_section(traceability))
+
     # Non-execution notice
     lines.append("")
     lines.append("-" * 39)
@@ -365,7 +430,11 @@ def format_terminal_output(result: InspectionResult, annotations_data: dict | No
     return "\n".join(lines)
 
 
-def format_json_output(result: InspectionResult, annotations_data: dict | None = None) -> str:
+def format_json_output(
+    result: InspectionResult,
+    annotations_data: dict | None = None,
+    traceability: dict | None = None,
+) -> str:
     """Format inspection result as JSON."""
     output = {
         "valid": result.valid,
@@ -382,6 +451,8 @@ def format_json_output(result: InspectionResult, annotations_data: dict | None =
         output["errors"] = result.errors
     if annotations_data:
         output["annotations"] = annotations_data.get("annotations", [])
+    if traceability is not None:
+        output["traceability"] = traceability
     return json.dumps(output, indent=2)
 
 
@@ -419,6 +490,25 @@ def main() -> int:
         type=Path,
         default=None,
         help="Path to a review annotations file to display alongside package inspection",
+    )
+    parser.add_argument(
+        "--assumptions",
+        type=Path,
+        default=None,
+        help="Path to a manufacturing assumptions sidecar (overrides conventional lookup)",
+    )
+    parser.add_argument(
+        "--risk",
+        type=Path,
+        default=None,
+        help="Path to a risk assessment sidecar (overrides conventional lookup)",
+    )
+    parser.add_argument(
+        "--decision-record",
+        type=Path,
+        default=None,
+        dest="decision_record",
+        help="Path to a manufacturing decision record sidecar (overrides conventional lookup)",
     )
 
     args = parser.parse_args()
@@ -462,8 +552,25 @@ def main() -> int:
             print(f"Error: {ann_error}", file=sys.stderr)
             return 2
 
+    # Resolve traceability sidecars: explicit flags first, then conventional fallback.
+    for flag_name, flag_value in (
+        ("--assumptions", args.assumptions),
+        ("--risk", args.risk),
+        ("--decision-record", args.decision_record),
+    ):
+        if flag_value is not None and not flag_value.exists():
+            print(f"Error: {flag_name} file not found: {flag_value}", file=sys.stderr)
+            return 2
+
+    traceability = resolve_traceability(
+        package_dir,
+        assumptions=args.assumptions,
+        risk=args.risk,
+        decision_record=args.decision_record,
+    )
+
     if args.json:
-        print(format_json_output(result, annotations_data))
+        print(format_json_output(result, annotations_data, traceability))
     elif args.quiet:
         output = format_quiet_output(result, package_dir)
         if result.valid:
@@ -471,7 +578,7 @@ def main() -> int:
         else:
             print(output, file=sys.stderr)
     else:
-        print(format_terminal_output(result, annotations_data))
+        print(format_terminal_output(result, annotations_data, traceability))
 
     return 0 if result.valid else 1
 

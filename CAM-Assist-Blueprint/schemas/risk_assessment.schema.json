@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cam-assist.lutherie/schemas/risk_assessment.schema.json",
+  "title": "CAM Assist Risk Assessment Schema",
+  "description": "Portable record of known manufacturing risks for a strategy package. A sidecar artifact that travels alongside a package without mutating it. Risk scoring is informational only; it grants no execution authority and does not gate execution.",
+  "type": "object",
+  "required": ["record_type", "record_version", "package_reference", "overall_risk", "risks"],
+
+  "properties": {
+    "record_type": {
+      "type": "string",
+      "const": "cam_assist_risk_assessment",
+      "description": "Must be 'cam_assist_risk_assessment'"
+    },
+
+    "record_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of the risk assessment record format"
+    },
+
+    "package_reference": {
+      "type": "string",
+      "description": "Reference to the package being assessed. Accepts federated_package_id, relative path, or package directory name."
+    },
+
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when this risk assessment was created"
+    },
+
+    "overall_risk": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "Overall informational risk level for the package"
+    },
+
+    "risks": {
+      "type": "array",
+      "description": "List of identified manufacturing risks. Informational only.",
+      "items": {
+        "type": "object",
+        "required": ["category", "severity", "description"],
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "Free-text category (e.g., geometry, tooling, material, fixturing, safety)"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["info", "warning", "concern", "blocking"],
+            "description": "Per-risk severity level"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of the risk"
+          },
+          "mitigation": {
+            "type": "string",
+            "description": "Optional suggested mitigation or guidance"
+          }
+        }
+      }
+    },
+
+    "authority": {
+      "type": "object",
+      "description": "Informational authority constraints. When present, every flag MUST be true.",
+      "properties": {
+        "is_informational": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This record is informational only."
+        },
+        "does_not_authorize_execution": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This record does not authorize machine execution."
+        },
+        "does_not_bypass_human_review": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This record does not bypass required human review."
+        }
+      }
+    }
+  }
+}

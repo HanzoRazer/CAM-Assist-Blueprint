@@ -74,6 +74,8 @@ def create_decision_record(
     reviewer: str,
     notes: str = "",
     annotation_files: list[str] | None = None,
+    assumptions_file: str | None = None,
+    risk_file: str | None = None,
 ) -> tuple[dict | None, str | None]:
     """
     Create a review decision record for a package.
@@ -126,6 +128,12 @@ def create_decision_record(
 
     if annotation_files:
         record["annotation_files"] = annotation_files
+
+    # CAM-A17: optional links to traceability sidecars. Referenced, never mutated.
+    if assumptions_file:
+        record["assumptions_file"] = assumptions_file
+    if risk_file:
+        record["risk_file"] = risk_file
 
     return record, None
 
@@ -224,6 +232,18 @@ def main() -> int:
         help="Path to review annotation file that informed this decision (can be repeated)",
     )
     parser.add_argument(
+        "--assumptions-file",
+        type=str,
+        default=None,
+        help="Path to a manufacturing assumptions sidecar that informed this decision (referenced, not mutated)",
+    )
+    parser.add_argument(
+        "--risk-file",
+        type=str,
+        default=None,
+        help="Path to a risk assessment sidecar that informed this decision (referenced, not mutated)",
+    )
+    parser.add_argument(
         "--out",
         type=Path,
         default=None,
@@ -254,6 +274,8 @@ def main() -> int:
         args.reviewer,
         args.notes,
         args.annotation_files,
+        args.assumptions_file,
+        args.risk_file,
     )
 
     if error:
