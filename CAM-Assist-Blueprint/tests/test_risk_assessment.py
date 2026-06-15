@@ -159,6 +159,17 @@ class TestValidationFailures:
         assert code == 1
         assert "overall_risk" in stderr
 
+    def test_partial_authority_block_fails(self, tmp_path):
+        """A present authority block must declare all three flags as true."""
+        data = self._base()
+        data["authority"] = {"is_informational": True}  # missing the other two flags
+        path = tmp_path / "r.json"
+        path.write_text(json.dumps(data))
+        code, _, stderr = run_script(VALIDATE_SCRIPT, str(path))
+        assert code == 1
+        assert "does_not_authorize_execution" in stderr
+        assert "does_not_bypass_human_review" in stderr
+
 
 class TestNonMutation:
     def test_package_not_mutated(self, package, tmp_path):

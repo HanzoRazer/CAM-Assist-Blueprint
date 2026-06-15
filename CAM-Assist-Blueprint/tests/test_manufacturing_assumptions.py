@@ -190,6 +190,18 @@ class TestValidationFailures:
         assert code == 1
         assert "is_informational" in stderr
 
+    def test_partial_authority_block_fails(self, tmp_path):
+        """A present authority block must declare all three flags as true."""
+        data = self._base()
+        data["assumptions"] = [{"category": "tooling", "statement": "x"}]
+        data["authority"] = {"is_informational": True}  # missing the other two flags
+        path = tmp_path / "a.json"
+        path.write_text(json.dumps(data))
+        code, _, stderr = run_script(VALIDATE_SCRIPT, str(path))
+        assert code == 1
+        assert "does_not_authorize_execution" in stderr
+        assert "does_not_bypass_human_review" in stderr
+
     def test_missing_file_exit_2(self, tmp_path):
         code, _, _ = run_script(VALIDATE_SCRIPT, str(tmp_path / "nope.json"))
         assert code == 2

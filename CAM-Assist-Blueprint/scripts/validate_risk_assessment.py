@@ -60,9 +60,17 @@ def load_json(path: Path) -> tuple[dict | None, str | None]:
 
 
 def validate_authority(authority: dict, errors: list[str]) -> None:
-    """Validate the optional informational authority block. Every flag must be true."""
+    """Validate the informational authority block.
+
+    The block is optional, but when present every flag must be declared and true.
+    """
+    if not isinstance(authority, dict):
+        errors.append("authority must be an object")
+        return
     for flag in AUTHORITY_FLAGS:
-        if flag in authority and authority.get(flag) is not True:
+        if flag not in authority:
+            errors.append(f"authority.{flag} is required and must be true")
+        elif authority.get(flag) is not True:
             errors.append(f"authority.{flag} must be true")
 
 
@@ -131,9 +139,8 @@ def validate_risk_assessment(data: dict) -> ValidationResult:
                 f"Must be one of: {', '.join(VALID_SEVERITIES)}"
             )
 
-    authority = data.get("authority", {})
-    if authority:
-        validate_authority(authority, errors)
+    if "authority" in data:
+        validate_authority(data["authority"], errors)
 
     return ValidationResult(valid=len(errors) == 0, errors=errors, warnings=warnings)
 

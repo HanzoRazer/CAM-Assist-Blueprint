@@ -83,7 +83,8 @@
           "const": true,
           "description": "MUST be true. This record does not bypass required human review."
         }
-      }
+      },
+      "required": ["is_informational", "does_not_authorize_execution", "does_not_bypass_human_review"]
     }
   }
 }
