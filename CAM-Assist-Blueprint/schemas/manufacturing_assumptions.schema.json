@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cam-assist.lutherie/schemas/manufacturing_assumptions.schema.json",
+  "title": "CAM Assist Manufacturing Assumptions Schema",
+  "description": "Portable record of the manufacturing assumptions that influenced a manufacturing decision. A sidecar artifact that travels alongside a strategy package without mutating it. Informational only; grants no execution authority.",
+  "type": "object",
+  "required": ["record_type", "record_version", "package_reference", "assumptions"],
+
+  "properties": {
+    "record_type": {
+      "type": "string",
+      "const": "cam_assist_manufacturing_assumptions",
+      "description": "Must be 'cam_assist_manufacturing_assumptions'"
+    },
+
+    "record_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of the manufacturing assumptions record format"
+    },
+
+    "package_reference": {
+      "type": "string",
+      "description": "Reference to the package these assumptions relate to. Accepts federated_package_id, relative path, or package directory name."
+    },
+
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when this assumptions record was created"
+    },
+
+    "assumptions": {
+      "type": "array",
+      "description": "List of manufacturing assumptions. Informational only; they record reasoning, not authorization.",
+      "items": {
+        "type": "object",
+        "required": ["category", "statement"],
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "Free-text category (e.g., tooling, material, fixturing, geometry, workholding)"
+          },
+          "statement": {
+            "type": "string",
+            "description": "Human-readable assumption statement"
+          },
+          "rationale": {
+            "type": "string",
+            "description": "Optional supporting rationale for the assumption"
+          }
+        }
+      }
+    },
+
+    "authority": {
+      "type": "object",
+      "description": "Informational authority constraints. When present, every flag MUST be true.",
+      "properties": {
+        "is_informational": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This record is informational only."
+        },
+        "does_not_authorize_execution": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This record does not authorize machine execution."
+        },
+        "does_not_bypass_human_review": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This record does not bypass required human review."
+        }
+      },
+      "required": ["is_informational", "does_not_authorize_execution", "does_not_bypass_human_review"]
+    }
+  }
+}

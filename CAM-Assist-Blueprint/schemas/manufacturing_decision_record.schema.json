@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cam-assist.lutherie/schemas/manufacturing_decision_record.schema.json",
+  "title": "CAM Assist Manufacturing Decision Record Schema",
+  "description": "Portable record capturing why a manufacturing decision was made, prepared and reviewed by humans. A sidecar artifact that travels alongside a strategy package without mutating it. Captures a human declaration; it does not enforce approval authority or authorize machine execution.",
+  "type": "object",
+  "required": ["record_type", "record_version", "package_reference", "prepared_by", "reviewed_by", "decision", "rationale"],
+
+  "properties": {
+    "record_type": {
+      "type": "string",
+      "const": "cam_assist_manufacturing_decision_record",
+      "description": "Must be 'cam_assist_manufacturing_decision_record'"
+    },
+
+    "record_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of the manufacturing decision record format"
+    },
+
+    "package_reference": {
+      "type": "string",
+      "description": "Reference to the package this decision concerns. Accepts federated_package_id, relative path, or package directory name."
+    },
+
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when this decision record was created"
+    },
+
+    "prepared_by": {
+      "type": "string",
+      "description": "Informational identifier of who prepared the decision. No trust validation performed."
+    },
+
+    "reviewed_by": {
+      "type": "string",
+      "description": "Informational identifier of who reviewed the decision. No trust validation performed."
+    },
+
+    "decision": {
+      "type": "string",
+      "enum": ["approved", "needs_revision", "rejected"],
+      "description": "The human manufacturing decision"
+    },
+
+    "rationale": {
+      "type": "string",
+      "description": "Human-readable rationale for the decision"
+    },
+
+    "assumptions_file": {
+      "type": "string",
+      "description": "Optional reference to a linked manufacturing assumptions sidecar file. Not mutated by this record."
+    },
+
+    "risk_file": {
+      "type": "string",
+      "description": "Optional reference to a linked risk assessment sidecar file. Not mutated by this record."
+    },
+
+    "authority": {
+      "type": "object",
+      "description": "Informational authority constraints. When present, every flag MUST be true.",
+      "properties": {
+        "is_informational": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This record is a human declaration, not an enforcement mechanism."
+        },
+        "does_not_authorize_execution": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This record does not authorize machine execution."
+        },
+        "does_not_bypass_human_review": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This record does not bypass required human review."
+        }
+      },
+      "required": ["is_informational", "does_not_authorize_execution", "does_not_bypass_human_review"]
+    }
+  }
+}

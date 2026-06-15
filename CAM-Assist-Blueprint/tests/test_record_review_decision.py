@@ -541,3 +541,80 @@ class TestFullFlow:
         assert exit_code == 0
         decision_file = staged_root / "package.review_decision.json"
         assert decision_file.exists()
+
+
+class TestTraceabilityLinkage:
+    """Tests for CAM-A17 --assumptions-file / --risk-file linkage (referenced, not mutated)."""
+
+    def _run_with_links(
+        self,
+        pkg_dir: Path,
+        assumptions_file: str | None = None,
+        risk_file: str | None = None,
+    ) -> tuple[int, str, str]:
+        cmd = [
+            sys.executable,
+            str(RECORDER_SCRIPT),
+            str(pkg_dir),
+            "--decision",
+            "approve_for_downstream_cam",
+            "--reviewer",
+            "Test Reviewer",
+        ]
+        if assumptions_file is not None:
+            cmd.extend(["--assumptions-file", assumptions_file])
+        if risk_file is not None:
+            cmd.extend(["--risk-file", risk_file])
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        return result.returncode, result.stdout, result.stderr
+
+    def test_links_recorded_in_decision(self, tmp_path):
+        """Both sidecar links are stored verbatim on the decision record."""
+        staging_root = tmp_path / "staging"
+        pkg_dir = staging_root / "test_package"
+        create_valid_staged_package(pkg_dir)
+
+        exit_code, _, stderr = self._run_with_links(
+            pkg_dir,
+            assumptions_file="traceability/test_package_assumptions.json",
+            risk_file="traceability/test_package_risk.json",
+        )
+
+        assert exit_code == 0, f"Expected success: {stderr}"
+        record = json.loads((staging_root / "test_package.review_decision.json").read_text())
+        assert record["assumptions_file"] == "traceability/test_package_assumptions.json"
+        assert record["risk_file"] == "traceability/test_package_risk.json"
+
+    def test_links_omitted_when_not_provided(self, tmp_path):
+        """No link keys appear when the flags are not passed."""
+        staging_root = tmp_path / "staging"
+        pkg_dir = staging_root / "test_package"
+        create_valid_staged_package(pkg_dir)
+
+        exit_code, _, _ = self._run_with_links(pkg_dir)
+
+        assert exit_code == 0
+        record = json.loads((staging_root / "test_package.review_decision.json").read_text())
+        assert "assumptions_file" not in record
+        assert "risk_file" not in record
+
+    def test_linked_sidecars_not_mutated(self, tmp_path):
+        """Linking a sidecar references it; it is never read or rewritten."""
+        staging_root = tmp_path / "staging"
+        pkg_dir = staging_root / "test_package"
+        create_valid_staged_package(pkg_dir)
+
+        assumptions = tmp_path / "assumptions.json"
+        risk = tmp_path / "risk.json"
+        assumptions.write_text('{"sentinel": "assumptions"}')
+        risk.write_text('{"sentinel": "risk"}')
+        before = (assumptions.read_bytes(), risk.read_bytes())
+
+        exit_code, _, _ = self._run_with_links(
+            pkg_dir,
+            assumptions_file=str(assumptions),
+            risk_file=str(risk),
+        )
+
+        assert exit_code == 0
+        assert (assumptions.read_bytes(), risk.read_bytes()) == before

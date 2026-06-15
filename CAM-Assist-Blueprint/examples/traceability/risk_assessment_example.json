@@ -1,0 +1,24 @@
+{
+  "record_type": "cam_assist_risk_assessment",
+  "record_version": "1.0.0",
+  "package_reference": "luthiers-toolbox:vcarve:les-paul-custom-2024",
+  "created_at": "2026-06-14T20:18:05.437148Z",
+  "overall_risk": "medium",
+  "risks": [
+    {
+      "category": "geometry",
+      "severity": "warning",
+      "description": "Thin wall section near soundhole may chatter at full feed."
+    },
+    {
+      "category": "tooling",
+      "severity": "info",
+      "description": "V-bit angle requires reduced feed for softwood species."
+    }
+  ],
+  "authority": {
+    "is_informational": true,
+    "does_not_authorize_execution": true,
+    "does_not_bypass_human_review": true
+  }
+}
