@@ -24,6 +24,7 @@ VALIDATE_SCRIPT = SCRIPTS_DIR / "validate_manufacturing_decision_record.py"
 INSPECT_SCRIPT = SCRIPTS_DIR / "inspect_strategy_package.py"
 CREATE_ASSUMPTIONS = SCRIPTS_DIR / "create_manufacturing_assumptions.py"
 CREATE_RISK = SCRIPTS_DIR / "create_risk_assessment.py"
+CREATE_LINEAGE = SCRIPTS_DIR / "create_revision_lineage.py"
 
 
 def run_script(script: Path, *args) -> tuple[int, str, str]:
@@ -155,6 +156,25 @@ class TestValidationFailures:
         assert "does_not_authorize_execution" in stderr
         assert "does_not_bypass_human_review" in stderr
 
+    def test_non_string_lineage_file_fails(self, tmp_path):
+        """CAM-A18: lineage_file must be type-checked like assumptions_file/risk_file."""
+        data = self._base()
+        data["lineage_file"] = 12345  # not a string path
+        path = tmp_path / "d.json"
+        path.write_text(json.dumps(data))
+        code, _, stderr = run_script(VALIDATE_SCRIPT, str(path))
+        assert code == 1
+        assert "lineage_file" in stderr
+
+    def test_string_lineage_file_passes(self, tmp_path):
+        """A string lineage_file link is accepted."""
+        data = self._base()
+        data["lineage_file"] = "traceability/test_pkg_lineage.json"
+        path = tmp_path / "d.json"
+        path.write_text(json.dumps(data))
+        code, _, _ = run_script(VALIDATE_SCRIPT, str(path))
+        assert code == 0
+
     def test_create_rejects_invalid_decision(self, package, tmp_path):
         out = tmp_path / "d.json"
         code, _, stderr = _create_mdr(package, out, decision="maybe")
@@ -179,6 +199,10 @@ class TestTraceabilityInspection:
             "--decision", "approved", "--prepared-by", "ME",
             "--reviewed-by", "SR", "--rationale", "ok",
         )
+        run_script(
+            CREATE_LINEAGE, "--package", str(package),
+            "--summary", "Initial review.",
+        )
 
     def test_inspector_detects_sidecars(self, package):
         self._seed_sidecars(package)
@@ -188,6 +212,17 @@ class TestTraceabilityInspection:
         assert "assumptions: present" in stdout
         assert "risk assessment: present" in stdout
         assert "decision record: present" in stdout
+        assert "revision lineage: present" in stdout
+
+    def test_inspector_detects_lineage_via_flag(self, package, tmp_path):
+        out = tmp_path / "explicit_lineage.json"
+        run_script(
+            CREATE_LINEAGE, "--package", str(package),
+            "--summary", "Initial review.", "--out", str(out),
+        )
+        code, stdout, _ = run_script(INSPECT_SCRIPT, str(package), "--lineage", str(out))
+        assert code == 0
+        assert "revision lineage: present" in stdout
 
     def test_missing_sidecars_handled_safely(self, package):
         code, stdout, _ = run_script(INSPECT_SCRIPT, str(package))
@@ -215,6 +250,7 @@ class TestTraceabilityInspection:
         data = json.loads(stdout)
         assert data["traceability"]["assumptions"]["present"] is True
         assert data["traceability"]["decision_record"]["present"] is True
+        assert data["traceability"]["revision_lineage"]["present"] is True
 
     def test_package_not_mutated(self, package):
         before = {p.name: p.read_bytes() for p in package.iterdir()}

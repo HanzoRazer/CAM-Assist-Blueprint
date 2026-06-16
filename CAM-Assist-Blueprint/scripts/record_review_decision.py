@@ -76,6 +76,7 @@ def create_decision_record(
     annotation_files: list[str] | None = None,
     assumptions_file: str | None = None,
     risk_file: str | None = None,
+    lineage_file: str | None = None,
 ) -> tuple[dict | None, str | None]:
     """
     Create a review decision record for a package.
@@ -134,6 +135,9 @@ def create_decision_record(
         record["assumptions_file"] = assumptions_file
     if risk_file:
         record["risk_file"] = risk_file
+    # CAM-A18: optional link to a revision lineage sidecar. Referenced, never mutated.
+    if lineage_file:
+        record["lineage_file"] = lineage_file
 
     return record, None
 
@@ -244,6 +248,12 @@ def main() -> int:
         help="Path to a risk assessment sidecar that informed this decision (referenced, not mutated)",
     )
     parser.add_argument(
+        "--lineage-file",
+        type=str,
+        default=None,
+        help="Path to a revision lineage sidecar associated with this decision (referenced, not mutated)",
+    )
+    parser.add_argument(
         "--out",
         type=Path,
         default=None,
@@ -276,6 +286,7 @@ def main() -> int:
         args.annotation_files,
         args.assumptions_file,
         args.risk_file,
+        args.lineage_file,
     )
 
     if error:

@@ -267,6 +267,7 @@ TRACEABILITY_SPECS = [
     ("assumptions", "assumptions", "_assumptions.json"),
     ("risk_assessment", "risk assessment", "_risk.json"),
     ("decision_record", "decision record", "_decision_record.json"),
+    ("revision_lineage", "revision lineage", "_lineage.json"),
 ]
 
 
@@ -288,12 +289,18 @@ def resolve_traceability(
     assumptions: Path | None = None,
     risk: Path | None = None,
     decision_record: Path | None = None,
+    revision_lineage: Path | None = None,
 ) -> dict:
     """Resolve traceability sidecars: explicit flag first, then conventional fallback.
 
     Does not broad-scan. Returns {key: {"present": bool, "path": str | None}}.
     """
-    explicit = {"assumptions": assumptions, "risk_assessment": risk, "decision_record": decision_record}
+    explicit = {
+        "assumptions": assumptions,
+        "risk_assessment": risk,
+        "decision_record": decision_record,
+        "revision_lineage": revision_lineage,
+    }
     out: dict = {}
     for key, _label, suffix in TRACEABILITY_SPECS:
         path = explicit.get(key)
@@ -510,6 +517,12 @@ def main() -> int:
         dest="decision_record",
         help="Path to a manufacturing decision record sidecar (overrides conventional lookup)",
     )
+    parser.add_argument(
+        "--lineage",
+        type=Path,
+        default=None,
+        help="Path to a revision lineage sidecar (overrides conventional lookup)",
+    )
 
     args = parser.parse_args()
     package_dir: Path = args.package_dir
@@ -557,6 +570,7 @@ def main() -> int:
         ("--assumptions", args.assumptions),
         ("--risk", args.risk),
         ("--decision-record", args.decision_record),
+        ("--lineage", args.lineage),
     ):
         if flag_value is not None and not flag_value.exists():
             print(f"Error: {flag_name} file not found: {flag_value}", file=sys.stderr)
@@ -567,6 +581,7 @@ def main() -> int:
         assumptions=args.assumptions,
         risk=args.risk,
         decision_record=args.decision_record,
+        revision_lineage=args.lineage,
     )
 
     if args.json:

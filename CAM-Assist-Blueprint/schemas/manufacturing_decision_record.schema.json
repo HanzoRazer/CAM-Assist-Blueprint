@@ -61,6 +61,11 @@
       "description": "Optional reference to a linked risk assessment sidecar file. Not mutated by this record."
     },
 
+    "lineage_file": {
+      "type": "string",
+      "description": "Optional reference to a linked revision lineage sidecar file. Not mutated by this record."
+    },
+
     "authority": {
       "type": "object",
       "description": "Informational authority constraints. When present, every flag MUST be true.",
