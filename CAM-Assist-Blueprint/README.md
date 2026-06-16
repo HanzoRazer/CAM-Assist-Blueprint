@@ -565,7 +565,7 @@ CAM Assist packages may carry external traceability sidecars that capture the ma
 - **Manufacturing assumptions** — what was assumed about tooling, material, and fixturing.
 - **Risk assessment** — known risks and an overall risk level (informational; does not gate execution).
 - **Manufacturing decision record** — a human declaration of *why* a decision was made, optionally linking the assumptions, risk, and lineage sidecars.
-- **Revision lineage** — a package-scoped narrative chain of *how* the manufacturing reasoning evolved across revisions (a supersession chain; not artifact version control).
+- **Revision lineage** — a package-scoped record of *how* the manufacturing reasoning evolved across revisions (a supersession graph of one or more chains; not artifact version control).
 
 These records are informational only. They do not grant execution authority, do not enforce approval authority, and do not bypass human review. The inspector reports them under a `Traceability:` section (explicit `--assumptions` / `--risk` / `--decision-record` / `--lineage` paths first, then a conventional `traceability/` lookup).
 

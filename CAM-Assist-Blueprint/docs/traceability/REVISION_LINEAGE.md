@@ -3,9 +3,11 @@
 ## Overview
 
 Revision lineage is a portable, sidecar file that captures how a package's
-manufacturing reasoning evolved across revisions, expressed as an ordered
-supersession chain. It travels alongside a strategy package without mutating the
-source package contents.
+manufacturing reasoning evolved across revisions, expressed as a supersession
+graph — one or more chains of revisions linked by `supersedes` (forked lineage
+with multiple roots is permitted). It travels alongside a strategy package
+without mutating the source package contents. Array order is not significant;
+the `supersedes` pointers define the relationships.
 
 Lineage records a *narrative*: a sequence of human-declared revision checkpoints,
 each optionally superseding a prior one, with a human summary of what changed.

@@ -210,6 +210,63 @@ class TestFieldValidationFailures:
         code, _, _ = run_script(VALIDATE_SCRIPT, str(tmp_path / "nope.json"))
         assert code == 2
 
+    def test_empty_package_reference_fails(self, tmp_path):
+        """package_reference must be a non-empty string (match MDR validator strictness)."""
+        data = _base(package_name="")
+        data["revisions"] = [{"revision_id": "rev-1", "summary": "x"}]
+        path = _write(tmp_path, data)
+        code, _, stderr = run_script(VALIDATE_SCRIPT, str(path))
+        assert code == 1
+        assert "package_reference" in stderr
+
+    def test_non_string_package_reference_fails(self, tmp_path):
+        data = _base()
+        data["package_reference"] = 123
+        data["revisions"] = [{"revision_id": "rev-1", "summary": "x"}]
+        path = _write(tmp_path, data)
+        code, _, stderr = run_script(VALIDATE_SCRIPT, str(path))
+        assert code == 1
+        assert "package_reference" in stderr
+
+
+class TestRelatedRecords:
+    def test_valid_related_records_passes(self, tmp_path):
+        data = _base()
+        data["revisions"] = [
+            {
+                "revision_id": "rev-1",
+                "summary": "x",
+                "related_records": {
+                    "assumptions_file": "traceability/p_assumptions.json",
+                    "risk_file": "traceability/p_risk.json",
+                    "decision_record_file": "traceability/p_decision_record.json",
+                },
+            }
+        ]
+        path = _write(tmp_path, data)
+        code, _, _ = run_script(VALIDATE_SCRIPT, str(path))
+        assert code == 0
+
+    def test_related_records_not_object_fails(self, tmp_path):
+        data = _base()
+        data["revisions"] = [
+            {"revision_id": "rev-1", "summary": "x", "related_records": "nope"}
+        ]
+        path = _write(tmp_path, data)
+        code, _, stderr = run_script(VALIDATE_SCRIPT, str(path))
+        assert code == 1
+        assert "related_records must be an object" in stderr
+
+    def test_related_records_non_string_field_fails(self, tmp_path):
+        data = _base()
+        data["revisions"] = [
+            {"revision_id": "rev-1", "summary": "x", "related_records": {"risk_file": 99}}
+        ]
+        path = _write(tmp_path, data)
+        code, _, stderr = run_script(VALIDATE_SCRIPT, str(path))
+        assert code == 1
+        assert "related_records.risk_file" in stderr
+
 
 class TestLineageIntegrity:
     def test_duplicate_revision_id_fails(self, tmp_path):

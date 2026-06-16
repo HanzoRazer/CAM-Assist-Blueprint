@@ -34,7 +34,7 @@ post processors, workflow / approval automation, package mutation, or governance
 | --- | --- |
 | Package mutation | Forbidden |
 | Lineage records | Sidecar artifacts |
-| Lineage model | Single sidecar per package holding an ordered chain |
+| Lineage model | Single sidecar per package holding a supersession graph (one or more chains) |
 | Lineage granularity | Package-scoped narrative chain (NOT artifact version control) — see below |
 | Supersession | Informational pointer (`supersedes`), not enforced |
 | Lineage integrity | Validated structurally (dup / dangling / self / cycle / root) — not authority |
@@ -114,7 +114,7 @@ Purpose:
 
 ```text
 Capture how a package's manufacturing reasoning evolved across revisions,
-as an ordered, immutable supersession chain.
+as an immutable supersession graph (one or more chains).
 ```
 
 Record type: `cam_assist_revision_lineage` (mirrors the A17 `cam_assist_*` const convention).

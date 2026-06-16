@@ -37,6 +37,11 @@ AUTHORITY_FLAGS = [
     "does_not_authorize_execution",
     "does_not_bypass_human_review",
 ]
+RELATED_RECORD_FIELDS = [
+    "assumptions_file",
+    "risk_file",
+    "decision_record_file",
+]
 
 
 class ValidationResult(NamedTuple):
@@ -71,6 +76,21 @@ def validate_authority(authority: dict, errors: list[str]) -> None:
             errors.append(f"authority.{flag} is required and must be true")
         elif authority.get(flag) is not True:
             errors.append(f"authority.{flag} must be true")
+
+
+def validate_related_records(related: object, prefix: str, errors: list[str]) -> None:
+    """Validate an optional related_records block on a revision.
+
+    When present it must be an object, and any known pointer field must be a
+    string path. Pointers are referenced, never resolved or mutated; this only
+    checks shape, not file existence or package affinity.
+    """
+    if not isinstance(related, dict):
+        errors.append(f"{prefix}: related_records must be an object")
+        return
+    for field in RELATED_RECORD_FIELDS:
+        if field in related and not isinstance(related.get(field), str):
+            errors.append(f"{prefix}: related_records.{field} must be a string path when present")
 
 
 def validate_lineage_integrity(revisions: list[dict], errors: list[str], warnings: list[str]) -> None:
@@ -186,8 +206,11 @@ def validate_lineage(data: dict) -> ValidationResult:
             "Must be semantic version (e.g., '1.0.0')"
         )
 
+    package_reference = data.get("package_reference")
     if "package_reference" not in data:
         errors.append("Missing required field: package_reference")
+    elif not isinstance(package_reference, str) or not package_reference.strip():
+        errors.append("'package_reference' must be a non-empty string")
 
     if "revisions" not in data:
         errors.append("Missing required field: revisions")
@@ -212,6 +235,8 @@ def validate_lineage(data: dict) -> ValidationResult:
                 errors.append(f"{prefix}: missing required field '{field}'")
             elif not isinstance(value, str) or not value.strip():
                 errors.append(f"{prefix}: '{field}' must be a non-empty string")
+        if "related_records" in revision:
+            validate_related_records(revision["related_records"], prefix, errors)
 
     validate_lineage_integrity(revisions, errors, warnings)
 

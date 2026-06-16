@@ -111,7 +111,7 @@ def validate_decision_record(data: dict) -> ValidationResult:
             f"Must be one of: {', '.join(VALID_DECISIONS)}"
         )
 
-    for link_field in ("assumptions_file", "risk_file"):
+    for link_field in ("assumptions_file", "risk_file", "lineage_file"):
         if link_field in data and not isinstance(data.get(link_field), str):
             errors.append(f"'{link_field}' must be a string path when present")
 

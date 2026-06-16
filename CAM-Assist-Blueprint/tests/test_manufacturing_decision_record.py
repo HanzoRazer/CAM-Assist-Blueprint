@@ -156,6 +156,25 @@ class TestValidationFailures:
         assert "does_not_authorize_execution" in stderr
         assert "does_not_bypass_human_review" in stderr
 
+    def test_non_string_lineage_file_fails(self, tmp_path):
+        """CAM-A18: lineage_file must be type-checked like assumptions_file/risk_file."""
+        data = self._base()
+        data["lineage_file"] = 12345  # not a string path
+        path = tmp_path / "d.json"
+        path.write_text(json.dumps(data))
+        code, _, stderr = run_script(VALIDATE_SCRIPT, str(path))
+        assert code == 1
+        assert "lineage_file" in stderr
+
+    def test_string_lineage_file_passes(self, tmp_path):
+        """A string lineage_file link is accepted."""
+        data = self._base()
+        data["lineage_file"] = "traceability/test_pkg_lineage.json"
+        path = tmp_path / "d.json"
+        path.write_text(json.dumps(data))
+        code, _, _ = run_script(VALIDATE_SCRIPT, str(path))
+        assert code == 0
+
     def test_create_rejects_invalid_decision(self, package, tmp_path):
         out = tmp_path / "d.json"
         code, _, stderr = _create_mdr(package, out, decision="maybe")

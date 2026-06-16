@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cam-assist.lutherie/schemas/revision_lineage.schema.json",
   "title": "CAM Assist Revision Lineage Schema",
-  "description": "Portable, package-scoped record of how a package's manufacturing reasoning evolved across revisions, expressed as an ordered supersession chain. A sidecar artifact that travels alongside a strategy package without mutating it. Informational only: it is a narrative chain of human-declared revision checkpoints, NOT artifact version control. It does not retain historical artifact versions, grant execution authority, enforce approval authority, or authorize machine execution.",
+  "description": "Portable, package-scoped record of how a package's manufacturing reasoning evolved across revisions, expressed as a supersession graph (one or more supersession chains linked by 'supersedes'; forked lineage with multiple roots is permitted). A sidecar artifact that travels alongside a strategy package without mutating it. Informational only: it is a narrative of human-declared revision checkpoints, NOT artifact version control. It does not retain historical artifact versions, grant execution authority, enforce approval authority, or authorize machine execution.",
   "type": "object",
   "required": ["record_type", "record_version", "package_reference", "revisions"],
 
@@ -32,7 +32,7 @@
 
     "revisions": {
       "type": "array",
-      "description": "Ordered chain of human-declared revision checkpoints for the package's manufacturing reasoning. Each entry may supersede a prior entry. Informational only.",
+      "description": "Supersession graph (one or more chains) of human-declared revision checkpoints for the package's manufacturing reasoning. Each entry may supersede a prior entry via 'supersedes'; array order is not significant. Informational only.",
       "items": {
         "type": "object",
         "required": ["revision_id", "summary"],
