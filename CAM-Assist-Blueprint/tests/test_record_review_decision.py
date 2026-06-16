@@ -544,13 +544,14 @@ class TestFullFlow:
 
 
 class TestTraceabilityLinkage:
-    """Tests for CAM-A17 --assumptions-file / --risk-file linkage (referenced, not mutated)."""
+    """Tests for CAM-A17/A18 --assumptions-file / --risk-file / --lineage-file linkage (referenced, not mutated)."""
 
     def _run_with_links(
         self,
         pkg_dir: Path,
         assumptions_file: str | None = None,
         risk_file: str | None = None,
+        lineage_file: str | None = None,
     ) -> tuple[int, str, str]:
         cmd = [
             sys.executable,
@@ -565,11 +566,13 @@ class TestTraceabilityLinkage:
             cmd.extend(["--assumptions-file", assumptions_file])
         if risk_file is not None:
             cmd.extend(["--risk-file", risk_file])
+        if lineage_file is not None:
+            cmd.extend(["--lineage-file", lineage_file])
         result = subprocess.run(cmd, capture_output=True, text=True)
         return result.returncode, result.stdout, result.stderr
 
     def test_links_recorded_in_decision(self, tmp_path):
-        """Both sidecar links are stored verbatim on the decision record."""
+        """All sidecar links are stored verbatim on the decision record."""
         staging_root = tmp_path / "staging"
         pkg_dir = staging_root / "test_package"
         create_valid_staged_package(pkg_dir)
@@ -578,12 +581,29 @@ class TestTraceabilityLinkage:
             pkg_dir,
             assumptions_file="traceability/test_package_assumptions.json",
             risk_file="traceability/test_package_risk.json",
+            lineage_file="traceability/test_package_lineage.json",
         )
 
         assert exit_code == 0, f"Expected success: {stderr}"
         record = json.loads((staging_root / "test_package.review_decision.json").read_text())
         assert record["assumptions_file"] == "traceability/test_package_assumptions.json"
         assert record["risk_file"] == "traceability/test_package_risk.json"
+        assert record["lineage_file"] == "traceability/test_package_lineage.json"
+
+    def test_lineage_link_recorded(self, tmp_path):
+        """The lineage link alone is stored verbatim on the decision record."""
+        staging_root = tmp_path / "staging"
+        pkg_dir = staging_root / "test_package"
+        create_valid_staged_package(pkg_dir)
+
+        exit_code, _, stderr = self._run_with_links(
+            pkg_dir,
+            lineage_file="traceability/test_package_lineage.json",
+        )
+
+        assert exit_code == 0, f"Expected success: {stderr}"
+        record = json.loads((staging_root / "test_package.review_decision.json").read_text())
+        assert record["lineage_file"] == "traceability/test_package_lineage.json"
 
     def test_links_omitted_when_not_provided(self, tmp_path):
         """No link keys appear when the flags are not passed."""
@@ -597,6 +617,7 @@ class TestTraceabilityLinkage:
         record = json.loads((staging_root / "test_package.review_decision.json").read_text())
         assert "assumptions_file" not in record
         assert "risk_file" not in record
+        assert "lineage_file" not in record
 
     def test_linked_sidecars_not_mutated(self, tmp_path):
         """Linking a sidecar references it; it is never read or rewritten."""
@@ -606,15 +627,18 @@ class TestTraceabilityLinkage:
 
         assumptions = tmp_path / "assumptions.json"
         risk = tmp_path / "risk.json"
+        lineage = tmp_path / "lineage.json"
         assumptions.write_text('{"sentinel": "assumptions"}')
         risk.write_text('{"sentinel": "risk"}')
-        before = (assumptions.read_bytes(), risk.read_bytes())
+        lineage.write_text('{"sentinel": "lineage"}')
+        before = (assumptions.read_bytes(), risk.read_bytes(), lineage.read_bytes())
 
         exit_code, _, _ = self._run_with_links(
             pkg_dir,
             assumptions_file=str(assumptions),
             risk_file=str(risk),
+            lineage_file=str(lineage),
         )
 
         assert exit_code == 0
-        assert (assumptions.read_bytes(), risk.read_bytes()) == before
+        assert (assumptions.read_bytes(), risk.read_bytes(), lineage.read_bytes()) == before

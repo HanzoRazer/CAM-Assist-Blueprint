@@ -24,6 +24,7 @@ VALIDATE_SCRIPT = SCRIPTS_DIR / "validate_manufacturing_decision_record.py"
 INSPECT_SCRIPT = SCRIPTS_DIR / "inspect_strategy_package.py"
 CREATE_ASSUMPTIONS = SCRIPTS_DIR / "create_manufacturing_assumptions.py"
 CREATE_RISK = SCRIPTS_DIR / "create_risk_assessment.py"
+CREATE_LINEAGE = SCRIPTS_DIR / "create_revision_lineage.py"
 
 
 def run_script(script: Path, *args) -> tuple[int, str, str]:
@@ -179,6 +180,10 @@ class TestTraceabilityInspection:
             "--decision", "approved", "--prepared-by", "ME",
             "--reviewed-by", "SR", "--rationale", "ok",
         )
+        run_script(
+            CREATE_LINEAGE, "--package", str(package),
+            "--summary", "Initial review.",
+        )
 
     def test_inspector_detects_sidecars(self, package):
         self._seed_sidecars(package)
@@ -188,6 +193,17 @@ class TestTraceabilityInspection:
         assert "assumptions: present" in stdout
         assert "risk assessment: present" in stdout
         assert "decision record: present" in stdout
+        assert "revision lineage: present" in stdout
+
+    def test_inspector_detects_lineage_via_flag(self, package, tmp_path):
+        out = tmp_path / "explicit_lineage.json"
+        run_script(
+            CREATE_LINEAGE, "--package", str(package),
+            "--summary", "Initial review.", "--out", str(out),
+        )
+        code, stdout, _ = run_script(INSPECT_SCRIPT, str(package), "--lineage", str(out))
+        assert code == 0
+        assert "revision lineage: present" in stdout
 
     def test_missing_sidecars_handled_safely(self, package):
         code, stdout, _ = run_script(INSPECT_SCRIPT, str(package))
@@ -215,6 +231,7 @@ class TestTraceabilityInspection:
         data = json.loads(stdout)
         assert data["traceability"]["assumptions"]["present"] is True
         assert data["traceability"]["decision_record"]["present"] is True
+        assert data["traceability"]["revision_lineage"]["present"] is True
 
     def test_package_not_mutated(self, package):
         before = {p.name: p.read_bytes() for p in package.iterdir()}

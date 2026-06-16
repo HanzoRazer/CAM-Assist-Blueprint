@@ -1,0 +1,27 @@
+{
+  "record_type": "cam_assist_revision_lineage",
+  "record_version": "1.0.0",
+  "package_reference": "luthiers-toolbox:vcarve:les-paul-custom-2024",
+  "created_at": "2026-06-15T00:00:00Z",
+  "revisions": [
+    {
+      "revision_id": "rev-1",
+      "summary": "Initial manufacturing strategy review.",
+      "revised_by": "Manufacturing Engineer"
+    },
+    {
+      "revision_id": "rev-2",
+      "supersedes": "rev-1",
+      "summary": "Reduced depth of cut after thin-wall chatter risk flagged.",
+      "revised_by": "Senior Reviewer",
+      "related_records": {
+        "risk_file": "examples/traceability/risk_assessment_example.json"
+      }
+    }
+  ],
+  "authority": {
+    "is_informational": true,
+    "does_not_authorize_execution": true,
+    "does_not_bypass_human_review": true
+  }
+}

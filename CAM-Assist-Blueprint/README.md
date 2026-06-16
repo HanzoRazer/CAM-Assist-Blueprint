@@ -560,15 +560,16 @@ See `docs/review/REVIEW_ANNOTATIONS.md`.
 
 ## Manufacturing Decision Traceability
 
-CAM Assist packages may carry external traceability sidecars that capture the manufacturing assumptions, risk assessments, and decision records behind a manufacturing decision — without modifying the package.
+CAM Assist packages may carry external traceability sidecars that capture the manufacturing assumptions, risk assessments, decision records, and revision lineage behind a manufacturing decision — without modifying the package.
 
 - **Manufacturing assumptions** — what was assumed about tooling, material, and fixturing.
 - **Risk assessment** — known risks and an overall risk level (informational; does not gate execution).
-- **Manufacturing decision record** — a human declaration of *why* a decision was made, optionally linking the assumptions and risk sidecars.
+- **Manufacturing decision record** — a human declaration of *why* a decision was made, optionally linking the assumptions, risk, and lineage sidecars.
+- **Revision lineage** — a package-scoped narrative chain of *how* the manufacturing reasoning evolved across revisions (a supersession chain; not artifact version control).
 
-These records are informational only. They do not grant execution authority, do not enforce approval authority, and do not bypass human review. The inspector reports them under a `Traceability:` section (explicit `--assumptions` / `--risk` / `--decision-record` paths first, then a conventional `traceability/` lookup).
+These records are informational only. They do not grant execution authority, do not enforce approval authority, and do not bypass human review. The inspector reports them under a `Traceability:` section (explicit `--assumptions` / `--risk` / `--decision-record` / `--lineage` paths first, then a conventional `traceability/` lookup).
 
-See `docs/traceability/MANUFACTURING_ASSUMPTIONS.md`, `docs/traceability/RISK_ASSESSMENT.md`, and `docs/traceability/MANUFACTURING_DECISION_RECORDS.md`.
+See `docs/traceability/MANUFACTURING_ASSUMPTIONS.md`, `docs/traceability/RISK_ASSESSMENT.md`, `docs/traceability/MANUFACTURING_DECISION_RECORDS.md`, and `docs/traceability/REVISION_LINEAGE.md`.
 
 ---
 

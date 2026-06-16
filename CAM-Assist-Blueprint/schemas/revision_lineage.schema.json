@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cam-assist.lutherie/schemas/revision_lineage.schema.json",
+  "title": "CAM Assist Revision Lineage Schema",
+  "description": "Portable, package-scoped record of how a package's manufacturing reasoning evolved across revisions, expressed as an ordered supersession chain. A sidecar artifact that travels alongside a strategy package without mutating it. Informational only: it is a narrative chain of human-declared revision checkpoints, NOT artifact version control. It does not retain historical artifact versions, grant execution authority, enforce approval authority, or authorize machine execution.",
+  "type": "object",
+  "required": ["record_type", "record_version", "package_reference", "revisions"],
+
+  "properties": {
+    "record_type": {
+      "type": "string",
+      "const": "cam_assist_revision_lineage",
+      "description": "Must be 'cam_assist_revision_lineage'"
+    },
+
+    "record_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of the revision lineage record FORMAT. Not a content-revision counter."
+    },
+
+    "package_reference": {
+      "type": "string",
+      "description": "Reference to the package whose reasoning this lineage tracks. Accepts federated_package_id, relative path, or package directory name."
+    },
+
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when this lineage record was created"
+    },
+
+    "revisions": {
+      "type": "array",
+      "description": "Ordered chain of human-declared revision checkpoints for the package's manufacturing reasoning. Each entry may supersede a prior entry. Informational only.",
+      "items": {
+        "type": "object",
+        "required": ["revision_id", "summary"],
+        "properties": {
+          "revision_id": {
+            "type": "string",
+            "description": "Human label for this revision, unique within the file (e.g., 'rev-1', 'A')"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Human-readable description of what changed in this revision"
+          },
+          "supersedes": {
+            "type": "string",
+            "description": "Optional revision_id of the prior revision this one replaces. Absent means this is a root. Must reference an existing revision_id; self-reference and cycles are invalid."
+          },
+          "revised_by": {
+            "type": "string",
+            "description": "Optional informational identifier of who made the revision. No trust validation performed."
+          },
+          "related_records": {
+            "type": "object",
+            "description": "Optional pointers to the traceability sidecars associated with this revision. Referenced, never mutated. Pointers do not guarantee retention of a file's historical state.",
+            "properties": {
+              "assumptions_file": {
+                "type": "string",
+                "description": "Optional reference to a manufacturing assumptions sidecar associated with this revision."
+              },
+              "risk_file": {
+                "type": "string",
+                "description": "Optional reference to a risk assessment sidecar associated with this revision."
+              },
+              "decision_record_file": {
+                "type": "string",
+                "description": "Optional reference to a manufacturing decision record sidecar associated with this revision."
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "authority": {
+      "type": "object",
+      "description": "Informational authority constraints. When present, every flag MUST be true.",
+      "properties": {
+        "is_informational": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This record is informational only."
+        },
+        "does_not_authorize_execution": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This record does not authorize machine execution."
+        },
+        "does_not_bypass_human_review": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This record does not bypass required human review."
+        }
+      },
+      "required": ["is_informational", "does_not_authorize_execution", "does_not_bypass_human_review"]
+    }
+  }
+}
