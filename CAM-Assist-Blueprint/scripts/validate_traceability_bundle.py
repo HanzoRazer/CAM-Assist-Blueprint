@@ -14,13 +14,20 @@ aggregates a package's traceability sidecars. The referenced sidecars remain
 authoritative; the bundle does not own, copy, or mutate them. It is
 informational only and does NOT grant execution authority.
 
-This is the STRUCTURAL layer only. It is filesystem-free: it opens only the
-bundle file itself and never resolves or stats the referenced sidecars. The
-completeness-witness layer (--check-references) is a separate, opt-in concern
-and is NOT implemented here.
+The STRUCTURAL layer (default) is filesystem-free: it opens only the bundle
+file itself and never resolves or stats the referenced sidecars. A bundle whose
+references do not exist still passes structurally.
+
+The COMPLETENESS-WITNESS layer (opt-in --check-references) resolves each declared
+reference relative to the bundle file's own directory and emits a WARNING for any
+that do not exist. Completeness findings are warnings only: they never change
+structural validity and never change the exit code. The layer checks existence
+only — it does NOT open, parse, or validate the referenced sidecars' contents,
+and it mutates nothing.
 
 Usage:
     python scripts/validate_traceability_bundle.py <bundle_json>
+    python scripts/validate_traceability_bundle.py <bundle_json> --check-references
     python scripts/validate_traceability_bundle.py examples/traceability/traceability_bundle_example.json
 
 Exit codes:
@@ -150,7 +157,27 @@ def validate_bundle(data: dict) -> ValidationResult:
     return ValidationResult(valid=len(errors) == 0, errors=errors, warnings=warnings)
 
 
-def validate_bundle_file(path: Path) -> ValidationResult:
+def check_reference_existence(data: dict, base_dir: Path) -> list[str]:
+    """Completeness witness: warn for any DECLARED reference that does not resolve.
+
+    Resolves each present slot relative to base_dir (the bundle file's own
+    directory). Checks existence only — never opens, parses, or validates the
+    referenced sidecar's contents, and never mutates anything. Returns warnings;
+    callers must not let these affect validity or exit code.
+    """
+    warnings: list[str] = []
+    contents = data.get("bundle_contents")
+    if not isinstance(contents, dict):
+        return warnings
+    for slot in CONTENT_SLOTS:
+        value = contents.get(slot)
+        if isinstance(value, str) and value.strip():
+            if not (base_dir / value).exists():
+                warnings.append(f"{slot} reference does not resolve: {value}")
+    return warnings
+
+
+def validate_bundle_file(path: Path, check_references: bool = False) -> ValidationResult:
     data, load_error = load_json(path)
     if load_error:
         return ValidationResult(valid=False, errors=[load_error], warnings=[])
@@ -158,7 +185,17 @@ def validate_bundle_file(path: Path) -> ValidationResult:
         return ValidationResult(
             valid=False, errors=["Bundle root must be a JSON object"], warnings=[]
         )
-    return validate_bundle(data)
+    result = validate_bundle(data)
+    # Completeness checks run only on a structurally valid bundle and only add
+    # warnings — they never change validity or the exit code.
+    if check_references and result.valid:
+        ref_warnings = check_reference_existence(data, path.parent)
+        result = ValidationResult(
+            valid=result.valid,
+            errors=result.errors,
+            warnings=result.warnings + ref_warnings,
+        )
+    return result
 
 
 def main() -> int:
@@ -168,6 +205,15 @@ def main() -> int:
         epilog=__doc__,
     )
     parser.add_argument("bundle_json", type=Path, help="Path to the traceability bundle JSON file")
+    parser.add_argument(
+        "--check-references",
+        action="store_true",
+        help=(
+            "Completeness witness: warn for declared references that do not resolve "
+            "(relative to the bundle file). Existence only; warnings never change validity "
+            "or the exit code."
+        ),
+    )
     parser.add_argument(
         "--quiet", "-q",
         action="store_true",
@@ -181,7 +227,7 @@ def main() -> int:
         print(f"Error: File not found: {path}", file=sys.stderr)
         return 2
 
-    result = validate_bundle_file(path)
+    result = validate_bundle_file(path, check_references=args.check_references)
 
     if result.valid:
         if not args.quiet:
