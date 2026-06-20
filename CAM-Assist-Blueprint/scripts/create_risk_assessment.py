@@ -14,7 +14,7 @@ Usage:
     python scripts/create_risk_assessment.py \
         --package examples/packages/ltb_vcarve_synthetic_example --overall-risk medium \
         --risk geometry warning "Thin wall section may chatter." \
-        --out examples/traceability/risk_assessment_example.json
+        --out examples/traceability/ltb_vcarve_synthetic_example_risk.json
 
 Exit codes:
     0 — Risk assessment created successfully

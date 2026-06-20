@@ -14,7 +14,7 @@ authority or authorize machine execution.
 
 Usage:
     python scripts/validate_manufacturing_decision_record.py <record_json>
-    python scripts/validate_manufacturing_decision_record.py examples/traceability/manufacturing_decision_record_example.json
+    python scripts/validate_manufacturing_decision_record.py examples/traceability/ltb_vcarve_synthetic_example_decision_record.json
 
 Exit codes:
     0 — Decision record is valid

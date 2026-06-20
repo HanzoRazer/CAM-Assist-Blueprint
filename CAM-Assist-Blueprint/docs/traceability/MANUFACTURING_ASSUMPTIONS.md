@@ -67,7 +67,7 @@ python scripts/create_manufacturing_assumptions.py \
   --package examples/packages/ltb_vcarve_synthetic_example \
   --assumption tooling "Tool rigidity is adequate for selected depth of cut." \
   --assumption material "Material certification supplied by customer." \
-  --out examples/traceability/manufacturing_assumptions_example.json
+  --out examples/traceability/ltb_vcarve_synthetic_example_assumptions.json
 ```
 
 `package_reference` is resolved from the package manifest's
@@ -77,7 +77,7 @@ python scripts/create_manufacturing_assumptions.py \
 
 ```bash
 python scripts/validate_manufacturing_assumptions.py \
-  examples/traceability/manufacturing_assumptions_example.json
+  examples/traceability/ltb_vcarve_synthetic_example_assumptions.json
 ```
 
 Exit codes: `0` valid, `1` validation failed, `2` file/read error.

@@ -11,7 +11,7 @@ Assumptions are informational only. They do not grant execution authority.
 
 Usage:
     python scripts/validate_manufacturing_assumptions.py <assumptions_json>
-    python scripts/validate_manufacturing_assumptions.py examples/traceability/manufacturing_assumptions_example.json
+    python scripts/validate_manufacturing_assumptions.py examples/traceability/ltb_vcarve_synthetic_example_assumptions.json
 
 Exit codes:
     0 — Assumptions record is valid

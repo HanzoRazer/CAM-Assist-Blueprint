@@ -65,14 +65,14 @@ must be `true`:
 python scripts/create_risk_assessment.py \
   --package examples/packages/ltb_vcarve_synthetic_example --overall-risk medium \
   --risk geometry warning "Thin wall section near soundhole may chatter at full feed." \
-  --out examples/traceability/risk_assessment_example.json
+  --out examples/traceability/ltb_vcarve_synthetic_example_risk.json
 ```
 
 ## Validating a Risk Assessment
 
 ```bash
 python scripts/validate_risk_assessment.py \
-  examples/traceability/risk_assessment_example.json
+  examples/traceability/ltb_vcarve_synthetic_example_risk.json
 ```
 
 Exit codes: `0` valid, `1` validation failed, `2` file/read error.

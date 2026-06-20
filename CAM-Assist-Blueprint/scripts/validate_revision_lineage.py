@@ -13,7 +13,7 @@ it does not grant execution authority and is NOT artifact version control.
 
 Usage:
     python scripts/validate_revision_lineage.py <lineage_json>
-    python scripts/validate_revision_lineage.py examples/traceability/revision_lineage_example.json
+    python scripts/validate_revision_lineage.py examples/traceability/ltb_vcarve_synthetic_example_lineage.json
 
 Exit codes:
     0 — Revision lineage record is valid

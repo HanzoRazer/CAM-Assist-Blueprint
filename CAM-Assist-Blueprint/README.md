@@ -530,6 +530,20 @@ python scripts/create_review_annotations.py \
 python scripts/validate_review_annotations.py examples/review_annotations/ltb_vcarve_synthetic_example_annotations.json
 ```
 
+### Create Traceability Bundle
+
+```bash
+python scripts/create_traceability_bundle.py \
+    --package examples/packages/ltb_vcarve_synthetic_example
+```
+
+### Validate Traceability Bundle
+
+```bash
+python scripts/validate_traceability_bundle.py \
+    examples/traceability/ltb_vcarve_synthetic_example_bundle.json --check-references
+```
+
 ### Run Tests
 
 ```bash
@@ -570,6 +584,16 @@ CAM Assist packages may carry external traceability sidecars that capture the ma
 These records are informational only. They do not grant execution authority, do not enforce approval authority, and do not bypass human review. The inspector reports them under a `Traceability:` section (explicit `--assumptions` / `--risk` / `--decision-record` / `--lineage` paths first, then a conventional `traceability/` lookup).
 
 See `docs/traceability/MANUFACTURING_ASSUMPTIONS.md`, `docs/traceability/RISK_ASSESSMENT.md`, `docs/traceability/MANUFACTURING_DECISION_RECORDS.md`, and `docs/traceability/REVISION_LINEAGE.md`.
+
+---
+
+## Traceability Bundles (CAM-A19)
+
+A traceability bundle is a portable, **reference-only** sidecar that aggregates a package's traceability records (assumptions, risk, decision record, annotations, lineage) into a single artifact, so the complete review story can move between systems as one unit.
+
+The bundle is a **navigational index**, not a source of truth: it references the sidecars, which remain authoritative. It is informational only — it does not grant execution authority, constitute approval, or modify the package. Validation is two-layered: structural (filesystem-free) by default, plus an opt-in completeness witness (`--check-references`) that warns on unresolved references without changing validity. The inspector reports it under a `Traceability Bundle: present / not declared` section (detection only).
+
+See `docs/traceability/TRACEABILITY_BUNDLES.md`.
 
 ---
 

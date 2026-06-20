@@ -43,8 +43,8 @@ must be `true`:
   "reviewed_by": "Senior Reviewer",
   "decision": "approved",
   "rationale": "Tooling, fixturing, and material assumptions reviewed against identified risks.",
-  "assumptions_file": "examples/traceability/manufacturing_assumptions_example.json",
-  "risk_file": "examples/traceability/risk_assessment_example.json",
+  "assumptions_file": "examples/traceability/ltb_vcarve_synthetic_example_assumptions.json",
+  "risk_file": "examples/traceability/ltb_vcarve_synthetic_example_risk.json",
   "authority": {
     "is_informational": true,
     "does_not_authorize_execution": true,
@@ -70,16 +70,16 @@ python scripts/create_manufacturing_decision_record.py \
   --decision approved --prepared-by "Manufacturing Engineer" \
   --reviewed-by "Senior Reviewer" \
   --rationale "Tooling, fixturing, and material assumptions reviewed against identified risks." \
-  --assumptions-file examples/traceability/manufacturing_assumptions_example.json \
-  --risk-file examples/traceability/risk_assessment_example.json \
-  --out examples/traceability/manufacturing_decision_record_example.json
+  --assumptions-file examples/traceability/ltb_vcarve_synthetic_example_assumptions.json \
+  --risk-file examples/traceability/ltb_vcarve_synthetic_example_risk.json \
+  --out examples/traceability/ltb_vcarve_synthetic_example_decision_record.json
 ```
 
 ## Validating a Decision Record
 
 ```bash
 python scripts/validate_manufacturing_decision_record.py \
-  examples/traceability/manufacturing_decision_record_example.json
+  examples/traceability/ltb_vcarve_synthetic_example_decision_record.json
 ```
 
 Exit codes: `0` valid, `1` validation failed, `2` file/read error.
@@ -92,8 +92,8 @@ review decision, without mutating them:
 ```bash
 python scripts/record_review_decision.py <package_dir> \
   --decision approve_for_downstream_cam --reviewer "Human Reviewer" \
-  --assumptions-file examples/traceability/manufacturing_assumptions_example.json \
-  --risk-file examples/traceability/risk_assessment_example.json
+  --assumptions-file examples/traceability/ltb_vcarve_synthetic_example_assumptions.json \
+  --risk-file examples/traceability/ltb_vcarve_synthetic_example_risk.json
 ```
 
 ## Conventional Location

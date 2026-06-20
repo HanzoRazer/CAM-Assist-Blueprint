@@ -18,9 +18,9 @@ Usage:
         --package examples/packages/ltb_vcarve_synthetic_example \
         --decision approved --prepared-by "Manufacturing Engineer" \
         --reviewed-by "Senior Reviewer" --rationale "Reviewed." \
-        --assumptions-file examples/traceability/manufacturing_assumptions_example.json \
-        --risk-file examples/traceability/risk_assessment_example.json \
-        --out examples/traceability/manufacturing_decision_record_example.json
+        --assumptions-file examples/traceability/ltb_vcarve_synthetic_example_assumptions.json \
+        --risk-file examples/traceability/ltb_vcarve_synthetic_example_risk.json \
+        --out examples/traceability/ltb_vcarve_synthetic_example_decision_record.json
 
 Exit codes:
     0 — Decision record created successfully

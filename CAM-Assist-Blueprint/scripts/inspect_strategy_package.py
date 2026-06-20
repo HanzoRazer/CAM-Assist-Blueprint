@@ -325,10 +325,37 @@ def format_traceability_section(traceability: dict) -> list[str]:
     return lines
 
 
+# CAM-A19 traceability bundle: a separate aggregator artifact, detected (not
+# parsed) under its own section. Modeled on the Federated Identity block.
+BUNDLE_SUFFIX = "_bundle.json"
+
+
+def resolve_bundle(package_dir: Path, explicit: Path | None = None) -> dict:
+    """Detect a traceability bundle: explicit flag first, then conventional path.
+
+    Detection only — does not parse, validate, resolve, or completeness-check the
+    bundle's contents. Returns {"present": bool, "path": str | None}.
+    """
+    path = explicit
+    if path is None:
+        candidate = conventional_traceability_path(package_dir, BUNDLE_SUFFIX)
+        if candidate.exists():
+            path = candidate
+    present = path is not None and Path(path).exists()
+    return {"present": present, "path": str(path) if present else None}
+
+
+def format_bundle_section(bundle: dict) -> list[str]:
+    """Format the traceability bundle section (detection only)."""
+    status = "present" if bundle["present"] else "not declared"
+    return ["Traceability Bundle:", f"  {status}"]
+
+
 def format_terminal_output(
     result: InspectionResult,
     annotations_data: dict | None = None,
     traceability: dict | None = None,
+    bundle: dict | None = None,
 ) -> str:
     """Format inspection result for terminal display."""
     lines = []
@@ -427,6 +454,11 @@ def format_terminal_output(
         lines.append("")
         lines.extend(format_traceability_section(traceability))
 
+    # Traceability Bundle section (CAM-A19, detection only)
+    if bundle is not None:
+        lines.append("")
+        lines.extend(format_bundle_section(bundle))
+
     # Non-execution notice
     lines.append("")
     lines.append("-" * 39)
@@ -441,6 +473,7 @@ def format_json_output(
     result: InspectionResult,
     annotations_data: dict | None = None,
     traceability: dict | None = None,
+    bundle: dict | None = None,
 ) -> str:
     """Format inspection result as JSON."""
     output = {
@@ -460,6 +493,8 @@ def format_json_output(
         output["annotations"] = annotations_data.get("annotations", [])
     if traceability is not None:
         output["traceability"] = traceability
+    if bundle is not None:
+        output["traceability_bundle"] = bundle
     return json.dumps(output, indent=2)
 
 
@@ -523,6 +558,12 @@ def main() -> int:
         default=None,
         help="Path to a revision lineage sidecar (overrides conventional lookup)",
     )
+    parser.add_argument(
+        "--bundle",
+        type=Path,
+        default=None,
+        help="Path to a traceability bundle sidecar (overrides conventional lookup; detection only)",
+    )
 
     args = parser.parse_args()
     package_dir: Path = args.package_dir
@@ -571,6 +612,7 @@ def main() -> int:
         ("--risk", args.risk),
         ("--decision-record", args.decision_record),
         ("--lineage", args.lineage),
+        ("--bundle", args.bundle),
     ):
         if flag_value is not None and not flag_value.exists():
             print(f"Error: {flag_name} file not found: {flag_value}", file=sys.stderr)
@@ -584,8 +626,10 @@ def main() -> int:
         revision_lineage=args.lineage,
     )
 
+    bundle = resolve_bundle(package_dir, explicit=args.bundle)
+
     if args.json:
-        print(format_json_output(result, annotations_data, traceability))
+        print(format_json_output(result, annotations_data, traceability, bundle))
     elif args.quiet:
         output = format_quiet_output(result, package_dir)
         if result.valid:
@@ -593,7 +637,7 @@ def main() -> int:
         else:
             print(output, file=sys.stderr)
     else:
-        print(format_terminal_output(result, annotations_data, traceability))
+        print(format_terminal_output(result, annotations_data, traceability, bundle))
 
     return 0 if result.valid else 1
 

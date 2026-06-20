@@ -15,7 +15,7 @@
       "summary": "Reduced depth of cut after thin-wall chatter risk flagged.",
       "revised_by": "Senior Reviewer",
       "related_records": {
-        "risk_file": "examples/traceability/risk_assessment_example.json"
+        "risk_file": "examples/traceability/ltb_vcarve_synthetic_example_risk.json"
       }
     }
   ],
