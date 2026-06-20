@@ -2,7 +2,8 @@
 Phase 2 tests for CAM-A19 Traceability Bundle — structural validator.
 
 Scope: structural validation only. The completeness-witness layer
-(--check-references) is NOT implemented yet and is therefore not tested here.
+(--check-references) is covered separately in
+test_traceability_bundle_completeness.py.
 
 These tests run the validator as a subprocess (mirroring test_revision_lineage.py)
 and assert exit codes and message content:
@@ -264,7 +265,7 @@ def test_non_object_root_returns_1(tmp_path):
 
 def test_structural_pass_with_nonexistent_references(tmp_path):
     """Declared references that do not exist on disk are fine structurally;
-    existence is a completeness concern (--check-references), not implemented here."""
+    existence is a completeness concern, surfaced only under --check-references."""
     data = valid_bundle()
     data["bundle_contents"] = {"assumptions_file": "definitely/missing/file.json"}
     path = write_bundle(tmp_path, data)

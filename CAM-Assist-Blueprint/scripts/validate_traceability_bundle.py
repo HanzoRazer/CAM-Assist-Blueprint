@@ -19,15 +19,22 @@ file itself and never resolves or stats the referenced sidecars. A bundle whose
 references do not exist still passes structurally.
 
 The COMPLETENESS-WITNESS layer (opt-in --check-references) resolves each declared
-reference relative to the bundle file's own directory and emits a WARNING for any
-that do not exist. Completeness findings are warnings only: they never change
-structural validity and never change the exit code. The layer checks existence
-only — it does NOT open, parse, or validate the referenced sidecars' contents,
-and it mutates nothing.
+reference relative to a base directory (the bundle file's own directory by
+default; override with --base) and emits WARNINGS for completeness findings:
+  - a declared reference that does not resolve on disk
+  - a known sidecar slot that is absent from bundle_contents (an omission)
+  - a resolved sidecar whose own package_reference differs from the bundle's
+Completeness findings are warnings only: they never change structural validity
+and never change the exit code. Beyond a single best-effort read for the
+package_reference cross-check, the layer does NOT validate the referenced
+sidecars' contents, and it mutates nothing. Parse failures during the
+cross-check are ignored — validating a sidecar's structure is that file's own
+validator's job.
 
 Usage:
     python scripts/validate_traceability_bundle.py <bundle_json>
     python scripts/validate_traceability_bundle.py <bundle_json> --check-references
+    python scripts/validate_traceability_bundle.py <bundle_json> --check-references --base <dir>
     python scripts/validate_traceability_bundle.py examples/traceability/ltb_vcarve_synthetic_example_bundle.json
 
 Exit codes:
@@ -157,27 +164,61 @@ def validate_bundle(data: dict) -> ValidationResult:
     return ValidationResult(valid=len(errors) == 0, errors=errors, warnings=warnings)
 
 
-def check_reference_existence(data: dict, base_dir: Path) -> list[str]:
-    """Completeness witness: warn for any DECLARED reference that does not resolve.
+def referenced_package_reference(path: Path) -> str | None:
+    """Best-effort read of a referenced sidecar's own package_reference.
 
-    Resolves each present slot relative to base_dir (the bundle file's own
-    directory). Checks existence only — never opens, parses, or validates the
-    referenced sidecar's contents, and never mutates anything. Returns warnings;
-    callers must not let these affect validity or exit code.
+    Returns the string when the file parses as a JSON object carrying a string
+    package_reference, else None. Read/parse failures are ignored on purpose:
+    validating the referenced file's structure is that file's validator's job.
+    """
+    data, error = load_json(path)
+    if error or not isinstance(data, dict):
+        return None
+    ref = data.get("package_reference")
+    return ref if isinstance(ref, str) else None
+
+
+def collect_completeness_findings(
+    data: dict, base_dir: Path, bundle_reference: str | None
+) -> list[str]:
+    """Completeness witness (warnings only).
+
+    For each known sidecar slot, relative to base_dir:
+    - present and does not resolve  -> warn (declared reference missing on disk)
+    - present and resolves          -> best-effort read; warn if the sidecar's
+                                       own package_reference differs from the
+                                       bundle's (cross-artifact consistency)
+    - absent from bundle_contents   -> warn (completeness/omission finding)
+
+    Existence checks plus a single best-effort read for the cross-check only;
+    never validates sidecar structure, never mutates anything. Callers must not
+    let these warnings affect validity or the exit code.
     """
     warnings: list[str] = []
     contents = data.get("bundle_contents")
     if not isinstance(contents, dict):
-        return warnings
+        contents = {}
     for slot in CONTENT_SLOTS:
         value = contents.get(slot)
         if isinstance(value, str) and value.strip():
-            if not (base_dir / value).exists():
+            resolved = base_dir / value
+            if not resolved.exists():
                 warnings.append(f"{slot} reference does not resolve: {value}")
+                continue
+            ref = referenced_package_reference(resolved)
+            if ref is not None and bundle_reference is not None and ref != bundle_reference:
+                warnings.append(
+                    f"package_reference mismatch in {slot}: "
+                    f"'{ref}' != bundle '{bundle_reference}'"
+                )
+        else:
+            warnings.append(f"completeness: {slot} not present in bundle")
     return warnings
 
 
-def validate_bundle_file(path: Path, check_references: bool = False) -> ValidationResult:
+def validate_bundle_file(
+    path: Path, check_references: bool = False, base: Path | None = None
+) -> ValidationResult:
     data, load_error = load_json(path)
     if load_error:
         return ValidationResult(valid=False, errors=[load_error], warnings=[])
@@ -189,7 +230,11 @@ def validate_bundle_file(path: Path, check_references: bool = False) -> Validati
     # Completeness checks run only on a structurally valid bundle and only add
     # warnings — they never change validity or the exit code.
     if check_references and result.valid:
-        ref_warnings = check_reference_existence(data, path.parent)
+        base_dir = base if base is not None else path.parent
+        bundle_reference = data.get("package_reference")
+        if not isinstance(bundle_reference, str):
+            bundle_reference = None
+        ref_warnings = collect_completeness_findings(data, base_dir, bundle_reference)
         result = ValidationResult(
             valid=result.valid,
             errors=result.errors,
@@ -209,9 +254,19 @@ def main() -> int:
         "--check-references",
         action="store_true",
         help=(
-            "Completeness witness: warn for declared references that do not resolve "
-            "(relative to the bundle file). Existence only; warnings never change validity "
-            "or the exit code."
+            "Completeness witness: warn for declared references that do not resolve, "
+            "known slots absent from the bundle, and referenced sidecars whose "
+            "package_reference differs from the bundle's. Warnings only; they never "
+            "change validity or the exit code."
+        ),
+    )
+    parser.add_argument(
+        "--base",
+        type=Path,
+        default=None,
+        help=(
+            "Base directory for resolving references under --check-references "
+            "(default: the bundle file's own directory)"
         ),
     )
     parser.add_argument(
@@ -227,7 +282,9 @@ def main() -> int:
         print(f"Error: File not found: {path}", file=sys.stderr)
         return 2
 
-    result = validate_bundle_file(path, check_references=args.check_references)
+    result = validate_bundle_file(
+        path, check_references=args.check_references, base=args.base
+    )
 
     if result.valid:
         if not args.quiet:

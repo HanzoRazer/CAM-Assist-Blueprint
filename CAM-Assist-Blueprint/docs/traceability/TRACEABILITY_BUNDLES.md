@@ -151,13 +151,24 @@ python scripts/validate_traceability_bundle.py \
 ```
 
 The opt-in completeness layer resolves each **declared** reference relative to
-the bundle file's own directory and emits a **warning** for any that do not
-resolve. It checks existence only — it does **not** open, parse, or validate the
-referenced sidecars' contents, and it mutates nothing.
+the bundle file's own directory (override with `--base <dir>`) and emits a
+**warning** for each completeness finding:
+
+- a declared reference that **does not resolve** on disk;
+- a known sidecar slot that is **absent** from `bundle_contents` (an omission —
+  e.g. `completeness: annotations_file not present in bundle`);
+- a resolved sidecar whose own `package_reference` **differs** from the
+  bundle's (a cross-artifact consistency finding).
+
+For the consistency check the layer performs a single **best-effort** read of
+each resolved sidecar to compare its `package_reference`; it does **not**
+otherwise open, parse, or validate sidecar contents, and it mutates nothing.
+Parse failures during this read are ignored — validating a sidecar's structure
+is that sidecar's own validator's job.
 
 Completeness findings are **warnings only**: they never change structural
 validity and never change the exit code. A structurally valid bundle with
-unresolved references still exits `0`.
+omissions, unresolved references, or a reference mismatch still exits `0`.
 
 Exit codes: `0` valid, `1` validation failed, `2` file/read error.
 

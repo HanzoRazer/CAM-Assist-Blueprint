@@ -1,18 +1,17 @@
 """
-Phase 4 tests for CAM-A19 Traceability Bundle — completeness witness.
+Tests for CAM-A19 Traceability Bundle — completeness witness.
 
-Boundaries witnessed (per the Phase 4 directive):
+Boundaries witnessed (per the CAM-A19 dev order):
 - --check-references is opt-in
-- declared references are resolved relative to the bundle file's own directory
+- references resolve relative to the bundle file's own directory, or --base
 - a declared reference that does not resolve produces a WARNING only
+- a known sidecar slot absent from the bundle produces a completeness WARNING
+- a resolved sidecar whose own package_reference differs from the bundle's
+  produces a mismatch WARNING; a best-effort read is used only for this cross-
+  check (parse failures are ignored — sidecar structure is its own validator's job)
 - warnings never change structural validity; exit code stays 0 when valid
 - a structurally invalid bundle still FAILS with --check-references
-- existence only: the layer does NOT open/parse/validate sidecar contents
 - nothing is mutated
-
-Scope note: this layer checks DECLARED references only. It does not warn about
-absent slots and does not read sidecar package_reference values (those handoff
-items are deferred and intentionally out of Phase 4 scope).
 """
 
 import json
@@ -69,10 +68,18 @@ def test_without_flag_missing_reference_is_silent(tmp_path):
 # All references present -> PASS, no warnings
 # ---------------------------------------------------------------------------
 
-def test_all_references_present_pass_no_warnings(tmp_path):
-    (tmp_path / "a.json").write_text("{}", encoding="utf-8")
-    (tmp_path / "r.json").write_text("{}", encoding="utf-8")
-    path = write_bundle(tmp_path, {"assumptions_file": "a.json", "risk_file": "r.json"})
+def test_all_slots_present_and_resolve_no_warnings(tmp_path):
+    """Every known slot present and resolving -> no warnings of any kind."""
+    files = {
+        "assumptions_file": "a.json",
+        "risk_file": "r.json",
+        "decision_record_file": "d.json",
+        "annotations_file": "n.json",
+        "lineage_file": "l.json",
+    }
+    for name in files.values():
+        (tmp_path / name).write_text("{}", encoding="utf-8")
+    path = write_bundle(tmp_path, files)
     code, out, _err = run_validator(path, "--check-references")
     assert code == 0
     assert "PASS" in out
@@ -109,11 +116,11 @@ def test_reference_resolved_relative_to_bundle_file(tmp_path):
     (sub / "ann.json").write_text("{}", encoding="utf-8")
     tdir = tmp_path / "traceability"
     tdir.mkdir()
-    # bundle in traceability/, reference points up-and-over; resolves -> no warning
+    # bundle in traceability/, reference points up-and-over; resolves -> no resolve warning
     path = write_bundle(tdir, {"annotations_file": "../review_annotations/ann.json"})
     code, out, _err = run_validator(path, "--check-references")
     assert code == 0
-    assert "[WARN]" not in out
+    assert "does not resolve" not in out  # the declared reference resolved
 
 
 # ---------------------------------------------------------------------------
@@ -134,17 +141,23 @@ def test_invalid_structure_with_check_references_fails(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Existence only: does NOT open / parse / validate sidecar contents
+# Cross-check is best-effort: an unparseable referenced sidecar is never an
+# error and never produces a resolve/mismatch warning (its own validator owns
+# its structure). Absent-slot completeness warnings are unrelated.
 # ---------------------------------------------------------------------------
 
-def test_does_not_open_or_validate_sidecar_contents(tmp_path):
+def test_unparseable_sidecar_is_not_an_error_or_resolve_warning(tmp_path):
     # The referenced file EXISTS but contains invalid JSON / garbage.
-    # If the layer opened/parsed it, this would error or warn. It must not.
+    # If the layer treated parse failure as an error or mismatch, this would
+    # warn/fail. It must not: existence is satisfied and the cross-check is
+    # best-effort. (Absent slots still warn, which is a separate concern.)
     (tmp_path / "garbage.json").write_text("this is not json at all {{{", encoding="utf-8")
     path = write_bundle(tmp_path, {"decision_record_file": "garbage.json"})
     code, out, _err = run_validator(path, "--check-references")
     assert code == 0
-    assert "[WARN]" not in out  # existence satisfied; contents never inspected
+    assert "does not resolve" not in out  # the file exists
+    assert "mismatch" not in out  # parse failure is ignored, not a mismatch
+    assert "decision_record_file" not in out  # the present, resolving slot is unmentioned
 
 
 # ---------------------------------------------------------------------------
@@ -158,3 +171,100 @@ def test_check_references_mutates_nothing(tmp_path):
     run_validator(tmp_path / "bundle.json", "--check-references")
     after = snapshot(tmp_path)
     assert before == after
+
+
+# ---------------------------------------------------------------------------
+# Absent slots are completeness (omission) findings — warnings only
+# ---------------------------------------------------------------------------
+
+def test_absent_slot_emits_completeness_warning(tmp_path):
+    (tmp_path / "r.json").write_text("{}", encoding="utf-8")
+    path = write_bundle(tmp_path, {"risk_file": "r.json"})  # other four slots absent
+    code, out, _err = run_validator(path, "--check-references")
+    assert code == 0  # omissions never change the exit code
+    assert "completeness: assumptions_file not present in bundle" in out
+    assert "completeness: decision_record_file not present in bundle" in out
+    assert "completeness: annotations_file not present in bundle" in out
+    assert "completeness: lineage_file not present in bundle" in out
+    assert "completeness: risk_file" not in out  # the present slot is not an omission
+
+
+def test_empty_bundle_warns_every_slot_absent(tmp_path):
+    path = write_bundle(tmp_path, {})
+    code, out, _err = run_validator(path, "--check-references")
+    assert code == 0
+    for slot in (
+        "assumptions_file",
+        "risk_file",
+        "decision_record_file",
+        "annotations_file",
+        "lineage_file",
+    ):
+        assert f"completeness: {slot} not present in bundle" in out
+
+
+def test_absent_slots_silent_without_flag(tmp_path):
+    path = write_bundle(tmp_path, {})
+    code, out, _err = run_validator(path)  # no --check-references
+    assert code == 0
+    assert "completeness:" not in out  # omissions are a witness concern only
+
+
+# ---------------------------------------------------------------------------
+# Cross-artifact package_reference consistency — warning only
+# ---------------------------------------------------------------------------
+
+def _sidecar(dir_: Path, name: str, package_reference: str) -> None:
+    (dir_ / name).write_text(
+        json.dumps({"package_reference": package_reference}), encoding="utf-8"
+    )
+
+
+def test_package_reference_mismatch_emits_warning(tmp_path):
+    _sidecar(tmp_path, "r.json", "pkg:ref:OTHER")
+    path = write_bundle(tmp_path, {"risk_file": "r.json"})  # bundle ref is pkg:ref:001
+    code, out, _err = run_validator(path, "--check-references")
+    assert code == 0  # consistency findings never change the exit code
+    assert "package_reference mismatch in risk_file" in out
+    assert "'pkg:ref:OTHER'" in out
+    assert "bundle 'pkg:ref:001'" in out
+
+
+def test_matching_package_reference_no_mismatch_warning(tmp_path):
+    _sidecar(tmp_path, "r.json", "pkg:ref:001")  # matches the bundle's reference
+    path = write_bundle(tmp_path, {"risk_file": "r.json"})
+    code, out, _err = run_validator(path, "--check-references")
+    assert code == 0
+    assert "mismatch" not in out
+
+
+def test_sidecar_without_package_reference_no_mismatch(tmp_path):
+    (tmp_path / "r.json").write_text("{}", encoding="utf-8")  # no package_reference key
+    path = write_bundle(tmp_path, {"risk_file": "r.json"})
+    code, out, _err = run_validator(path, "--check-references")
+    assert code == 0
+    assert "mismatch" not in out
+
+
+# ---------------------------------------------------------------------------
+# --base overrides the resolution directory
+# ---------------------------------------------------------------------------
+
+def test_base_overrides_resolution_directory(tmp_path):
+    bundle_dir = tmp_path / "elsewhere"
+    bundle_dir.mkdir()
+    refs_dir = tmp_path / "refs"
+    refs_dir.mkdir()
+    (refs_dir / "r.json").write_text("{}", encoding="utf-8")
+    # Reference resolves under refs/, not next to the bundle.
+    path = write_bundle(bundle_dir, {"risk_file": "r.json"})
+
+    # Without --base it resolves relative to the bundle dir and does not exist.
+    code, out, _err = run_validator(path, "--check-references")
+    assert code == 0
+    assert "risk_file reference does not resolve" in out
+
+    # With --base pointing at refs/, the same reference resolves.
+    code, out, _err = run_validator(path, "--check-references", "--base", refs_dir)
+    assert code == 0
+    assert "does not resolve" not in out
