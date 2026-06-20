@@ -17,7 +17,7 @@ Usage:
 
     python scripts/create_revision_lineage.py \
         --package examples/packages/ltb_vcarve_synthetic_example \
-        --out examples/traceability/revision_lineage_example.json
+        --out examples/traceability/ltb_vcarve_synthetic_example_lineage.json
 
 Exit codes:
     0 — Revision lineage record created successfully

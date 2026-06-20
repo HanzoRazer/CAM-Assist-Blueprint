@@ -72,7 +72,7 @@ must be `true`:
       "summary": "Reduced depth of cut after thin-wall chatter risk flagged.",
       "revised_by": "Senior Reviewer",
       "related_records": {
-        "risk_file": "examples/traceability/risk_assessment_example.json"
+        "risk_file": "examples/traceability/ltb_vcarve_synthetic_example_risk.json"
       }
     }
   ],
@@ -110,7 +110,7 @@ python scripts/create_revision_lineage.py \
   --package examples/packages/ltb_vcarve_synthetic_example \
   --revised-by "Manufacturing Engineer" \
   --summary "Initial manufacturing strategy review." \
-  --out examples/traceability/revision_lineage_example.json
+  --out examples/traceability/ltb_vcarve_synthetic_example_lineage.json
 ```
 
 The creator seeds a single root revision. Additional revisions are added by hand
@@ -122,7 +122,7 @@ the package directory name.
 
 ```bash
 python scripts/validate_revision_lineage.py \
-  examples/traceability/revision_lineage_example.json
+  examples/traceability/ltb_vcarve_synthetic_example_lineage.json
 ```
 
 Exit codes: `0` valid, `1` validation failed, `2` file/read error.

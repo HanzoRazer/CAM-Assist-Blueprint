@@ -150,7 +150,7 @@ schemas/traceability_bundle.schema.json
 scripts/create_traceability_bundle.py
 scripts/validate_traceability_bundle.py
 
-examples/traceability/traceability_bundle_example.json
+examples/traceability/ltb_vcarve_synthetic_example_bundle.json
 
 docs/traceability/TRACEABILITY_BUNDLES.md
 
@@ -339,7 +339,7 @@ Add `--empty` to seed `bundle_contents: {}` without scanning (useful for hand-au
 
 ---
 
-### CREATE — `examples/traceability/traceability_bundle_example.json`
+### CREATE — `examples/traceability/ltb_vcarve_synthetic_example_bundle.json`
 
 Generated from the synthetic example package so the references resolve under
 `--check-references`. References are relative to the bundle's directory
@@ -427,21 +427,21 @@ and the `--check-references` completeness mode. Note it is reference-only and no
 ```bash
 python scripts/create_traceability_bundle.py \
   --package examples/packages/ltb_vcarve_synthetic_example \
-  --out examples/traceability/traceability_bundle_example.json
+  --out examples/traceability/ltb_vcarve_synthetic_example_bundle.json
 ```
 
 ### Validate structure only (filesystem-free)
 
 ```bash
 python scripts/validate_traceability_bundle.py \
-  examples/traceability/traceability_bundle_example.json
+  examples/traceability/ltb_vcarve_synthetic_example_bundle.json
 ```
 
 ### Validate + completeness witness (resolves references)
 
 ```bash
 python scripts/validate_traceability_bundle.py \
-  examples/traceability/traceability_bundle_example.json \
+  examples/traceability/ltb_vcarve_synthetic_example_bundle.json \
   --check-references
 ```
 
@@ -517,7 +517,7 @@ python scripts/inspect_strategy_package.py \
 Phase 1  schema:     traceability_bundle.schema.json
 Phase 2  validator:  validate_traceability_bundle.py (structural + --check-references)
 Phase 3  creator:    create_traceability_bundle.py (auto-discovery + --empty)
-Phase 4  example:    traceability_bundle_example.json (must pass --check-references)
+Phase 4  example:    ltb_vcarve_synthetic_example_bundle.json (must pass --check-references)
 Phase 5  inspector:  --bundle flag + "Traceability Bundle:" section
 Phase 6  docs:       TRACEABILITY_BUNDLES.md + README capability line
 Phase 7  tests:      new (bundle) + patched (inspector)

@@ -29,7 +29,7 @@ Usage:
     python scripts/create_traceability_bundle.py --package <dir> --empty
     python scripts/create_traceability_bundle.py \
         --package examples/packages/ltb_vcarve_synthetic_example \
-        --out examples/traceability/traceability_bundle_example.json
+        --out examples/traceability/ltb_vcarve_synthetic_example_bundle.json
 
 Exit codes:
     0 — Traceability bundle created successfully

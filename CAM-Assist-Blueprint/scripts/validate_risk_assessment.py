@@ -13,7 +13,7 @@ and does not gate execution.
 
 Usage:
     python scripts/validate_risk_assessment.py <risk_json>
-    python scripts/validate_risk_assessment.py examples/traceability/risk_assessment_example.json
+    python scripts/validate_risk_assessment.py examples/traceability/ltb_vcarve_synthetic_example_risk.json
 
 Exit codes:
     0 — Risk assessment is valid

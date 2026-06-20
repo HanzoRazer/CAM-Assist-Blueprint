@@ -28,7 +28,7 @@ and it mutates nothing.
 Usage:
     python scripts/validate_traceability_bundle.py <bundle_json>
     python scripts/validate_traceability_bundle.py <bundle_json> --check-references
-    python scripts/validate_traceability_bundle.py examples/traceability/traceability_bundle_example.json
+    python scripts/validate_traceability_bundle.py examples/traceability/ltb_vcarve_synthetic_example_bundle.json
 
 Exit codes:
     0 — Traceability bundle record is valid

@@ -16,7 +16,7 @@ Usage:
     python scripts/create_manufacturing_assumptions.py \
         --package examples/packages/ltb_vcarve_synthetic_example \
         --assumption tooling "Tool rigidity is adequate for selected depth of cut." \
-        --out examples/traceability/manufacturing_assumptions_example.json
+        --out examples/traceability/ltb_vcarve_synthetic_example_assumptions.json
 
 Exit codes:
     0 — Assumptions record created successfully
