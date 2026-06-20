@@ -1,0 +1,48 @@
+name: CAM Assist Tests
+
+# Witnessed CI for the CAM-Assist-Blueprint project.
+#
+# This repository is a monorepo: the project lives under CAM-Assist-Blueprint/
+# (alongside an unrelated app/). GitHub Actions only executes workflows at the
+# repository root .github/workflows/, so this file MUST live here — not under
+# CAM-Assist-Blueprint/.github/, where it would never trigger.
+#
+# Scoped to CAM Assist only: path filters and working-directory keep this
+# green/red signal about CAM-Assist-Blueprint and never run on app/ changes.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'CAM-Assist-Blueprint/**'
+      - '.github/workflows/cam-assist-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'CAM-Assist-Blueprint/**'
+      - '.github/workflows/cam-assist-tests.yml'
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: CAM-Assist-Blueprint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+
+      - name: Run test suite
+        run: python -m pytest
+
+      - name: Verify non-execution invariant
+        run: python scripts/ci_verify_non_execution_invariant.py
