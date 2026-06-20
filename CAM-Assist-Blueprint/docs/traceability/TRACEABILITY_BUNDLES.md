@@ -1,0 +1,190 @@
+# Traceability Bundles
+
+## Overview
+
+A traceability bundle is a portable, sidecar file that aggregates a package's
+traceability records — manufacturing assumptions, risk assessment, manufacturing
+decision record, review annotations, and revision lineage — into a single
+reference-only artifact. It lets an entire manufacturing review story move
+between systems as one unit, and lets a reviewer ask *"do we possess a complete
+traceability story?"*
+
+The bundle travels alongside a strategy package without mutating it.
+
+## Scope: navigational index, NOT a source of truth
+
+A bundle is a **navigational index**, not an authoritative record.
+
+- The bundle **references** the traceability sidecars; it does not own, copy,
+  cache, or supersede their content.
+- The referenced **sidecars remain authoritative**. To read what was assumed,
+  what risks were identified, or why a decision was made, you read the sidecar —
+  not the bundle.
+- Letting a bundle carry or duplicate record data would invert the dependency
+  (`bundle owns records`) and is explicitly out of scope.
+
+## Authority Model
+
+A bundle is **informational only**:
+
+- It does not grant execution authority
+- It does not constitute approval
+- It does not modify the source package
+- It does not bypass required human review
+- It does not enforce workflow or governance
+
+When present, the `authority` block must declare these constraints, and every
+flag must be `true`:
+
+```json
+{
+  "authority": {
+    "is_informational": true,
+    "does_not_authorize_execution": true,
+    "does_not_bypass_human_review": true
+  }
+}
+```
+
+## File Format
+
+```json
+{
+  "record_type": "cam_assist_traceability_bundle",
+  "record_version": "1.0.0",
+  "package_reference": "luthiers-toolbox:vcarve:les-paul-custom-2024",
+  "created_at": "2026-06-20T00:14:32.066221Z",
+  "bundle_contents": {
+    "assumptions_file": "ltb_vcarve_synthetic_example_assumptions.json",
+    "risk_file": "ltb_vcarve_synthetic_example_risk.json",
+    "decision_record_file": "ltb_vcarve_synthetic_example_decision_record.json",
+    "lineage_file": "ltb_vcarve_synthetic_example_lineage.json",
+    "annotations_file": "../review_annotations/ltb_vcarve_synthetic_example_annotations.json"
+  },
+  "authority": {
+    "is_informational": true,
+    "does_not_authorize_execution": true,
+    "does_not_bypass_human_review": true
+  }
+}
+```
+
+Required: `record_type`, `record_version`, `package_reference`, `bundle_contents`.
+Optional: `created_at`, `authority`.
+
+`bundle_contents` is an object whose keys are drawn from a fixed set of known
+slots; each value is a string path **reference**, resolved relative to the
+bundle file's own location. The known slots are:
+
+| Slot | References |
+| --- | --- |
+| `assumptions_file` | a manufacturing assumptions sidecar |
+| `risk_file` | a risk assessment sidecar |
+| `decision_record_file` | a manufacturing decision record sidecar |
+| `annotations_file` | a review annotations sidecar |
+| `lineage_file` | a revision lineage sidecar |
+
+All slots are optional and `bundle_contents` may be empty — **missing sidecars
+are allowed**. Unknown slot names are rejected.
+
+## Discovery Convention
+
+When no path is given explicitly, tools look for the bundle at:
+
+```text
+<package_parent>/traceability/<package_name>_bundle.json
+```
+
+For packages under `examples/packages/<name>`, the convention is
+`examples/traceability/<name>_bundle.json`.
+
+The creator discovers sidecars at the same conventional locations the inspector
+uses:
+
+```text
+traceability/<package>_assumptions.json       -> assumptions_file
+traceability/<package>_risk.json              -> risk_file
+traceability/<package>_decision_record.json   -> decision_record_file
+traceability/<package>_lineage.json           -> lineage_file
+review_annotations/<package>_annotations.json -> annotations_file
+```
+
+Each discovered file is recorded as a path relative to the bundle's output
+directory (forward-slashed); absent sidecars are omitted.
+
+## Creating a Bundle
+
+```bash
+python scripts/create_traceability_bundle.py \
+  --package examples/packages/ltb_vcarve_synthetic_example
+```
+
+The creator auto-discovers the conventionally-located sidecars and records a
+reference to each one found. Use `--empty` to seed an empty `bundle_contents`
+without scanning (for hand-authoring), and `--force` to overwrite an existing
+bundle. The source package is never modified.
+
+## Validation
+
+Validation has two layers.
+
+### Structural validation (default)
+
+```bash
+python scripts/validate_traceability_bundle.py \
+  examples/traceability/ltb_vcarve_synthetic_example_bundle.json
+```
+
+The structural layer is **filesystem-free**: it opens only the bundle file and
+checks `record_type`, `record_version`, a non-empty `package_reference`, the
+`bundle_contents` object shape (known slots only, string values), and the
+`authority` block when present. A bundle whose references do not exist still
+passes structurally — reference existence is a *completeness* concern, not a
+structural one.
+
+### Completeness witness (`--check-references`)
+
+```bash
+python scripts/validate_traceability_bundle.py \
+  examples/traceability/ltb_vcarve_synthetic_example_bundle.json \
+  --check-references
+```
+
+The opt-in completeness layer resolves each **declared** reference relative to
+the bundle file's own directory and emits a **warning** for any that do not
+resolve. It checks existence only — it does **not** open, parse, or validate the
+referenced sidecars' contents, and it mutates nothing.
+
+Completeness findings are **warnings only**: they never change structural
+validity and never change the exit code. A structurally valid bundle with
+unresolved references still exits `0`.
+
+Exit codes: `0` valid, `1` validation failed, `2` file/read error.
+
+## Inspector Behavior
+
+The inspector reports the bundle under its own section, as **detection only**:
+
+```text
+Traceability Bundle:
+  present
+```
+
+or:
+
+```text
+Traceability Bundle:
+  not declared
+```
+
+The inspector is a **discovery surface**, not a validator. It does not open,
+parse, validate, or completeness-check the bundle — a bundle with unparseable
+contents is still reported as `present`. An explicit path may be supplied with
+`--bundle`; otherwise the conventional location is used.
+
+## Non-Execution Doctrine
+
+A traceability bundle never authorizes machine execution, never constitutes
+approval, never enforces workflow, and never modifies a package. It is a
+navigational index over authoritative, informational sidecars. Human review
+remains required before any downstream CAM use.
