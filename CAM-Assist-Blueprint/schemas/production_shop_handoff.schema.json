@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cam-assist.lutherie/schemas/production_shop_handoff.schema.json",
+  "title": "CAM Assist Production Shop Handoff Schema",
+  "description": "Portable, reference-only handoff manifest exporting a reviewed CAM Assist package and its traceability bundle toward the future Production Shop runtime. Direction is strictly CAM Assist -> Production Shop (outbound, read-only). A reference-only artifact: it points at the package manifest, strategy, review packet, and traceability bundle; it does not own, copy, or mutate them, and the referenced files remain authoritative. It is execution-adjacent, so the non-execution authority block is REQUIRED. The handoff does not authorize machine execution, does not bypass human review, and does NOT confirm machine readiness. It introduces no Production Shop runtime dependency. Structural validation does not require the referenced files to exist (existence is an opt-in completeness concern).",
+  "type": "object",
+  "required": ["record_type", "record_version", "package_reference", "handoff_direction", "authority", "contents"],
+
+  "properties": {
+    "record_type": {
+      "type": "string",
+      "const": "cam_assist_production_shop_handoff",
+      "description": "Must be 'cam_assist_production_shop_handoff'"
+    },
+
+    "record_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of the handoff record FORMAT."
+    },
+
+    "package_reference": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reference to the package being handed off. Accepts federated_package_id, relative path, or package directory name."
+    },
+
+    "handoff_direction": {
+      "type": "string",
+      "const": "cam_assist_to_production_shop",
+      "description": "Must be 'cam_assist_to_production_shop'. The seam is outbound only; no inbound authority is ever expressed."
+    },
+
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when this handoff record was created"
+    },
+
+    "authority": {
+      "type": "object",
+      "description": "Informational authority constraints. REQUIRED on a handoff (execution-adjacent artifact). Every flag MUST be true.",
+      "required": [
+        "is_informational",
+        "does_not_authorize_execution",
+        "does_not_bypass_human_review",
+        "does_not_confirm_machine_readiness"
+      ],
+      "properties": {
+        "is_informational": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This record is informational only."
+        },
+        "does_not_authorize_execution": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This record does not authorize machine execution."
+        },
+        "does_not_bypass_human_review": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This record does not bypass required human review."
+        },
+        "does_not_confirm_machine_readiness": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This handoff does NOT assert that the package is machine-ready."
+        }
+      }
+    },
+
+    "contents": {
+      "type": "object",
+      "description": "Map of references to the handed-off artifacts, resolved relative to the handoff file's own location. References are navigational only; the referenced files remain authoritative and are never owned, copied, or mutated. Only the known slots below are permitted; no individual slot is required.",
+      "additionalProperties": false,
+      "properties": {
+        "package_manifest_file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Reference to the package manifest.json."
+        },
+        "strategy_file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Reference to the package strategy file."
+        },
+        "review_packet_file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Reference to the package review packet."
+        },
+        "traceability_bundle_file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Reference to the traceability bundle (CAM-A19), included when available."
+        }
+      }
+    }
+  }
+}
