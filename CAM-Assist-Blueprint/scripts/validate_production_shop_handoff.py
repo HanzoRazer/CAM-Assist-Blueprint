@@ -17,13 +17,22 @@ execution-adjacent, so the non-execution authority block is REQUIRED: the handof
 does not authorize machine execution, does not bypass human review, and does NOT
 confirm machine readiness.
 
-This is the STRUCTURAL layer only. It is filesystem-free: it opens only the
-handoff file itself and never resolves or stats the referenced files. The
-completeness-witness layer (--check-references) is a separate, opt-in concern and
-is NOT implemented here.
+The STRUCTURAL layer (default) is filesystem-free: it opens only the handoff
+file itself and never resolves or stats the referenced files. A handoff whose
+references do not exist still passes structurally.
+
+The COMPLETENESS-WITNESS layer (opt-in --check-references) is a narrow EXISTENCE
+witness. For each reference DECLARED in contents, it resolves the path relative
+to the handoff file's own directory and emits a WARNING when the path does not
+resolve on disk. It is existence-only: it never opens, parses, or schema-checks a
+referenced file; it performs no package_reference cross-check, no Production Shop
+compatibility or machine-readiness check, and no absent-slot/omission findings
+(an omitted reference is allowed and silent). It mutates nothing. These warnings
+never change structural validity and never change the exit code.
 
 Usage:
     python scripts/validate_production_shop_handoff.py <handoff_json>
+    python scripts/validate_production_shop_handoff.py <handoff_json> --check-references
     python scripts/validate_production_shop_handoff.py examples/production_shop/ltb_vcarve_synthetic_example_handoff.json
 
 Exit codes:
@@ -165,7 +174,30 @@ def validate_handoff(data: dict) -> ValidationResult:
     return ValidationResult(valid=len(errors) == 0, errors=errors, warnings=warnings)
 
 
-def validate_handoff_file(path: Path) -> ValidationResult:
+def collect_reference_findings(data: dict, base_dir: Path) -> list[str]:
+    """Existence witness (warnings only).
+
+    For each reference DECLARED in contents, resolve it relative to base_dir and
+    warn when it does not resolve on disk. Existence only: never opens, parses,
+    or schema-checks a referenced file, performs no package_reference cross-check,
+    and emits NO absent-slot/omission findings (an omitted reference is allowed
+    and silent). Mutates nothing. Callers must not let these warnings affect
+    validity or the exit code.
+    """
+    warnings: list[str] = []
+    contents = data.get("contents")
+    if not isinstance(contents, dict):
+        contents = {}
+    for slot in CONTENT_SLOTS:
+        value = contents.get(slot)
+        if isinstance(value, str) and value.strip():
+            resolved = base_dir / value
+            if not resolved.exists():
+                warnings.append(f"{slot} reference does not resolve: {value}")
+    return warnings
+
+
+def validate_handoff_file(path: Path, check_references: bool = False) -> ValidationResult:
     data, load_error = load_json(path)
     if load_error:
         return ValidationResult(valid=False, errors=[load_error], warnings=[])
@@ -173,7 +205,17 @@ def validate_handoff_file(path: Path) -> ValidationResult:
         return ValidationResult(
             valid=False, errors=["Handoff root must be a JSON object"], warnings=[]
         )
-    return validate_handoff(data)
+    result = validate_handoff(data)
+    # The existence witness runs only on a structurally valid handoff and only
+    # adds warnings — structure dominates, and it never changes the exit code.
+    if check_references and result.valid:
+        ref_warnings = collect_reference_findings(data, path.parent)
+        result = ValidationResult(
+            valid=result.valid,
+            errors=result.errors,
+            warnings=result.warnings + ref_warnings,
+        )
+    return result
 
 
 def main() -> int:
@@ -183,6 +225,16 @@ def main() -> int:
         epilog=__doc__,
     )
     parser.add_argument("handoff_json", type=Path, help="Path to the handoff JSON file")
+    parser.add_argument(
+        "--check-references",
+        action="store_true",
+        help=(
+            "Existence witness: warn for declared references that do not resolve "
+            "relative to the handoff file's directory. Existence only -- never "
+            "parses referenced content, cross-checks package_reference, or reports "
+            "omitted slots. Warnings only; they never change validity or the exit code."
+        ),
+    )
     parser.add_argument(
         "--quiet", "-q",
         action="store_true",
@@ -196,7 +248,7 @@ def main() -> int:
         print(f"Error: File not found: {path}", file=sys.stderr)
         return 2
 
-    result = validate_handoff_file(path)
+    result = validate_handoff_file(path, check_references=args.check_references)
 
     if result.valid:
         if not args.quiet:
