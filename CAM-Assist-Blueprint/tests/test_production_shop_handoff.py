@@ -186,6 +186,35 @@ def test_authority_missing_fourth_flag_fails(tmp_path):
     assert "does_not_confirm_machine_readiness" in err
 
 
+def test_unknown_authority_flag_fails(tmp_path):
+    # A contradictory/undeclared flag must not ride along on the non-execution block.
+    data = valid_handoff()
+    data["authority"]["authorizes_execution"] = True
+    code, _out, err = run_validator(write_handoff(tmp_path, data))
+    assert code == 1
+    assert "unknown flag" in err
+
+
+# ---------------------------------------------------------------------------
+# Closed top-level contract
+# ---------------------------------------------------------------------------
+
+def test_unknown_top_level_field_fails(tmp_path):
+    data = valid_handoff()
+    data["surprise"] = "x"
+    code, _out, err = run_validator(write_handoff(tmp_path, data))
+    assert code == 1
+    assert "unknown top-level field" in err
+
+
+def test_created_at_accepted_at_top_level(tmp_path):
+    # created_at is the one optional top-level field; it must still pass.
+    data = valid_handoff()
+    data["created_at"] = "2026-07-09T00:00:00Z"
+    code, _out, err = run_validator(write_handoff(tmp_path, data))
+    assert code == 0, err
+
+
 # ---------------------------------------------------------------------------
 # contents
 # ---------------------------------------------------------------------------

@@ -20,6 +20,7 @@ The creator is reference-only: it never resolves or stats the referenced core
 files, and an explicit bundle path is recorded as-is without an existence check.
 """
 
+import importlib.util
 import json
 import subprocess
 import sys
@@ -279,6 +280,52 @@ def test_package_reference_falls_back_to_dir_name(tmp_path):
     out = tmp_path / "h.json"
     run_script(CREATE_SCRIPT, "--package", pkg, "--out", out)
     assert load(out)["package_reference"] == "my_pkg"
+
+
+def _load_creator_module():
+    """Import the creator as a module for unit-level (non-subprocess) tests."""
+    spec = importlib.util.spec_from_file_location("_create_psh", CREATE_SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+# ---------------------------------------------------------------------------
+# Exit-code contract: write errors are distinct from argument errors
+# ---------------------------------------------------------------------------
+
+def test_write_error_returns_exit_2(tmp_path):
+    # Route the output through a path whose parent is a regular file, so the
+    # directory creation / write fails -> documented file/write error (exit 2).
+    pkg = make_package(tmp_path)
+    blocker = tmp_path / "blocker"
+    blocker.write_text("i am a file, not a directory", encoding="utf-8")
+    out = blocker / "sub" / "h.json"
+    code, _o, err = run_script(CREATE_SCRIPT, "--package", pkg, "--out", out)
+    assert code == 2, err
+    assert "Failed to write" in err
+
+
+def test_missing_package_is_argument_error_exit_1(tmp_path):
+    code, _o, err = run_script(CREATE_SCRIPT, "--package", tmp_path / "nope")
+    assert code == 1
+    assert "not found" in err.lower()
+
+
+def test_cross_drive_relpath_reported_cleanly(tmp_path, monkeypatch):
+    # os.path.relpath raises ValueError for paths on different Windows drives.
+    # That must surface as a clean argument error (exit 1), not a traceback.
+    mod = _load_creator_module()
+    pkg = make_package(tmp_path)
+
+    def boom(*_a, **_k):
+        raise ValueError("path is on mount 'C:', start on mount 'D:'")
+
+    monkeypatch.setattr(mod.os.path, "relpath", boom)
+    result = mod.create_handoff(pkg, output_path=tmp_path / "out" / "h.json")
+    assert result.success is False
+    assert result.exit_code == 1
+    assert "different drives" in result.error
 
 
 def test_created_at_emitted_as_utc_timestamp(tmp_path):

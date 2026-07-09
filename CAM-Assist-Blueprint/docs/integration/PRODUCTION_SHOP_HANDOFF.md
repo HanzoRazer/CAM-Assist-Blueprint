@@ -104,6 +104,12 @@ supplied or conventionally discovered. Unknown slot names are rejected.
 The referenced files remain **authoritative**. The handoff references them; it
 does not own, copy, cache, or supersede their content.
 
+The record is a **closed contract**: both validation layers (the JSON Schema and
+the structural validator) reject any unrecognized top-level field and any
+undeclared flag inside `authority`. This keeps the non-execution declaration
+airtight — a stray or contradictory flag (for example an execution-granting one)
+cannot ride along on an otherwise valid handoff.
+
 ## Creating a Handoff
 
 ```bash

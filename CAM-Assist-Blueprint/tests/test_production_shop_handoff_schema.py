@@ -119,6 +119,22 @@ def test_empty_contents_allowed(schema):
     assert "minProperties" not in schema["properties"]["contents"]
 
 
+def test_authority_is_closed(schema):
+    # The non-execution block rejects undeclared flags.
+    assert schema["properties"]["authority"]["additionalProperties"] is False
+
+
+def test_top_level_is_closed(schema):
+    # Unrecognized top-level fields are rejected.
+    assert schema["additionalProperties"] is False
+
+
+def test_created_at_is_declared_optional(schema):
+    # created_at is a recognized optional field (declared, not required).
+    assert schema["properties"]["created_at"]["type"] == "string"
+    assert "created_at" not in schema["required"]
+
+
 # ---------------------------------------------------------------------------
 # C — applied schema validation (optional)
 # ---------------------------------------------------------------------------
@@ -180,4 +196,27 @@ def test_applied_empty_contents_passes(schema):
     jsonschema = pytest.importorskip("jsonschema")
     ok = _valid_handoff()
     ok["contents"] = {}
+    jsonschema.Draft202012Validator(schema).validate(ok)
+
+
+def test_applied_unknown_authority_flag_fails(schema):
+    jsonschema = pytest.importorskip("jsonschema")
+    bad = _valid_handoff()
+    bad["authority"]["authorizes_execution"] = True
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.Draft202012Validator(schema).validate(bad)
+
+
+def test_applied_unknown_top_level_field_fails(schema):
+    jsonschema = pytest.importorskip("jsonschema")
+    bad = _valid_handoff()
+    bad["surprise"] = "x"
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.Draft202012Validator(schema).validate(bad)
+
+
+def test_applied_created_at_allowed(schema):
+    jsonschema = pytest.importorskip("jsonschema")
+    ok = _valid_handoff()
+    ok["created_at"] = "2026-07-09T00:00:00Z"
     jsonschema.Draft202012Validator(schema).validate(ok)

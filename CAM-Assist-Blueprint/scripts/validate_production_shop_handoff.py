@@ -6,8 +6,10 @@ Validates read-only Production Shop handoff manifests for:
 - Correct record structure (record_type, record_version)
 - package_reference present and a non-empty string
 - handoff_direction present and equal to 'cam_assist_to_production_shop'
-- authority REQUIRED, with four const-true flags
+- authority REQUIRED, with four const-true flags and no undeclared flags
 - contents present and object-shaped, restricted to known slots, string values
+- a closed top-level contract: unrecognized top-level fields are rejected
+  (created_at is optional but recognized)
 
 A handoff is a portable, reference-only manifest exporting a reviewed package and
 its traceability bundle toward the future Production Shop runtime. Direction is
@@ -68,6 +70,17 @@ CONTENT_SLOTS = [
     "review_packet_file",
     "traceability_bundle_file",
 ]
+# Closed set of permitted top-level keys (mirrors the schema's
+# additionalProperties: false). created_at is optional but recognized.
+KNOWN_TOP_LEVEL = [
+    "record_type",
+    "record_version",
+    "package_reference",
+    "handoff_direction",
+    "created_at",
+    "authority",
+    "contents",
+]
 
 
 class ValidationResult(NamedTuple):
@@ -103,6 +116,14 @@ def validate_authority(authority: object, errors: list[str]) -> None:
             errors.append(f"authority.{flag} is required and must be true")
         elif authority.get(flag) is not True:
             errors.append(f"authority.{flag} must be true")
+    # The non-execution declaration is a closed contract: reject undeclared flags
+    # so a contradictory one (e.g. an execution-granting flag) cannot ride along.
+    for flag in authority:
+        if flag not in AUTHORITY_FLAGS:
+            errors.append(
+                f"authority: unknown flag '{flag}' "
+                f"(allowed: {', '.join(AUTHORITY_FLAGS)})"
+            )
 
 
 def validate_contents(contents: object, errors: list[str], warnings: list[str]) -> None:
@@ -173,6 +194,16 @@ def validate_handoff(data: dict) -> ValidationResult:
         errors.append("Missing required field: contents")
     else:
         validate_contents(data["contents"], errors, warnings)
+
+    # Closed top-level contract (mirrors the schema's additionalProperties: false):
+    # an unrecognized top-level key is rejected so stray/misleading fields cannot
+    # ride along unnoticed.
+    for key in data:
+        if key not in KNOWN_TOP_LEVEL:
+            errors.append(
+                f"unknown top-level field: '{key}' "
+                f"(allowed: {', '.join(KNOWN_TOP_LEVEL)})"
+            )
 
     return ValidationResult(valid=len(errors) == 0, errors=errors, warnings=warnings)
 
