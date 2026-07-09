@@ -351,11 +351,54 @@ def format_bundle_section(bundle: dict) -> list[str]:
     return ["Traceability Bundle:", f"  {status}"]
 
 
+# CAM-A20 production shop handoff: a separate outbound sidecar, detected (not
+# parsed) under its own section. Unlike traceability artifacts, the conventional
+# location is a production_shop/ directory (NOT traceability/).
+HANDOFF_SUFFIX = "_handoff.json"
+
+
+def conventional_handoff_path(package_dir: Path) -> Path:
+    """Conventional handoff location: <parent>/production_shop/<package>_handoff.json.
+
+    For examples/packages/<name>, look under examples/production_shop/ instead.
+    """
+    parent = package_dir.parent
+    if parent.name == "packages" and parent.parent.name == "examples":
+        base = parent.parent / "production_shop"
+    else:
+        base = parent / "production_shop"
+    return base / f"{package_dir.name}{HANDOFF_SUFFIX}"
+
+
+def resolve_handoff(package_dir: Path, explicit: Path | None = None) -> dict:
+    """Detect a production shop handoff: explicit flag first, then conventional path.
+
+    Detection only — never opens, parses, validates, resolves references, or
+    completeness-checks the handoff, and makes no Production Shop runtime
+    assumptions. An existing-but-unparseable handoff still counts as present.
+    Returns {"present": bool, "path": str | None}.
+    """
+    path = explicit
+    if path is None:
+        candidate = conventional_handoff_path(package_dir)
+        if candidate.exists():
+            path = candidate
+    present = path is not None and Path(path).exists()
+    return {"present": present, "path": str(path) if present else None}
+
+
+def format_handoff_section(handoff: dict) -> list[str]:
+    """Format the production shop handoff section (detection only)."""
+    status = "present" if handoff["present"] else "not declared"
+    return ["Production Shop Handoff:", f"  {status}"]
+
+
 def format_terminal_output(
     result: InspectionResult,
     annotations_data: dict | None = None,
     traceability: dict | None = None,
     bundle: dict | None = None,
+    handoff: dict | None = None,
 ) -> str:
     """Format inspection result for terminal display."""
     lines = []
@@ -459,6 +502,11 @@ def format_terminal_output(
         lines.append("")
         lines.extend(format_bundle_section(bundle))
 
+    # Production Shop Handoff section (CAM-A20, detection only)
+    if handoff is not None:
+        lines.append("")
+        lines.extend(format_handoff_section(handoff))
+
     # Non-execution notice
     lines.append("")
     lines.append("-" * 39)
@@ -474,6 +522,7 @@ def format_json_output(
     annotations_data: dict | None = None,
     traceability: dict | None = None,
     bundle: dict | None = None,
+    handoff: dict | None = None,
 ) -> str:
     """Format inspection result as JSON."""
     output = {
@@ -495,6 +544,8 @@ def format_json_output(
         output["traceability"] = traceability
     if bundle is not None:
         output["traceability_bundle"] = bundle
+    if handoff is not None:
+        output["production_shop_handoff"] = handoff
     return json.dumps(output, indent=2)
 
 
@@ -564,6 +615,12 @@ def main() -> int:
         default=None,
         help="Path to a traceability bundle sidecar (overrides conventional lookup; detection only)",
     )
+    parser.add_argument(
+        "--handoff",
+        type=Path,
+        default=None,
+        help="Path to a production shop handoff sidecar (overrides conventional lookup; detection only)",
+    )
 
     args = parser.parse_args()
     package_dir: Path = args.package_dir
@@ -613,6 +670,7 @@ def main() -> int:
         ("--decision-record", args.decision_record),
         ("--lineage", args.lineage),
         ("--bundle", args.bundle),
+        ("--handoff", args.handoff),
     ):
         if flag_value is not None and not flag_value.exists():
             print(f"Error: {flag_name} file not found: {flag_value}", file=sys.stderr)
@@ -628,8 +686,10 @@ def main() -> int:
 
     bundle = resolve_bundle(package_dir, explicit=args.bundle)
 
+    handoff = resolve_handoff(package_dir, explicit=args.handoff)
+
     if args.json:
-        print(format_json_output(result, annotations_data, traceability, bundle))
+        print(format_json_output(result, annotations_data, traceability, bundle, handoff))
     elif args.quiet:
         output = format_quiet_output(result, package_dir)
         if result.valid:
@@ -637,7 +697,7 @@ def main() -> int:
         else:
             print(output, file=sys.stderr)
     else:
-        print(format_terminal_output(result, annotations_data, traceability, bundle))
+        print(format_terminal_output(result, annotations_data, traceability, bundle, handoff))
 
     return 0 if result.valid else 1
 
