@@ -5,6 +5,7 @@
   "description": "Portable, reference-only artifact that aggregates a package's traceability sidecars (assumptions, risk, decision record, annotations, lineage) so the complete manufacturing review story can move between systems as one unit. A navigational index, NOT the source of truth: the referenced sidecars remain authoritative. The bundle references files, it does not own, copy, cache, or supersede their content. Informational only: it does not grant execution authority, constitute approval, enforce workflow, or authorize machine execution. References are strings; structural validation does not require the referenced files to exist (existence is a completeness finding, not a structural error).",
   "type": "object",
   "required": ["record_type", "record_version", "package_reference", "bundle_contents"],
+  "additionalProperties": false,
 
   "properties": {
     "record_type": {
@@ -67,6 +68,7 @@
     "authority": {
       "type": "object",
       "description": "Informational authority constraints. When present, every flag MUST be true.",
+      "additionalProperties": false,
       "properties": {
         "is_informational": {
           "type": "boolean",

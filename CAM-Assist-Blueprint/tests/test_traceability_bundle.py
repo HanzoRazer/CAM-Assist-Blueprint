@@ -233,6 +233,38 @@ def test_authority_flag_missing_fails(tmp_path):
     assert "is_informational" in err
 
 
+def test_unknown_authority_flag_fails(tmp_path):
+    # A contradictory/undeclared flag must not ride along on the authority block.
+    data = valid_bundle()
+    data["authority"]["authorizes_execution"] = True
+    path = write_bundle(tmp_path, data)
+    code, _out, err = run_validator(path)
+    assert code == 1
+    assert "unknown flag" in err
+
+
+# ---------------------------------------------------------------------------
+# Closed top-level contract
+# ---------------------------------------------------------------------------
+
+def test_unknown_top_level_field_fails(tmp_path):
+    data = valid_bundle()
+    data["surprise"] = "x"
+    path = write_bundle(tmp_path, data)
+    code, _out, err = run_validator(path)
+    assert code == 1
+    assert "unknown top-level field" in err
+
+
+def test_created_at_accepted_at_top_level(tmp_path):
+    # created_at is a recognized optional top-level field; it must still pass.
+    data = valid_bundle()
+    data["created_at"] = "2026-06-20T00:14:32.066221Z"
+    path = write_bundle(tmp_path, data)
+    code, _out, err = run_validator(path)
+    assert code == 0, err
+
+
 # ---------------------------------------------------------------------------
 # File / read errors
 # ---------------------------------------------------------------------------
