@@ -328,6 +328,20 @@ Provides:
 
 ---
 
+### CAM-A20 — Production Shop Handoff
+
+Read-only, outbound export of a reviewed package toward a future Production Shop runtime.
+
+Provides:
+
+- reference-only handoff sidecar (`CAM Assist → Production Shop`)
+- required non-execution authority block (incl. machine-readiness disclaimer)
+- structural validation plus an opt-in `--check-references` existence witness
+- inspector detection (`Production Shop Handoff: present / not declared`)
+- no Production Shop runtime dependency and no execution authority
+
+---
+
 ## Repository Structure
 
 ```
@@ -544,6 +558,21 @@ python scripts/validate_traceability_bundle.py \
     examples/traceability/ltb_vcarve_synthetic_example_bundle.json --check-references
 ```
 
+### Create Production Shop Handoff
+
+```bash
+python scripts/create_production_shop_handoff.py \
+    --package examples/packages/ltb_vcarve_synthetic_example \
+    --out examples/production_shop/ltb_vcarve_synthetic_example_handoff.json --force
+```
+
+### Validate Production Shop Handoff
+
+```bash
+python scripts/validate_production_shop_handoff.py \
+    examples/production_shop/ltb_vcarve_synthetic_example_handoff.json --check-references
+```
+
 ### Run Tests
 
 ```bash
@@ -594,6 +623,16 @@ A traceability bundle is a portable, **reference-only** sidecar that aggregates 
 The bundle is a **navigational index**, not a source of truth: it references the sidecars, which remain authoritative. It is informational only — it does not grant execution authority, constitute approval, or modify the package. Validation is two-layered: structural (filesystem-free) by default, plus an opt-in completeness witness (`--check-references`) that warns on unresolved references without changing validity. The inspector reports it under a `Traceability Bundle: present / not declared` section (detection only).
 
 See `docs/traceability/TRACEABILITY_BUNDLES.md`.
+
+---
+
+## Production Shop Handoff (CAM-A20)
+
+A production shop handoff is a portable, **reference-only** sidecar that exports a reviewed package toward a future Production Shop runtime, aggregating references to the package manifest, strategy, review packet, and (when available) its traceability bundle into a single outbound artifact. Direction is outbound only (`CAM Assist → Production Shop`).
+
+The handoff is **informational only**: it does not authorize execution, does not confirm machine readiness, does not mutate packages, and requires no Production Shop runtime code. Its non-execution `authority` block is required, with all four flags `true` (including `does_not_confirm_machine_readiness`). Validation is two-layered: structural (filesystem-free) by default, plus an opt-in existence witness (`--check-references`) that warns on unresolved references without changing validity. The inspector reports it under a `Production Shop Handoff: present / not declared` section (detection only).
+
+See `docs/integration/PRODUCTION_SHOP_HANDOFF.md`.
 
 ---
 
