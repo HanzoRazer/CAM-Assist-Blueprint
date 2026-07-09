@@ -216,6 +216,53 @@ def test_default_mode_is_filesystem_free(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# Strict enforcement: --fail-on-reference-warnings (opt-in, additive)
+# ---------------------------------------------------------------------------
+
+def test_strict_mode_fails_on_missing_refs(tmp_path):
+    # Unresolved references become fatal ONLY under the opt-in strict flag.
+    handoff = scaffold(tmp_path, present=set())  # nothing exists
+    code, _out, err = run_validator(
+        handoff, "--check-references", "--fail-on-reference-warnings"
+    )
+    assert code == 1
+    assert "FAIL" in err
+    assert "reference does not resolve" in err
+
+
+def test_strict_mode_passes_when_refs_resolve(tmp_path):
+    handoff = scaffold(tmp_path, present=set(ALL_REFS.keys()))
+    code, out, _err = run_validator(
+        handoff, "--check-references", "--fail-on-reference-warnings"
+    )
+    assert code == 0
+    assert "PASS" in out
+
+
+def test_strict_flag_is_noop_without_check_references(tmp_path):
+    # Without --check-references there is nothing to enforce; default behavior holds.
+    handoff = scaffold(tmp_path, present=set())  # missing refs, but not checked
+    code, out, _err = run_validator(handoff, "--fail-on-reference-warnings")
+    assert code == 0
+    assert "does not resolve" not in out
+
+
+def test_strict_mode_does_not_affect_structural_failure_semantics(tmp_path):
+    # A structurally invalid handoff still exits 1 (structure dominates), strict or not.
+    handoff_dir = tmp_path / "production_shop"
+    handoff_dir.mkdir(parents=True)
+    bad = valid_handoff(dict(ALL_REFS))
+    bad["record_type"] = "not_a_handoff"
+    handoff = handoff_dir / "h.json"
+    handoff.write_text(json.dumps(bad), encoding="utf-8")
+    code, _out, err = run_validator(
+        handoff, "--check-references", "--fail-on-reference-warnings"
+    )
+    assert code == 1
+    assert "FAIL" in err
+
+
+# ---------------------------------------------------------------------------
 # No mutation
 # ---------------------------------------------------------------------------
 

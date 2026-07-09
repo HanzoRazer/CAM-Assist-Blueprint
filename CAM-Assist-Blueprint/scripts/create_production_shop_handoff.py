@@ -8,9 +8,9 @@ the package's manifest, strategy, review packet, and (when available) its
 traceability bundle. Every reference is recorded as a path relative to the
 handoff file's own location, forward-slashed for portability.
 
-The handoff is outbound only (CAM Assist -> Production Shop). It does NOT own,
-copy, cache, or mutate the referenced files, and it never modifies the source
-package. It is execution-adjacent, so the non-execution authority block is always
+The handoff is outbound only (CAM Assist -> Production Shop). It records a
+`created_at` UTC timestamp for auditability. It does NOT own, copy, cache, or
+mutate the referenced files, and it never modifies the source package. It is execution-adjacent, so the non-execution authority block is always
 emitted and every flag is true: the handoff is informational, does not authorize
 machine execution, does not bypass human review, and does NOT confirm machine
 readiness. It introduces no Production Shop runtime dependency.
@@ -53,6 +53,7 @@ import argparse
 import json
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import NamedTuple
 
@@ -80,6 +81,15 @@ class CreateResult(NamedTuple):
     success: bool
     output_path: Path | None
     error: str | None
+
+
+def utc_now() -> str:
+    """Current UTC time as an ISO-8601 timestamp with a 'Z' suffix.
+
+    Mirrors the traceability bundle creator so both outbound artifacts stamp
+    their creation time identically.
+    """
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def load_manifest(package_dir: Path) -> dict:
@@ -186,6 +196,7 @@ def create_handoff(
         "record_version": RECORD_VERSION,
         "package_reference": resolve_package_reference(package_dir, manifest),
         "handoff_direction": HANDOFF_DIRECTION,
+        "created_at": utc_now(),
         "authority": dict(AUTHORITY),
         "contents": build_contents(
             package_dir, manifest, output_path.parent, traceability_bundle

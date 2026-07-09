@@ -10,6 +10,7 @@ Witnesses (mapping to the dev-order test matrix):
 - a conventionally-located bundle is discovered and included
 - an absent (non-explicit, non-conventional) bundle is omitted
 - references are relative to the output file, forward-slashed
+- a created_at UTC timestamp is stamped (parseable ISO-8601)
 - overwrite is refused without --force, allowed with --force
 - the source package is not mutated
 - a missing package directory exits nonzero
@@ -22,6 +23,7 @@ files, and an explicit bundle path is recorded as-is without an existence check.
 import json
 import subprocess
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 
@@ -279,8 +281,14 @@ def test_package_reference_falls_back_to_dir_name(tmp_path):
     assert load(out)["package_reference"] == "my_pkg"
 
 
-def test_created_at_omitted(tmp_path):
+def test_created_at_emitted_as_utc_timestamp(tmp_path):
+    # The creator stamps created_at (dev order: "Stamp created_at..."), mirroring
+    # the traceability bundle creator. It must be a parseable UTC ISO-8601 string.
     pkg = make_package(tmp_path)
     out = tmp_path / "h.json"
     run_script(CREATE_SCRIPT, "--package", pkg, "--out", out)
-    assert "created_at" not in load(out)
+    created_at = load(out)["created_at"]
+    assert isinstance(created_at, str) and created_at.endswith("Z")
+    # Parseable as an aware UTC datetime (Z -> +00:00 for fromisoformat).
+    parsed = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+    assert parsed.tzinfo is not None and parsed.utcoffset() == timedelta(0)

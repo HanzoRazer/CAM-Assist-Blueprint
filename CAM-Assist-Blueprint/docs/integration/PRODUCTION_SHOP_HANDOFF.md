@@ -55,6 +55,7 @@ existence of a handoff.
   "record_version": "1.0.0",
   "package_reference": "luthiers-toolbox:vcarve:les-paul-custom-2024",
   "handoff_direction": "cam_assist_to_production_shop",
+  "created_at": "2026-07-09T08:15:41.779627Z",
   "authority": {
     "is_informational": true,
     "does_not_authorize_execution": true,
@@ -71,10 +72,13 @@ existence of a handoff.
 ```
 
 Required: `record_type`, `record_version`, `package_reference`,
-`handoff_direction`, `authority`, `contents`.
+`handoff_direction`, `authority`, `contents`. Optional: `created_at`.
 
 - `record_type` must be `cam_assist_production_shop_handoff`.
 - `record_version` must be a semantic version (e.g. `1.0.0`).
+- `created_at` is an ISO-8601 UTC timestamp recording when the handoff was
+  created. It is optional in the contract, but the creator always stamps it for
+  auditability. It is metadata only and carries no authority.
 - `package_reference` is the package's portable identity — the manifest's
   `federation.federated_package_id` when present, else the package directory name.
 - `handoff_direction` must be `cam_assist_to_production_shop`. The handoff is
@@ -126,6 +130,20 @@ modified. Use `--force` to overwrite an existing handoff.
 
 ## Validating a Handoff
 
+**Structural validity and reference completeness are separate concerns**, and a
+`PASS` speaks only to the first unless you opt in to the second:
+
+- **Structural validity** means the handoff record itself conforms to the required
+  contract (record type, version, direction, authority block, `contents` shape).
+- **Reference completeness** means each declared path in `contents` actually
+  resolves on disk.
+
+By default the validator checks structure only and reports a *structurally valid*
+handoff. Reference existence is checked only under `--check-references`, and those
+findings are advisory (they never change the exit code) unless you additionally
+pass `--fail-on-reference-warnings`. A structurally valid handoff is **not** by
+itself a statement that its references exist or that the package is ready to run.
+
 Validation has two layers.
 
 ### Structural validation (default)
@@ -136,7 +154,7 @@ python scripts/validate_production_shop_handoff.py \
 ```
 
 ```text
-PASS: production shop handoff is valid
+PASS: production shop handoff is structurally valid
 ```
 
 The structural layer is **filesystem-free**: it opens only the handoff file and
@@ -160,7 +178,7 @@ file's own directory and emits a **warning** when the path does not resolve on
 disk:
 
 ```text
-PASS: production shop handoff is valid
+PASS: production shop handoff is structurally valid
   [WARN] strategy_file reference does not resolve: ../packages/.../strategy.json
 ```
 
@@ -173,7 +191,41 @@ These warnings are **advisory only**: they never change structural validity and
 never change the exit code. A structurally valid handoff with unresolved
 references still exits `0`.
 
-Exit codes: `0` valid, `1` validation failed, `2` file/read error.
+### `--fail-on-reference-warnings` (CI enforcement)
+
+For automation that must treat a handoff pointing at missing files as a failure,
+add `--fail-on-reference-warnings` alongside `--check-references`:
+
+```bash
+python scripts/validate_production_shop_handoff.py \
+  examples/production_shop/ltb_vcarve_synthetic_example_handoff.json \
+  --check-references --fail-on-reference-warnings
+```
+
+This upgrades unresolved-reference findings from warnings to **errors** (exit `1`):
+
+```text
+FAIL: production shop handoff validation failed
+  [ERR] strategy_file reference does not resolve: ../packages/.../strategy.json
+```
+
+It is a strict opt-in and changes nothing else: default behavior is unchanged, no
+structural rule is altered, and it has no effect without `--check-references`. The
+reference-only doctrine — that a handoff *may* legitimately reference not-yet-present
+files — remains the default; this flag exists solely so a pipeline can choose to
+enforce completeness at a specific gate.
+
+The behavior matrix:
+
+| Invocation | Structural invalid | Missing references | Exit |
+| --- | --- | --- | --- |
+| default | — | not checked | `1` if invalid, else `0` |
+| `--check-references` | — | warn only | `0` |
+| `--check-references --fail-on-reference-warnings` | — | error | `1` |
+| any mode | yes | — | `1` (structure dominates) |
+
+Exit codes: `0` structurally valid (and, in strict mode, references resolved),
+`1` validation failed, `2` file/read error.
 
 ## Inspector Detection
 
@@ -199,7 +251,12 @@ python scripts/inspect_strategy_package.py \
 
 The inspector is a **discovery surface**, not a validator. It does not open,
 parse, validate, or completeness-check the handoff — a handoff with unparseable
-contents is still reported as `present`. An explicit path may be supplied with
+contents is still reported as `present`. `present` means only that a handoff file
+was found at the resolved path; it is **not** a claim that the handoff is
+structurally valid, that its references resolve, or that the package is
+machine-ready. Those are three separate questions: use the validator for
+structural validity, `--check-references` for reference completeness, and neither
+tool ever asserts machine readiness. An explicit path may be supplied with
 `--handoff <path>`; otherwise the conventional
 `production_shop/<package>_handoff.json` location is used. In `--json` output the
 same result appears under a `production_shop_handoff` field:

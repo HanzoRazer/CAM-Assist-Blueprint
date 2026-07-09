@@ -630,7 +630,7 @@ See `docs/traceability/TRACEABILITY_BUNDLES.md`.
 
 A production shop handoff is a portable, **reference-only** sidecar that exports a reviewed package toward a future Production Shop runtime, aggregating references to the package manifest, strategy, review packet, and (when available) its traceability bundle into a single outbound artifact. Direction is outbound only (`CAM Assist → Production Shop`).
 
-The handoff is **informational only**: it does not authorize execution, does not confirm machine readiness, does not mutate packages, and requires no Production Shop runtime code. Its non-execution `authority` block is required, with all four flags `true` (including `does_not_confirm_machine_readiness`). Validation is two-layered: structural (filesystem-free) by default, plus an opt-in existence witness (`--check-references`) that warns on unresolved references without changing validity. The inspector reports it under a `Production Shop Handoff: present / not declared` section (detection only).
+The handoff is **informational only**: it does not authorize execution, does not confirm machine readiness, does not mutate packages, and requires no Production Shop runtime code. Its non-execution `authority` block is required, with all four flags `true` (including `does_not_confirm_machine_readiness`). Validation is two-layered: structural (filesystem-free) by default, plus an opt-in existence witness (`--check-references`) that warns on unresolved references without changing validity — or, for CI enforcement, `--fail-on-reference-warnings` to make unresolved references fatal. The inspector reports it under a `Production Shop Handoff: present / not declared` section (detection only).
 
 See `docs/integration/PRODUCTION_SHOP_HANDOFF.md`.
 

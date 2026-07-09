@@ -28,7 +28,10 @@ resolve on disk. It is existence-only: it never opens, parses, or schema-checks 
 referenced file; it performs no package_reference cross-check, no Production Shop
 compatibility or machine-readiness check, and no absent-slot/omission findings
 (an omitted reference is allowed and silent). It mutates nothing. These warnings
-never change structural validity and never change the exit code.
+never change structural validity, and by default never change the exit code. The
+opt-in --fail-on-reference-warnings mode is the sole exception: it promotes
+unresolved-reference findings to errors (exit 1) so CI can enforce reference
+completeness without altering any structural rule.
 
 Usage:
     python scripts/validate_production_shop_handoff.py <handoff_json>
@@ -197,7 +200,11 @@ def collect_reference_findings(data: dict, base_dir: Path) -> list[str]:
     return warnings
 
 
-def validate_handoff_file(path: Path, check_references: bool = False) -> ValidationResult:
+def validate_handoff_file(
+    path: Path,
+    check_references: bool = False,
+    fail_on_reference_warnings: bool = False,
+) -> ValidationResult:
     data, load_error = load_json(path)
     if load_error:
         return ValidationResult(valid=False, errors=[load_error], warnings=[])
@@ -206,15 +213,25 @@ def validate_handoff_file(path: Path, check_references: bool = False) -> Validat
             valid=False, errors=["Handoff root must be a JSON object"], warnings=[]
         )
     result = validate_handoff(data)
-    # The existence witness runs only on a structurally valid handoff and only
-    # adds warnings — structure dominates, and it never changes the exit code.
+    # The existence witness runs only on a structurally valid handoff. By default
+    # its findings are warnings — structure dominates and the exit code is
+    # unchanged. The opt-in --fail-on-reference-warnings mode is the sole
+    # exception: it promotes unresolved-reference findings to errors so CI can
+    # enforce reference completeness. Structural rules are never affected either way.
     if check_references and result.valid:
         ref_warnings = collect_reference_findings(data, path.parent)
-        result = ValidationResult(
-            valid=result.valid,
-            errors=result.errors,
-            warnings=result.warnings + ref_warnings,
-        )
+        if fail_on_reference_warnings and ref_warnings:
+            result = ValidationResult(
+                valid=False,
+                errors=result.errors + ref_warnings,
+                warnings=result.warnings,
+            )
+        else:
+            result = ValidationResult(
+                valid=result.valid,
+                errors=result.errors,
+                warnings=result.warnings + ref_warnings,
+            )
     return result
 
 
@@ -232,7 +249,19 @@ def main() -> int:
             "Existence witness: warn for declared references that do not resolve "
             "relative to the handoff file's directory. Existence only -- never "
             "parses referenced content, cross-checks package_reference, or reports "
-            "omitted slots. Warnings only; they never change validity or the exit code."
+            "omitted slots. Warnings only; they never change validity or the exit code "
+            "unless --fail-on-reference-warnings is also given."
+        ),
+    )
+    parser.add_argument(
+        "--fail-on-reference-warnings",
+        action="store_true",
+        dest="fail_on_reference_warnings",
+        help=(
+            "With --check-references, treat unresolved declared references as "
+            "validation failures (exit 1) instead of warnings. Structural rules are "
+            "unchanged; this only upgrades reference-existence findings for CI "
+            "enforcement. No effect without --check-references."
         ),
     )
     parser.add_argument(
@@ -248,11 +277,15 @@ def main() -> int:
         print(f"Error: File not found: {path}", file=sys.stderr)
         return 2
 
-    result = validate_handoff_file(path, check_references=args.check_references)
+    result = validate_handoff_file(
+        path,
+        check_references=args.check_references,
+        fail_on_reference_warnings=args.fail_on_reference_warnings,
+    )
 
     if result.valid:
         if not args.quiet:
-            print("PASS: production shop handoff is valid")
+            print("PASS: production shop handoff is structurally valid")
             for warning in result.warnings:
                 print(f"  [WARN] {warning}")
         return 0
