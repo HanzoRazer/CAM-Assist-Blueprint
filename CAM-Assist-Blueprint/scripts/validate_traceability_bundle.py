@@ -7,7 +7,9 @@ Validates traceability bundle sidecar files for:
 - package_reference present and a non-empty string
 - bundle_contents present and object-shaped, restricted to known slots,
   with string values for any present slot
-- Authority constraints preserved (when present)
+- Authority constraints preserved (when present), with no undeclared flags
+- a closed top-level contract: unrecognized top-level fields are rejected
+  (created_at and authority are optional but recognized)
 
 A traceability bundle is a portable, reference-only navigational index that
 aggregates a package's traceability sidecars. The referenced sidecars remain
@@ -24,10 +26,12 @@ default; override with --base) and emits WARNINGS for completeness findings:
   - a declared reference that does not resolve on disk
   - a known sidecar slot that is absent from bundle_contents (an omission)
   - a resolved sidecar whose own package_reference differs from the bundle's
-Completeness findings are warnings only: they never change structural validity
-and never change the exit code. Beyond a single best-effort read for the
-package_reference cross-check, the layer does NOT validate the referenced
-sidecars' contents, and it mutates nothing. Parse failures during the
+Completeness findings are warnings only: they never change structural validity,
+and by default never change the exit code. The opt-in --fail-on-reference-warnings
+mode escalates ONLY unresolved declared references to errors (exit 1); omissions
+(a missing sidecar is allowed) and package_reference mismatches stay advisory.
+Beyond a single best-effort read for the package_reference cross-check, the layer
+does NOT validate the referenced sidecars' contents, and it mutates nothing. Parse failures during the
 cross-check are ignored — validating a sidecar's structure is that file's own
 validator's job.
 
@@ -66,6 +70,17 @@ CONTENT_SLOTS = [
     "annotations_file",
     "lineage_file",
 ]
+# Closed set of permitted top-level keys (mirrors the schema's
+# additionalProperties: false). created_at and authority are optional but
+# recognized.
+KNOWN_TOP_LEVEL = [
+    "record_type",
+    "record_version",
+    "package_reference",
+    "created_at",
+    "bundle_contents",
+    "authority",
+]
 
 
 class ValidationResult(NamedTuple):
@@ -100,6 +115,14 @@ def validate_authority(authority: dict, errors: list[str]) -> None:
             errors.append(f"authority.{flag} is required and must be true")
         elif authority.get(flag) is not True:
             errors.append(f"authority.{flag} must be true")
+    # The informational block is a closed contract: reject undeclared flags so a
+    # contradictory one (e.g. an execution-granting flag) cannot ride along.
+    for flag in authority:
+        if flag not in AUTHORITY_FLAGS:
+            errors.append(
+                f"authority: unknown flag '{flag}' "
+                f"(allowed: {', '.join(AUTHORITY_FLAGS)})"
+            )
 
 
 def validate_bundle_contents(contents: object, errors: list[str], warnings: list[str]) -> None:
@@ -161,6 +184,16 @@ def validate_bundle(data: dict) -> ValidationResult:
     if "authority" in data:
         validate_authority(data["authority"], errors)
 
+    # Closed top-level contract (mirrors the schema's additionalProperties: false):
+    # an unrecognized top-level key is rejected so stray/misleading fields cannot
+    # ride along unnoticed.
+    for key in data:
+        if key not in KNOWN_TOP_LEVEL:
+            errors.append(
+                f"unknown top-level field: '{key}' "
+                f"(allowed: {', '.join(KNOWN_TOP_LEVEL)})"
+            )
+
     return ValidationResult(valid=len(errors) == 0, errors=errors, warnings=warnings)
 
 
@@ -180,7 +213,7 @@ def referenced_package_reference(path: Path) -> str | None:
 
 def collect_completeness_findings(
     data: dict, base_dir: Path, bundle_reference: str | None
-) -> list[str]:
+) -> tuple[list[str], list[str]]:
     """Completeness witness (warnings only).
 
     For each known sidecar slot, relative to base_dir:
@@ -193,8 +226,15 @@ def collect_completeness_findings(
     Existence checks plus a single best-effort read for the cross-check only;
     never validates sidecar structure, never mutates anything. Callers must not
     let these warnings affect validity or the exit code.
+
+    Returns (all_findings, unresolved_reference_findings). The second list is the
+    subset representing a DECLARED reference missing on disk — the only findings
+    --fail-on-reference-warnings escalates. Omission findings (a missing sidecar
+    is allowed by design) and package_reference mismatches stay advisory and are
+    never escalated.
     """
     warnings: list[str] = []
+    unresolved: list[str] = []
     contents = data.get("bundle_contents")
     if not isinstance(contents, dict):
         contents = {}
@@ -203,7 +243,9 @@ def collect_completeness_findings(
         if isinstance(value, str) and value.strip():
             resolved = base_dir / value
             if not resolved.exists():
-                warnings.append(f"{slot} reference does not resolve: {value}")
+                msg = f"{slot} reference does not resolve: {value}"
+                warnings.append(msg)
+                unresolved.append(msg)
                 continue
             ref = referenced_package_reference(resolved)
             if ref is not None and bundle_reference is not None and ref != bundle_reference:
@@ -213,11 +255,14 @@ def collect_completeness_findings(
                 )
         else:
             warnings.append(f"completeness: {slot} not present in bundle")
-    return warnings
+    return warnings, unresolved
 
 
 def validate_bundle_file(
-    path: Path, check_references: bool = False, base: Path | None = None
+    path: Path,
+    check_references: bool = False,
+    base: Path | None = None,
+    fail_on_reference_warnings: bool = False,
 ) -> ValidationResult:
     data, load_error = load_json(path)
     if load_error:
@@ -227,19 +272,33 @@ def validate_bundle_file(
             valid=False, errors=["Bundle root must be a JSON object"], warnings=[]
         )
     result = validate_bundle(data)
-    # Completeness checks run only on a structurally valid bundle and only add
-    # warnings — they never change validity or the exit code.
+    # Completeness checks run only on a structurally valid bundle. By default they
+    # only add warnings — never changing validity or the exit code. The opt-in
+    # --fail-on-reference-warnings mode escalates ONLY unresolved declared
+    # references to errors (exit 1); omissions (a missing sidecar is allowed) and
+    # package_reference mismatches remain advisory. Structural rules are never
+    # affected either way.
     if check_references and result.valid:
         base_dir = base if base is not None else path.parent
         bundle_reference = data.get("package_reference")
         if not isinstance(bundle_reference, str):
             bundle_reference = None
-        ref_warnings = collect_completeness_findings(data, base_dir, bundle_reference)
-        result = ValidationResult(
-            valid=result.valid,
-            errors=result.errors,
-            warnings=result.warnings + ref_warnings,
+        ref_warnings, unresolved = collect_completeness_findings(
+            data, base_dir, bundle_reference
         )
+        if fail_on_reference_warnings and unresolved:
+            advisory = [w for w in ref_warnings if w not in unresolved]
+            result = ValidationResult(
+                valid=False,
+                errors=result.errors + unresolved,
+                warnings=result.warnings + advisory,
+            )
+        else:
+            result = ValidationResult(
+                valid=result.valid,
+                errors=result.errors,
+                warnings=result.warnings + ref_warnings,
+            )
     return result
 
 
@@ -257,7 +316,20 @@ def main() -> int:
             "Completeness witness: warn for declared references that do not resolve, "
             "known slots absent from the bundle, and referenced sidecars whose "
             "package_reference differs from the bundle's. Warnings only; they never "
-            "change validity or the exit code."
+            "change validity or the exit code unless --fail-on-reference-warnings "
+            "is also given."
+        ),
+    )
+    parser.add_argument(
+        "--fail-on-reference-warnings",
+        action="store_true",
+        dest="fail_on_reference_warnings",
+        help=(
+            "With --check-references, treat unresolved declared references as "
+            "validation failures (exit 1). Only unresolved references are escalated; "
+            "omissions (a missing sidecar is allowed) and package_reference "
+            "mismatches remain advisory. Structural rules are unchanged; no effect "
+            "without --check-references."
         ),
     )
     parser.add_argument(
@@ -283,12 +355,15 @@ def main() -> int:
         return 2
 
     result = validate_bundle_file(
-        path, check_references=args.check_references, base=args.base
+        path,
+        check_references=args.check_references,
+        base=args.base,
+        fail_on_reference_warnings=args.fail_on_reference_warnings,
     )
 
     if result.valid:
         if not args.quiet:
-            print("PASS: traceability bundle is valid")
+            print("PASS: traceability bundle is structurally valid")
             for warning in result.warnings:
                 print(f"  [WARN] {warning}")
         return 0

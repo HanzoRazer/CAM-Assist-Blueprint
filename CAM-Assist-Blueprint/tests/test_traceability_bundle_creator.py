@@ -15,6 +15,7 @@ Discovery locations are built to mirror the inspector's conventional resolution
 (non-examples layout: <parent>/traceability/ and <parent>/review_annotations/).
 """
 
+import importlib.util
 import json
 import subprocess
 import sys
@@ -217,3 +218,45 @@ def test_missing_package_dir_errors(tmp_path):
     code, _o, err = run_script(CREATE_SCRIPT, "--package", tmp_path / "nope")
     assert code == 1
     assert "not found" in err.lower()
+
+
+# ---------------------------------------------------------------------------
+# Exit-code contract: write errors are distinct from argument errors
+# ---------------------------------------------------------------------------
+
+def _load_creator_module():
+    """Import the creator as a module for unit-level (non-subprocess) tests."""
+    spec = importlib.util.spec_from_file_location("_create_tb", CREATE_SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_write_error_returns_exit_2(tmp_path):
+    # Route output through a path whose parent is a regular file, so directory
+    # creation / write fails -> documented file/write error (exit 2).
+    pkg = make_package(tmp_path)
+    blocker = tmp_path / "blocker"
+    blocker.write_text("i am a file, not a directory", encoding="utf-8")
+    out = blocker / "sub" / "b.json"
+    code, _o, err = run_script(CREATE_SCRIPT, "--package", pkg, "--out", out)
+    assert code == 2, err
+    assert "Failed to write" in err
+
+
+def test_cross_drive_relpath_reported_cleanly(tmp_path, monkeypatch):
+    # os.path.relpath raises ValueError for paths on different Windows drives.
+    # A discovered sidecar triggers relpath; the error must surface as a clean
+    # argument error (exit 1), not an uncaught traceback.
+    mod = _load_creator_module()
+    pkg = make_package(tmp_path)
+    write_sidecar(tmp_path, "traceability", "pkg", "_risk.json")  # discoverable
+
+    def boom(*_a, **_k):
+        raise ValueError("path is on mount 'C:', start on mount 'D:'")
+
+    monkeypatch.setattr(mod.os.path, "relpath", boom)
+    result = mod.create_bundle(pkg, output_path=tmp_path / "out" / "b.json")
+    assert result.success is False
+    assert result.exit_code == 1
+    assert "different drives" in result.error

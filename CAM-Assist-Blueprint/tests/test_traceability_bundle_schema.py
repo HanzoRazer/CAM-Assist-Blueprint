@@ -125,6 +125,21 @@ def test_authority_is_optional_but_const_true_when_present(schema):
         assert auth["properties"][flag]["const"] is True
 
 
+def test_top_level_is_closed(schema):
+    # Unrecognized top-level fields are rejected.
+    assert schema["additionalProperties"] is False
+
+
+def test_authority_is_closed(schema):
+    # The informational block rejects undeclared flags.
+    assert schema["properties"]["authority"]["additionalProperties"] is False
+
+
+def test_created_at_is_declared_optional(schema):
+    assert schema["properties"]["created_at"]["type"] == "string"
+    assert "created_at" not in schema["required"]
+
+
 # ---------------------------------------------------------------------------
 # C — applied schema validation (optional; only if jsonschema is importable)
 # ---------------------------------------------------------------------------
@@ -169,3 +184,31 @@ def test_applied_unknown_slot_fails(schema):
     bad["bundle_contents"]["unknown_file"] = "x.json"
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.Draft202012Validator(schema).validate(bad)
+
+
+def test_applied_unknown_top_level_field_fails(schema):
+    jsonschema = pytest.importorskip("jsonschema")
+    bad = _valid_bundle()
+    bad["surprise"] = "x"
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.Draft202012Validator(schema).validate(bad)
+
+
+def test_applied_unknown_authority_flag_fails(schema):
+    jsonschema = pytest.importorskip("jsonschema")
+    bad = _valid_bundle()
+    bad["authority"] = {
+        "is_informational": True,
+        "does_not_authorize_execution": True,
+        "does_not_bypass_human_review": True,
+        "authorizes_execution": True,
+    }
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.Draft202012Validator(schema).validate(bad)
+
+
+def test_applied_created_at_allowed(schema):
+    jsonschema = pytest.importorskip("jsonschema")
+    ok = _valid_bundle()
+    ok["created_at"] = "2026-06-20T00:14:32.066221Z"
+    jsonschema.Draft202012Validator(schema).validate(ok)

@@ -126,7 +126,15 @@ bundle. The source package is never modified.
 
 ## Validation
 
-Validation has two layers.
+**Structural validity and reference completeness are separate concerns**, and a
+`PASS` speaks only to the first unless you opt in to the second:
+
+- **Structural validity** — the bundle record conforms to the required contract.
+- **Reference completeness** — each declared path in `bundle_contents` resolves
+  on disk.
+
+A structurally valid bundle is **not** by itself a statement that its references
+exist. Validation has two layers.
 
 ### Structural validation (default)
 
@@ -135,12 +143,21 @@ python scripts/validate_traceability_bundle.py \
   examples/traceability/ltb_vcarve_synthetic_example_bundle.json
 ```
 
+```text
+PASS: traceability bundle is structurally valid
+```
+
 The structural layer is **filesystem-free**: it opens only the bundle file and
 checks `record_type`, `record_version`, a non-empty `package_reference`, the
 `bundle_contents` object shape (known slots only, string values), and the
 `authority` block when present. A bundle whose references do not exist still
 passes structurally — reference existence is a *completeness* concern, not a
 structural one.
+
+The record is a **closed contract**: both the JSON Schema and the structural
+validator reject any unrecognized top-level field and any undeclared flag inside
+`authority`, so a stray or contradictory flag cannot ride along. `created_at` and
+`authority` remain optional but recognized.
 
 ### Completeness witness (`--check-references`)
 
@@ -167,10 +184,28 @@ Parse failures during this read are ignored — validating a sidecar's structure
 is that sidecar's own validator's job.
 
 Completeness findings are **warnings only**: they never change structural
-validity and never change the exit code. A structurally valid bundle with
-omissions, unresolved references, or a reference mismatch still exits `0`.
+validity, and by default never change the exit code. A structurally valid bundle
+with omissions, unresolved references, or a reference mismatch still exits `0`.
 
-Exit codes: `0` valid, `1` validation failed, `2` file/read error.
+### `--fail-on-reference-warnings` (CI enforcement)
+
+For automation that must treat a bundle pointing at missing files as a failure,
+add `--fail-on-reference-warnings` alongside `--check-references`:
+
+```bash
+python scripts/validate_traceability_bundle.py \
+  examples/traceability/ltb_vcarve_synthetic_example_bundle.json \
+  --check-references --fail-on-reference-warnings
+```
+
+This escalates **only unresolved declared references** to errors (exit `1`).
+Omissions (a missing sidecar is allowed by design) and `package_reference`
+mismatches deliberately **remain advisory** — they never fail the run. The flag
+changes nothing else: default behavior is unchanged, no structural rule is
+altered, and it has no effect without `--check-references`.
+
+Exit codes: `0` structurally valid (and, in strict mode, declared references
+resolved), `1` validation failed, `2` file/read error.
 
 ## Inspector Behavior
 
@@ -190,8 +225,12 @@ Traceability Bundle:
 
 The inspector is a **discovery surface**, not a validator. It does not open,
 parse, validate, or completeness-check the bundle — a bundle with unparseable
-contents is still reported as `present`. An explicit path may be supplied with
-`--bundle`; otherwise the conventional location is used.
+contents is still reported as `present`. `present` means only that a bundle file
+was found at the resolved path; it is **not** a claim that the bundle is
+structurally valid or that its references resolve. Those are separate questions:
+use the validator for structural validity and `--check-references` for
+completeness. An explicit path may be supplied with `--bundle`; otherwise the
+conventional location is used.
 
 ## Non-Execution Doctrine
 

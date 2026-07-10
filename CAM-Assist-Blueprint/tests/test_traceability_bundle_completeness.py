@@ -268,3 +268,55 @@ def test_base_overrides_resolution_directory(tmp_path):
     code, out, _err = run_validator(path, "--check-references", "--base", refs_dir)
     assert code == 0
     assert "does not resolve" not in out
+
+
+# ---------------------------------------------------------------------------
+# Strict enforcement: --fail-on-reference-warnings (opt-in, additive)
+# Escalates ONLY unresolved declared references. Omissions (missing sidecars are
+# allowed) and package_reference mismatches remain advisory by design.
+# ---------------------------------------------------------------------------
+
+def test_strict_mode_fails_on_unresolved_reference(tmp_path):
+    (tmp_path / "a.json").write_text("{}", encoding="utf-8")
+    path = write_bundle(tmp_path, {"assumptions_file": "a.json", "risk_file": "gone.json"})
+    code, _out, err = run_validator(
+        path, "--check-references", "--fail-on-reference-warnings"
+    )
+    assert code == 1
+    assert "risk_file reference does not resolve" in err
+
+
+def test_strict_mode_passes_when_declared_refs_resolve(tmp_path):
+    (tmp_path / "a.json").write_text("{}", encoding="utf-8")
+    path = write_bundle(tmp_path, {"assumptions_file": "a.json"})  # only slot declared
+    code, out, _err = run_validator(
+        path, "--check-references", "--fail-on-reference-warnings"
+    )
+    assert code == 0  # the four omitted slots are NOT escalated
+    assert "PASS" in out
+
+
+def test_strict_mode_omissions_do_not_fail(tmp_path):
+    # Empty bundle: every slot omitted -> omission warnings, nothing unresolved.
+    path = write_bundle(tmp_path, {})
+    code, _out, _err = run_validator(
+        path, "--check-references", "--fail-on-reference-warnings"
+    )
+    assert code == 0  # a missing sidecar is allowed by design
+
+
+def test_strict_mode_mismatch_does_not_fail(tmp_path):
+    _sidecar(tmp_path, "r.json", "pkg:ref:OTHER")
+    path = write_bundle(tmp_path, {"risk_file": "r.json"})  # resolves, ref mismatches
+    code, out, _err = run_validator(
+        path, "--check-references", "--fail-on-reference-warnings"
+    )
+    assert code == 0  # a consistency mismatch stays advisory
+    assert "package_reference mismatch" in out
+
+
+def test_strict_flag_noop_without_check_references(tmp_path):
+    path = write_bundle(tmp_path, {"risk_file": "gone.json"})
+    code, out, _err = run_validator(path, "--fail-on-reference-warnings")
+    assert code == 0
+    assert "does not resolve" not in out

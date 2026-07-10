@@ -33,8 +33,9 @@ Usage:
 
 Exit codes:
     0 — Traceability bundle created successfully
-    1 — Validation or argument error
-    2 — File/write error
+    1 — Argument error (package not found / not a directory, output exists without
+        --force, or a discovered sidecar cannot be made relative to the output)
+    2 — File/write error (directory creation or write failed)
 """
 
 import argparse
@@ -65,6 +66,7 @@ class CreateResult(NamedTuple):
     success: bool
     output_path: Path | None
     error: str | None
+    exit_code: int = 0
 
 
 def utc_now() -> str:
@@ -125,22 +127,34 @@ def create_bundle(
     force: bool = False,
 ) -> CreateResult:
     if not package_dir.exists():
-        return CreateResult(False, None, f"Package directory not found: {package_dir}")
+        return CreateResult(False, None, f"Package directory not found: {package_dir}", 1)
     if not package_dir.is_dir():
-        return CreateResult(False, None, f"Path is not a directory: {package_dir}")
+        return CreateResult(False, None, f"Path is not a directory: {package_dir}", 1)
 
     if output_path is None:
         output_path = default_output_path(package_dir)
 
     if output_path.exists() and not force:
         return CreateResult(
-            False, None, f"Output file already exists: {output_path} (use --force to overwrite)"
+            False, None,
+            f"Output file already exists: {output_path} (use --force to overwrite)", 1,
         )
 
+    # Discovered references are stored relative to the output directory.
+    # os.path.relpath raises ValueError when the two paths share no common anchor
+    # — most notably a sidecar and output on different Windows drives — so surface
+    # that as a clean argument error rather than an uncaught traceback.
     if empty:
         bundle_contents: dict = {}
     else:
-        bundle_contents = discover_contents(package_dir, output_path.parent)
+        try:
+            bundle_contents = discover_contents(package_dir, output_path.parent)
+        except ValueError as e:
+            return CreateResult(
+                False, None,
+                f"Cannot compute a relative path from the output location to a "
+                f"discovered sidecar (are they on different drives?): {e}", 1,
+            )
 
     record = {
         "record_type": RECORD_TYPE,
@@ -155,15 +169,16 @@ def create_bundle(
         },
     }
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    # Directory creation and the write share the file/write-error class (exit 2).
     try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(record, f, indent=2)
             f.write("\n")
     except OSError as e:
-        return CreateResult(False, None, f"Failed to write bundle: {e}")
+        return CreateResult(False, None, f"Failed to write bundle: {e}", 2)
 
-    return CreateResult(True, output_path, None)
+    return CreateResult(True, output_path, None, 0)
 
 
 def main() -> int:
@@ -199,7 +214,7 @@ def main() -> int:
         return 0
     else:
         print(f"Error: {result.error}", file=sys.stderr)
-        return 1
+        return result.exit_code
 
 
 if __name__ == "__main__":
