@@ -1,0 +1,174 @@
+"""
+Phase 7 tests for CAM-A22 Creation Studio Capability Request — inspector detection.
+
+The inspector is a DISCOVERY surface, not a validator. It reports only:
+
+    CAM-Creation-Studio Request:
+      present
+
+or:
+
+    CAM-Creation-Studio Request:
+      not declared
+
+Witnessed:
+- detection via the conventional creation_studio/ path
+- detection via explicit --creation-studio-request
+- not-declared when absent
+- detection only: a request with unparseable contents is still "present"
+  (the inspector never parses, validates, resolves, or infers capabilities)
+- explicit --creation-studio-request to a missing path -> exit 2
+- JSON output carries creation_studio_request (presence + path)
+- inspection mutates nothing
+"""
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).parent.parent
+SCRIPTS_DIR = REPO_ROOT / "scripts"
+INSPECT_SCRIPT = SCRIPTS_DIR / "inspect_strategy_package.py"
+EXAMPLE_PKG = REPO_ROOT / "examples" / "packages" / "ltb_vcarve_synthetic_example"
+
+
+def run_inspect(*args) -> tuple[int, str, str]:
+    cmd = [sys.executable, str(INSPECT_SCRIPT)] + [str(a) for a in args]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    return result.returncode, result.stdout, result.stderr
+
+
+def make_package(parent: Path, name: str = "pkg") -> Path:
+    """Create a minimal valid strategy package (inspector returns valid)."""
+    pkg = parent / name
+    pkg.mkdir(parents=True)
+    strategy = {
+        "strategy_version": "1.0",
+        "strategy_id": "test-request",
+        "units": "mm",
+        "coordinate_frame": {"origin": "nut", "x_axis": "x", "y_axis": "y", "z_axis": "z"},
+        "provenance": {"source_spec_id": "test", "cam_assist_version": "0.6.0", "created_at": "2026-06-15T00:00:00Z"},
+        "operation_intent": {"operation_type": "test", "target_feature": "test", "non_execution_declaration": True},
+        "material_context": {"material_class": "test"},
+        "safety_boundary": {"non_execution_declaration": True, "human_review_required": True, "execution_authority_claim": False},
+        "approval_state": "pending",
+    }
+    (pkg / "strategy.json").write_text(json.dumps(strategy), encoding="utf-8")
+    (pkg / "review_packet.md").write_text("# Review Packet\n\nTest content.\n" * 50, encoding="utf-8")
+    manifest = {
+        "manifest_version": "1.0.0",
+        "package_type": "cam_assist_strategy_package",
+        "operation_type": "test",
+        "strategy_file": "strategy.json",
+        "review_packet_file": "review_packet.md",
+        "source_geometry_files": ["geo.dxf"],
+        "created_at": "2026-06-15T00:00:00Z",
+        "authority": {
+            "non_execution_declaration": True,
+            "execution_authority_claim": False,
+            "requires_human_review": True,
+        },
+    }
+    (pkg / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    return pkg
+
+
+def write_conventional_request(parent: Path, pkg_name: str, content: str = '{"x": 1}') -> Path:
+    d = parent / "creation_studio"
+    d.mkdir(parents=True, exist_ok=True)
+    path = d / f"{pkg_name}_request.json"
+    path.write_text(content, encoding="utf-8")
+    return path
+
+
+def snapshot(d: Path) -> dict:
+    return {p.relative_to(d).as_posix(): p.read_bytes() for p in d.rglob("*") if p.is_file()}
+
+
+# ---------------------------------------------------------------------------
+# Conventional detection
+# ---------------------------------------------------------------------------
+
+def test_request_present_via_conventional_path(tmp_path):
+    pkg = make_package(tmp_path)
+    write_conventional_request(tmp_path, "pkg")
+    code, out, _err = run_inspect(pkg)
+    assert "CAM-Creation-Studio Request:\n  present" in out
+
+
+def test_request_not_declared_when_absent(tmp_path):
+    pkg = make_package(tmp_path)
+    code, out, _err = run_inspect(pkg)
+    assert "CAM-Creation-Studio Request:\n  not declared" in out
+
+
+def test_committed_example_package_shows_request_present():
+    code, out, _err = run_inspect(EXAMPLE_PKG)
+    assert "CAM-Creation-Studio Request:\n  present" in out
+
+
+# ---------------------------------------------------------------------------
+# Explicit flag
+# ---------------------------------------------------------------------------
+
+def test_request_present_via_explicit_flag(tmp_path):
+    pkg = make_package(tmp_path)
+    r = tmp_path / "somewhere_request.json"
+    r.write_text('{"x": 1}', encoding="utf-8")
+    code, out, _err = run_inspect(pkg, "--creation-studio-request", r)
+    assert "CAM-Creation-Studio Request:\n  present" in out
+
+
+def test_explicit_missing_request_returns_2(tmp_path):
+    pkg = make_package(tmp_path)
+    code, _out, err = run_inspect(pkg, "--creation-studio-request", tmp_path / "nope_request.json")
+    assert code == 2
+    assert "not found" in err.lower()
+
+
+# ---------------------------------------------------------------------------
+# Detection only — never parses/validates the request
+# ---------------------------------------------------------------------------
+
+def test_unparseable_request_still_present(tmp_path):
+    pkg = make_package(tmp_path)
+    write_conventional_request(tmp_path, "pkg", content="this is not json {{{")
+    code, out, _err = run_inspect(pkg)
+    assert "CAM-Creation-Studio Request:\n  present" in out
+
+
+# ---------------------------------------------------------------------------
+# JSON output
+# ---------------------------------------------------------------------------
+
+def test_json_output_carries_creation_studio_request(tmp_path):
+    pkg = make_package(tmp_path)
+    r = write_conventional_request(tmp_path, "pkg")
+    code, out, _err = run_inspect(pkg, "--json")
+    data = json.loads(out)
+    assert data["creation_studio_request"]["present"] is True
+    assert data["creation_studio_request"]["path"] == str(r)
+
+
+def test_json_output_request_absent(tmp_path):
+    pkg = make_package(tmp_path)
+    code, out, _err = run_inspect(pkg, "--json")
+    data = json.loads(out)
+    assert data["creation_studio_request"]["present"] is False
+    assert data["creation_studio_request"]["path"] is None
+
+
+# ---------------------------------------------------------------------------
+# No mutation
+# ---------------------------------------------------------------------------
+
+def test_inspection_does_not_mutate(tmp_path):
+    pkg = make_package(tmp_path)
+    write_conventional_request(tmp_path, "pkg")
+    before = snapshot(tmp_path)
+    run_inspect(pkg)
+    run_inspect(pkg, "--json")
+    after = snapshot(tmp_path)
+    assert before == after
