@@ -265,6 +265,25 @@ def test_created_at_accepted_at_top_level(tmp_path):
     assert code == 0, err
 
 
+def test_created_at_non_string_fails(tmp_path):
+    # When present, created_at must be a string (schema types it string/date-time).
+    data = valid_bundle()
+    data["created_at"] = 42
+    path = write_bundle(tmp_path, data)
+    code, _out, err = run_validator(path)
+    assert code == 1
+    assert "created_at" in err
+
+
+def test_created_at_empty_string_fails(tmp_path):
+    data = valid_bundle()
+    data["created_at"] = "   "
+    path = write_bundle(tmp_path, data)
+    code, _out, err = run_validator(path)
+    assert code == 1
+    assert "created_at" in err
+
+
 # ---------------------------------------------------------------------------
 # File / read errors
 # ---------------------------------------------------------------------------

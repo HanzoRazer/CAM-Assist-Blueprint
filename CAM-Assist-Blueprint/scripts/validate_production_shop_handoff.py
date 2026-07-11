@@ -41,9 +41,9 @@ Usage:
     python scripts/validate_production_shop_handoff.py examples/production_shop/ltb_vcarve_synthetic_example_handoff.json
 
 Exit codes:
-    0 — Handoff record is valid
-    1 — Validation failed
-    2 — File/read error
+    0 — Handoff record is structurally valid
+    1 — Validation failed (including a JSON parse error or a non-object root)
+    2 — File not found
 """
 
 import argparse
@@ -194,6 +194,14 @@ def validate_handoff(data: dict) -> ValidationResult:
         errors.append("Missing required field: contents")
     else:
         validate_contents(data["contents"], errors, warnings)
+
+    # created_at is optional, but when present it must be a non-empty string
+    # (the schema types it string/date-time; the structural layer checks the type
+    # so a non-string like `42` cannot slip past the hand validator).
+    if "created_at" in data:
+        created_at = data["created_at"]
+        if not isinstance(created_at, str) or not created_at.strip():
+            errors.append("'created_at' must be a non-empty string when present")
 
     # Closed top-level contract (mirrors the schema's additionalProperties: false):
     # an unrecognized top-level key is rejected so stray/misleading fields cannot
