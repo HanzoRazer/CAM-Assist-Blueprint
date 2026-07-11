@@ -212,3 +212,16 @@ def test_applied_created_at_allowed(schema):
     ok = _valid_bundle()
     ok["created_at"] = "2026-06-20T00:14:32.066221Z"
     jsonschema.Draft202012Validator(schema).validate(ok)
+
+
+def test_applied_empty_created_at_fails(schema):
+    # minLength:1 keeps the schema in step with the hand validator, which rejects
+    # an empty created_at. Without it the schema would accept "" (format is an
+    # annotation, not an assertion, under Draft202012Validator) while the
+    # structural validator rejected it — the very schema/validator drift this
+    # field's check exists to close.
+    jsonschema = pytest.importorskip("jsonschema")
+    bad = _valid_bundle()
+    bad["created_at"] = ""
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.Draft202012Validator(schema).validate(bad)

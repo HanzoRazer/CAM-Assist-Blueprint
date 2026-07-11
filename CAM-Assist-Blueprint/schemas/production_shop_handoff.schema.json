@@ -34,6 +34,7 @@
 
     "created_at": {
       "type": "string",
+      "minLength": 1,
       "format": "date-time",
       "description": "ISO-8601 timestamp when this handoff record was created"
     },
