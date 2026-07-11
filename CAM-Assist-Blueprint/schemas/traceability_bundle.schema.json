@@ -29,8 +29,9 @@
     "created_at": {
       "type": "string",
       "minLength": 1,
+      "pattern": "\\S",
       "format": "date-time",
-      "description": "ISO-8601 timestamp when this bundle record was created"
+      "description": "ISO-8601 timestamp when this bundle record was created. minLength rejects \"\"; pattern \\S rejects whitespace-only, matching the hand validator's .strip() check. format is annotation-only under the bare validator (no FormatChecker), so it does not enforce ISO-8601 shape."
     },
 
     "bundle_contents": {

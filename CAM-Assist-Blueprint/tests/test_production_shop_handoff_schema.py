@@ -233,3 +233,39 @@ def test_applied_empty_created_at_fails(schema):
     bad["created_at"] = ""
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.Draft202012Validator(schema).validate(bad)
+
+
+def test_applied_whitespace_created_at_fails(schema):
+    # The hand validator rejects a whitespace-only created_at via .strip();
+    # pattern "\\S" makes the schema agree. minLength:1 alone would let "   "
+    # through, reopening the drift in the opposite direction. Belt-and-suspenders
+    # with the empty-string case above: together they fully close it.
+    jsonschema = pytest.importorskip("jsonschema")
+    bad = _valid_handoff()
+    bad["created_at"] = "   "
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.Draft202012Validator(schema).validate(bad)
+
+
+def test_applied_missing_created_at_allowed(schema):
+    # created_at is optional (not in the schema's required list); the hand
+    # validator only constrains it "when present". Lock that: a record with no
+    # created_at at all must validate, so the non-empty checks above cannot be
+    # misread as making the field mandatory.
+    jsonschema = pytest.importorskip("jsonschema")
+    ok = _valid_handoff()
+    ok.pop("created_at", None)
+    jsonschema.Draft202012Validator(schema).validate(ok)
+
+
+def test_applied_malformed_created_at_passes_without_format_checker(schema):
+    # Documents a deliberately-unenforced boundary: `format: date-time` is an
+    # annotation, not an assertion, under a bare Draft202012Validator, so a
+    # non-empty but non-ISO-8601 string passes. This is the schema's actual
+    # contract today (non-blank, not well-formed). If the project ever wants the
+    # shape enforced, wire a FormatChecker into the validation path AND the
+    # hand validator together — changing only this test would resurface drift.
+    jsonschema = pytest.importorskip("jsonschema")
+    ok = _valid_handoff()
+    ok["created_at"] = "not-a-timestamp"
+    jsonschema.Draft202012Validator(schema).validate(ok)
