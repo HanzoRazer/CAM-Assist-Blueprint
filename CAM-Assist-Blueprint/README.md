@@ -30,6 +30,37 @@ CAM Assist is intentionally designed as an **assistance system**, not an autonom
 
 ---
 
+## What CAM Assist Is
+
+A review-first manufacturing strategy and traceability platform that packages manufacturing intent, assumptions, risks, decisions, and handoff metadata — without generating machine instructions or granting execution authority.
+
+See [docs/product/WHY_CAM_ASSIST_EXISTS.md](docs/product/WHY_CAM_ASSIST_EXISTS.md).
+
+## What CAM Assist Is Not
+
+- a CAM engine, post processor, or **G-code generator** (CAM Assist generates no G-code)
+- a CNC controller or execution approval system
+
+How it differs from traditional CAM: [docs/product/CAM_ASSIST_VS_CAM_SOFTWARE.md](docs/product/CAM_ASSIST_VS_CAM_SOFTWARE.md).
+
+## Quick Workflow
+
+Reproduce the entire product workflow — manufacturing intent → review → traceability → non-execution handoff — with one command:
+
+```bash
+python scripts/run_cam_assist_demo.py --workspace .tmp/cam_assist_demo --keep
+```
+
+The same flow is documented command by command in [docs/product/CAM_ASSIST_WORKFLOW.md](docs/product/CAM_ASSIST_WORKFLOW.md).
+
+## Relationship to CAM-Creation-Studio
+
+CAM Assist and CAM-Creation-Studio are separate, companion products. CAM Assist owns intent, review, risk, rationale, and traceability; downstream, execution-oriented assistance would live in CAM-Creation-Studio. Integration is intended to be contract-first, and a future merger remains an open product decision.
+
+See [docs/product/CAM_ASSIST_AND_CAM_CREATION_STUDIO.md](docs/product/CAM_ASSIST_AND_CAM_CREATION_STUDIO.md).
+
+---
+
 ## Current Project Status
 
 ```

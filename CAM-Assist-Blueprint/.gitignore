@@ -38,5 +38,9 @@ ENV/
 .coverage
 htmlcov/
 
+# CAM Assist demo / scratch workspaces (scripts/run_cam_assist_demo.py --keep)
+.tmp/
+staged_packages/
+
 # Claude Code
 .claude/

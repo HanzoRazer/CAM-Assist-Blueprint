@@ -4,6 +4,10 @@
 **Status:** Active  
 **Scope:** Interface between luthiers-toolbox CAM endpoints and CAM-Assist-Blueprint import
 
+> Importing an LTB CAM output is the entry point of the end-to-end CAM Assist
+> workflow. For the full walkthrough from this import to a reviewed, non-execution
+> handoff, see [docs/product/CAM_ASSIST_WORKFLOW.md](product/CAM_ASSIST_WORKFLOW.md).
+
 ---
 
 ## 1. Purpose

@@ -1,5 +1,10 @@
 # Production Shop Handoff
 
+> The handoff is the final step of the end-to-end CAM Assist workflow. For the
+> full product context and a command-by-command walkthrough, see
+> [docs/product/CAM_ASSIST_WORKFLOW.md](../product/CAM_ASSIST_WORKFLOW.md) and
+> [docs/product/WHY_CAM_ASSIST_EXISTS.md](../product/WHY_CAM_ASSIST_EXISTS.md).
+
 ## Purpose
 
 A production shop handoff is a portable, **reference-only** sidecar that exports a
