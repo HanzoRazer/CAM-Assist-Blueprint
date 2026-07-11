@@ -46,3 +46,23 @@ jobs:
 
       - name: Verify non-execution invariant
         run: python scripts/ci_verify_non_execution_invariant.py
+
+      - name: Verify committed creation studio requests (references resolve)
+        # Structural validity is not enough for a committed artifact: its declared
+        # references must actually resolve. --check-references is existence-only and
+        # --fail-on-reference-warnings promotes any unresolved reference to a failure,
+        # so a request that points at a missing/renamed/moved file breaks the build.
+        run: |
+          shopt -s nullglob globstar
+          files=(examples/**/creation_studio/*_request.json)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No committed creation studio requests found"
+            exit 0
+          fi
+          status=0
+          for f in "${files[@]}"; do
+            echo "Validating $f"
+            python scripts/validate_creation_studio_request.py "$f" \
+              --check-references --fail-on-reference-warnings || status=1
+          done
+          exit $status

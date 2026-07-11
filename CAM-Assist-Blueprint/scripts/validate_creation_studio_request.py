@@ -53,7 +53,7 @@ Exit codes:
 import argparse
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import NamedTuple
 
 import json
@@ -120,6 +120,26 @@ def load_json(path: Path) -> tuple[dict | None, str | None]:
         return None, f"Error reading file: {e}"
 
 
+def is_absolute_reference(value: str) -> bool:
+    """True if a content reference is an absolute (non-portable) path.
+
+    References are resolved relative to the request file's own location. An
+    absolute path silently escapes that base (``base / "/abs"`` discards the
+    base entirely under pathlib), so it is a contract violation, not a valid
+    reference. Detect absolute forms in either path flavor: POSIX ('/x'),
+    Windows drive-absolute ('C:/x', 'C:\\x'), UNC, drive-relative ('C:x'), and
+    a leading slash/backslash root.
+    """
+    v = value.strip()
+    if PurePosixPath(v).is_absolute() or PureWindowsPath(v).is_absolute():
+        return True
+    if v.startswith(("/", "\\")):
+        return True
+    if len(v) >= 2 and v[1] == ":" and v[0].isalpha():
+        return True
+    return False
+
+
 def validate_authority(authority: object, errors: list[str]) -> None:
     """Validate the required informational authority block.
 
@@ -170,8 +190,10 @@ def validate_contents(contents: object, errors: list[str], warnings: list[str]) 
     """Validate the contents object (structural only).
 
     Must be an object. Only known slots are permitted, and any present slot must
-    be a non-empty string path. An empty object is permitted but warned about (no
-    individual slot is required). References are never resolved or stated here.
+    be a non-empty, RELATIVE string path (absolute paths are non-portable and
+    escape the request file's base). An empty object is permitted but warned
+    about (no individual slot is required). References are never resolved or
+    stated here.
     """
     if not isinstance(contents, dict):
         errors.append("contents must be an object")
@@ -189,14 +211,21 @@ def validate_contents(contents: object, errors: list[str], warnings: list[str]) 
             continue
         if not isinstance(value, str) or not value.strip():
             errors.append(f"contents.{key} must be a non-empty string path")
+        elif is_absolute_reference(value):
+            errors.append(
+                f"contents.{key} must be a relative path "
+                f"(absolute paths are not portable): '{value}'"
+            )
 
 
 def validate_request_context(context: object, errors: list[str]) -> None:
     """Validate the optional request_context object (types only, informational).
 
-    Closed to the known fields. material and operator_notes are strings;
-    machine_profile is a string or null. No field is required and none affects
-    authority or validity beyond being well-typed.
+    Closed to the known fields. material and operator_notes are non-blank
+    strings; machine_profile is a non-blank string or null. A blank ('' or
+    whitespace-only) string carries no information and is rejected rather than
+    recorded as a semantically empty value. No field is required and none
+    affects authority or validity beyond being well-typed.
     """
     if not isinstance(context, dict):
         errors.append("request_context must be an object")
@@ -209,10 +238,16 @@ def validate_request_context(context: object, errors: list[str]) -> None:
             )
             continue
         if key == "machine_profile":
-            if value is not None and not isinstance(value, str):
+            if value is None:
+                continue
+            if not isinstance(value, str):
                 errors.append("request_context.machine_profile must be a string or null")
+            elif not value.strip():
+                errors.append("request_context.machine_profile must be a non-blank string or null")
         elif not isinstance(value, str):
             errors.append(f"request_context.{key} must be a string")
+        elif not value.strip():
+            errors.append(f"request_context.{key} must be a non-blank string")
 
 
 def validate_request(data: dict) -> ValidationResult:

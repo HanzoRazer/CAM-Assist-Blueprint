@@ -256,6 +256,52 @@ def test_applied_unknown_content_slot_fails(schema):
         jsonschema.Draft202012Validator(schema).validate(bad)
 
 
+def test_applied_absolute_posix_content_path_fails(schema):
+    jsonschema = pytest.importorskip("jsonschema")
+    bad = _valid_request()
+    bad["contents"]["strategy_file"] = "/etc/passwd"
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.Draft202012Validator(schema).validate(bad)
+
+
+def test_applied_absolute_windows_content_path_fails(schema):
+    jsonschema = pytest.importorskip("jsonschema")
+    bad = _valid_request()
+    bad["contents"]["strategy_file"] = "C:/Windows/x.json"
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.Draft202012Validator(schema).validate(bad)
+
+
+def test_applied_relative_dotdot_content_path_passes(schema):
+    jsonschema = pytest.importorskip("jsonschema")
+    ok = _valid_request()
+    ok["contents"]["strategy_file"] = "../packages/pkg/strategy.json"
+    jsonschema.Draft202012Validator(schema).validate(ok)
+
+
+def test_applied_blank_material_fails(schema):
+    jsonschema = pytest.importorskip("jsonschema")
+    bad = _valid_request()
+    bad["request_context"] = {"material": "   "}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.Draft202012Validator(schema).validate(bad)
+
+
+def test_applied_blank_machine_profile_fails(schema):
+    jsonschema = pytest.importorskip("jsonschema")
+    bad = _valid_request()
+    bad["request_context"] = {"machine_profile": "  "}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.Draft202012Validator(schema).validate(bad)
+
+
+def test_applied_null_machine_profile_passes(schema):
+    jsonschema = pytest.importorskip("jsonschema")
+    ok = _valid_request()
+    ok["request_context"] = {"machine_profile": None}
+    jsonschema.Draft202012Validator(schema).validate(ok)
+
+
 def test_applied_unknown_authority_flag_fails(schema):
     jsonschema = pytest.importorskip("jsonschema")
     bad = _valid_request()

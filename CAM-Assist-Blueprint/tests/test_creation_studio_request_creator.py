@@ -304,6 +304,29 @@ def test_request_context_emitted_with_flags(tmp_path):
     assert ctx == {"material": "mahogany", "operator_notes": "Review first."}
 
 
+def test_blank_context_flag_is_omitted(tmp_path):
+    # A blank flag value carries no information and would fail validation; the
+    # creator treats it as absent rather than emitting a semantically empty field.
+    pkg = make_package(tmp_path)
+    out = tmp_path / "r.json"
+    run_script(
+        CREATE_SCRIPT, "--package", pkg, "--out", out, *_cap("tooling_review"),
+        "--material", "   ",
+    )
+    assert "request_context" not in load(out)
+
+
+def test_generated_request_with_context_passes_validator(tmp_path):
+    pkg = make_package(tmp_path)
+    out = tmp_path / "out" / "r.json"
+    run_script(
+        CREATE_SCRIPT, "--package", pkg, "--out", out, *_cap("tooling_review"),
+        "--material", "mahogany", "--machine-profile", "shopbot-desktop",
+    )
+    vcode, vout, verr = run_script(VALIDATE_SCRIPT, out)
+    assert vcode == 0, verr + vout
+
+
 # ---------------------------------------------------------------------------
 # Path shape: relative to the output file, forward-slashed
 # ---------------------------------------------------------------------------
@@ -370,6 +393,29 @@ def test_missing_package_exits_nonzero(tmp_path):
     code, _o, err = run_script(CREATE_SCRIPT, "--package", tmp_path / "nope", *_cap("tooling_review"))
     assert code != 0
     assert "not found" in err.lower()
+
+
+def test_absent_manifest_falls_back_to_dir_name(tmp_path):
+    # No manifest at all is fine: conventions apply and identity is the dir name.
+    pkg = tmp_path / "no_manifest_pkg"
+    pkg.mkdir()
+    out = tmp_path / "r.json"
+    code, _o, err = run_script(CREATE_SCRIPT, "--package", pkg, "--out", out, *_cap("tooling_review"))
+    assert code == 0, err
+    assert load(out)["package_reference"] == "no_manifest_pkg"
+
+
+def test_corrupt_manifest_is_error(tmp_path):
+    # A present-but-unparseable manifest must fail loudly rather than silently
+    # falling back to a request built from corrupt/fallback identity.
+    pkg = tmp_path / "pkg"
+    pkg.mkdir()
+    (pkg / "manifest.json").write_text("{ not valid json", encoding="utf-8")
+    out = tmp_path / "r.json"
+    code, _o, err = run_script(CREATE_SCRIPT, "--package", pkg, "--out", out, *_cap("tooling_review"))
+    assert code == 1
+    assert "manifest.json" in err
+    assert not out.exists()
 
 
 def test_output_is_deterministic(tmp_path):

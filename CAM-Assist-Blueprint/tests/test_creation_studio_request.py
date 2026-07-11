@@ -282,6 +282,32 @@ def test_request_context_machine_profile_null_ok(tmp_path):
     assert code == 0, err
 
 
+def test_request_context_blank_material_fails(tmp_path):
+    # A blank informational field carries no information; reject rather than
+    # record a semantically empty value.
+    data = valid_request()
+    data["request_context"] = {"material": "   "}
+    code, _out, err = run_validator(write_request(tmp_path, data))
+    assert code == 1
+    assert "request_context.material must be a non-blank string" in err
+
+
+def test_request_context_blank_operator_notes_fails(tmp_path):
+    data = valid_request()
+    data["request_context"] = {"operator_notes": ""}
+    code, _out, err = run_validator(write_request(tmp_path, data))
+    assert code == 1
+    assert "request_context.operator_notes must be a non-blank string" in err
+
+
+def test_request_context_blank_machine_profile_fails(tmp_path):
+    data = valid_request()
+    data["request_context"] = {"machine_profile": "  "}
+    code, _out, err = run_validator(write_request(tmp_path, data))
+    assert code == 1
+    assert "machine_profile must be a non-blank string" in err
+
+
 # ---------------------------------------------------------------------------
 # Closed top-level contract; no created_at
 # ---------------------------------------------------------------------------
@@ -337,6 +363,39 @@ def test_content_slot_empty_string_fails(tmp_path):
     code, _out, err = run_validator(write_request(tmp_path, data))
     assert code == 1
     assert "strategy_file" in err
+
+
+def test_absolute_posix_content_path_fails(tmp_path):
+    # References must be relative to the request file; an absolute path would
+    # silently escape that base under pathlib, so reject it structurally.
+    data = valid_request()
+    data["contents"]["strategy_file"] = "/etc/passwd"
+    code, _out, err = run_validator(write_request(tmp_path, data))
+    assert code == 1
+    assert "relative path" in err
+
+
+def test_absolute_windows_drive_content_path_fails(tmp_path):
+    data = valid_request()
+    data["contents"]["strategy_file"] = "C:/Windows/System32/x.json"
+    code, _out, err = run_validator(write_request(tmp_path, data))
+    assert code == 1
+    assert "relative path" in err
+
+
+def test_backslash_rooted_content_path_fails(tmp_path):
+    data = valid_request()
+    data["contents"]["strategy_file"] = "\\\\server\\share\\x.json"
+    code, _out, err = run_validator(write_request(tmp_path, data))
+    assert code == 1
+    assert "relative path" in err
+
+
+def test_relative_dotdot_content_path_passes(tmp_path):
+    data = valid_request()
+    data["contents"]["strategy_file"] = "../packages/pkg/strategy.json"
+    code, _out, err = run_validator(write_request(tmp_path, data))
+    assert code == 0, err
 
 
 # ---------------------------------------------------------------------------

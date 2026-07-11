@@ -61,27 +61,32 @@
         "package_manifest_file": {
           "type": "string",
           "minLength": 1,
-          "description": "Reference to the package manifest.json."
+          "pattern": "^(?![\\\\/])(?![A-Za-z]:)\\S",
+          "description": "Reference to the package manifest.json. Relative path only (no absolute or drive-rooted path); resolved relative to the request file's own location."
         },
         "strategy_file": {
           "type": "string",
           "minLength": 1,
-          "description": "Reference to the package strategy file."
+          "pattern": "^(?![\\\\/])(?![A-Za-z]:)\\S",
+          "description": "Reference to the package strategy file. Relative path only."
         },
         "review_packet_file": {
           "type": "string",
           "minLength": 1,
-          "description": "Reference to the package review packet."
+          "pattern": "^(?![\\\\/])(?![A-Za-z]:)\\S",
+          "description": "Reference to the package review packet. Relative path only."
         },
         "traceability_bundle_file": {
           "type": "string",
           "minLength": 1,
-          "description": "Reference to the traceability bundle (CAM-A19), included when available."
+          "pattern": "^(?![\\\\/])(?![A-Za-z]:)\\S",
+          "description": "Reference to the traceability bundle (CAM-A19), included when available. Relative path only."
         },
         "production_shop_handoff_file": {
           "type": "string",
           "minLength": 1,
-          "description": "Reference to the production shop handoff (CAM-A20), included when available. Distinct from the request itself: the handoff remains a separate outbound artifact."
+          "pattern": "^(?![\\\\/])(?![A-Za-z]:)\\S",
+          "description": "Reference to the production shop handoff (CAM-A20), included when available. Relative path only. Distinct from the request itself: the handoff remains a separate outbound artifact."
         }
       }
     },
@@ -93,15 +98,22 @@
       "properties": {
         "material": {
           "type": "string",
-          "description": "Informational material description (e.g., 'mahogany')."
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "Informational material description (e.g., 'mahogany'). Non-blank when present."
         },
         "machine_profile": {
-          "type": ["string", "null"],
-          "description": "Informational machine profile reference, or null when unspecified."
+          "oneOf": [
+            {"type": "string", "minLength": 1, "pattern": "\\S"},
+            {"type": "null"}
+          ],
+          "description": "Informational machine profile reference (non-blank string), or null when unspecified."
         },
         "operator_notes": {
           "type": "string",
-          "description": "Informational free-text notes for the downstream reviewer."
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "Informational free-text notes for the downstream reviewer. Non-blank when present."
         }
       }
     },

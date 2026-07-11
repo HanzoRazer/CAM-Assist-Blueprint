@@ -430,8 +430,14 @@ def resolve_creation_studio_request(package_dir: Path, explicit: Path | None = N
 
 
 def format_creation_studio_request_section(request: dict) -> list[str]:
-    """Format the creation studio request section (detection only)."""
-    status = "present" if request["present"] else "not declared"
+    """Format the creation studio request section (detection only).
+
+    The inspector detects a file at the conventional/explicit path; it never
+    parses, validates, or resolves the request. The wording says so explicitly
+    so "present" is not mistaken for "valid and wired" — run
+    validate_creation_studio_request.py for that.
+    """
+    status = "present (detected, not validated)" if request["present"] else "not declared"
     return ["CAM-Creation-Studio Request:", f"  {status}"]
 
 

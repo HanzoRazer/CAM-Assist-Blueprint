@@ -105,16 +105,36 @@ class CreateResult(NamedTuple):
     exit_code: int = 0
 
 
+class ManifestError(Exception):
+    """Raised when a manifest.json is present but cannot be read/parsed.
+
+    A missing manifest is fine (the creator falls back to conventions), but a
+    present-but-corrupt one must not be silently swallowed: doing so would emit
+    a request with fallback identity/filenames derived from corrupt data, which
+    looks correct while being wrong.
+    """
+
+
 def load_manifest(package_dir: Path) -> dict:
-    """Load <package>/manifest.json, or {} if absent/unparseable."""
+    """Load <package>/manifest.json.
+
+    Returns {} when the file is absent (conventions apply). Raises
+    ManifestError when the file exists but cannot be read or parsed, so the
+    caller surfaces a clean error instead of producing a misleading artifact.
+    """
     manifest_path = package_dir / "manifest.json"
-    if manifest_path.exists():
-        try:
-            with open(manifest_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, OSError):
-            return {}
-    return {}
+    if not manifest_path.exists():
+        return {}
+    try:
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError as e:
+        raise ManifestError(f"manifest.json is present but not valid JSON: {e}") from e
+    except OSError as e:
+        raise ManifestError(f"manifest.json is present but unreadable: {e}") from e
+    if not isinstance(data, dict):
+        raise ManifestError("manifest.json is present but is not a JSON object")
+    return data
 
 
 def resolve_package_reference(package_dir: Path, manifest: dict) -> str:
@@ -205,14 +225,16 @@ def build_request_context(
     """Build the optional request_context from supplied flags.
 
     Returns None when no context flag was given, so the default request stays
-    minimal and deterministic. Only supplied fields are emitted.
+    minimal and deterministic. Only supplied, non-blank fields are emitted: a
+    blank ('' or whitespace-only) flag value carries no information and would be
+    rejected by the validator, so it is treated as absent rather than recorded.
     """
     context: dict = {}
-    if material is not None:
+    if material is not None and material.strip():
         context["material"] = material
-    if machine_profile is not None:
+    if machine_profile is not None and machine_profile.strip():
         context["machine_profile"] = machine_profile
-    if operator_notes is not None:
+    if operator_notes is not None and operator_notes.strip():
         context["operator_notes"] = operator_notes
     return context or None
 
@@ -259,7 +281,12 @@ def create_request(
             f"Output file already exists: {output_path} (use --force to overwrite)", 1,
         )
 
-    manifest = load_manifest(package_dir)
+    # A missing manifest is fine (conventions apply); a present-but-corrupt one
+    # is a clean argument error rather than a silent fallback to bad identity.
+    try:
+        manifest = load_manifest(package_dir)
+    except ManifestError as e:
+        return CreateResult(False, None, str(e), 1)
 
     # References are stored relative to the output directory. os.path.relpath
     # raises ValueError when the two paths share no common anchor — most notably

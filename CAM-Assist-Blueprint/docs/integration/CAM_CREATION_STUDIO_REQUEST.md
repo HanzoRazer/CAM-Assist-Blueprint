@@ -35,9 +35,15 @@ no consumer implementation is added here.
 
 ## Request Artifact
 
-A reference-only manifest. Every reference is a path relative to the request file's
-own location, forward-slashed. The request never owns, copies, caches, or mutates
-the referenced files, and never modifies the source package.
+A reference-only manifest. Every reference is a **relative** path from the request
+file's own location, forward-slashed. Absolute or drive-rooted paths (`/x`, `C:\x`,
+`C:/x`, UNC) are rejected structurally: they are non-portable and would escape the
+request's base. The request never owns, copies, caches, or mutates the referenced
+files, and never modifies the source package.
+
+Informational `request_context` fields (`material`, `machine_profile`,
+`operator_notes`) must be non-blank when present; a blank value carries no
+information and is rejected rather than recorded.
 
 The request carries **no `created_at` timestamp**: the artifact is deterministic so
 that regenerating it (delete → recreate) yields byte-identical output. Auditability
@@ -139,12 +145,15 @@ The inspector reports presence only:
 
 ```text
 CAM-Creation-Studio Request:
-  present
+  present (detected, not validated)
 ```
 
 It looks for an explicit `--creation-studio-request <path>` first, then the
 conventional `creation_studio/<package>_request.json`. Detection only — it never
 opens, parses, validates, resolves references, or infers supported capabilities.
+The `(detected, not validated)` wording is deliberate: presence means a file was
+found at the expected path, **not** that it is structurally valid. Run
+`validate_creation_studio_request.py` for that guarantee.
 
 ## Authority Model
 
