@@ -1,0 +1,25 @@
+{
+  "record_type": "cam_assist_creation_studio_request",
+  "record_version": "1.0.0",
+  "package_reference": "luthiers-toolbox:vcarve:les-paul-custom-2024",
+  "request_direction": "cam_assist_to_creation_studio",
+  "requested_capabilities": [
+    "feeds_speeds_recommendation",
+    "tooling_review",
+    "operation_sequence_analysis"
+  ],
+  "contents": {
+    "package_manifest_file": "../packages/ltb_vcarve_synthetic_example/manifest.json",
+    "strategy_file": "../packages/ltb_vcarve_synthetic_example/strategy.json",
+    "review_packet_file": "../packages/ltb_vcarve_synthetic_example/review_packet.md",
+    "traceability_bundle_file": "../traceability/ltb_vcarve_synthetic_example_bundle.json",
+    "production_shop_handoff_file": "../production_shop/ltb_vcarve_synthetic_example_handoff.json"
+  },
+  "authority": {
+    "is_informational": true,
+    "does_not_authorize_execution": true,
+    "does_not_bypass_human_review": true,
+    "does_not_confirm_machine_readiness": true,
+    "does_not_require_gcode_generation": true
+  }
+}
