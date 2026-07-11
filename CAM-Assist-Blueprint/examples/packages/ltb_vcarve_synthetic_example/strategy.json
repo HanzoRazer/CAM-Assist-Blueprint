@@ -1,6 +1,6 @@
 {
   "strategy_version": "1.2",
-  "strategy_id": "v_carve-gibson-les-paul-custom-2024",
+  "strategy_id": "v-carve-gibson-les-paul-custom-2024",
   "units": "inches",
   "coordinate_frame": {
     "origin": "top_left_corner",
