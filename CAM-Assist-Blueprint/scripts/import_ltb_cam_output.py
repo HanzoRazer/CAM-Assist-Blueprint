@@ -16,11 +16,25 @@ Exit codes:
 
 import argparse
 import json
+import re
 import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+
+def slugify_strategy_id(*parts: str) -> str:
+    """Join parts into a valid strategy_id.
+
+    strategy_id must be lowercase alphanumeric plus hyphens only, so lowercase
+    the input and collapse every run of other characters (underscores, spaces,
+    etc.) to a single hyphen. Without this, an operation_type like ``v_carve``
+    would leak an underscore into the id and fail strategy validation.
+    """
+    raw = "-".join(str(p) for p in parts if p)
+    slug = re.sub(r"[^a-z0-9]+", "-", raw.lower()).strip("-")
+    return slug or "unknown"
 
 
 REQUIRED_FIELDS = {
@@ -103,7 +117,10 @@ def transform_to_strategy(ltb_data: dict, target_units: str = "inches") -> dict:
 
     strategy = {
         "strategy_version": "1.2",
-        "strategy_id": f"{operation.get('operation_type', 'unknown')}-{provenance.get('source_spec_id', 'unknown')}",
+        "strategy_id": slugify_strategy_id(
+            operation.get("operation_type", "unknown"),
+            provenance.get("source_spec_id", "unknown"),
+        ),
         "units": target_units,
 
         "coordinate_frame": {
