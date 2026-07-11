@@ -31,7 +31,7 @@
       "minLength": 1,
       "pattern": "\\S",
       "format": "date-time",
-      "description": "ISO-8601 timestamp when this bundle record was created. minLength rejects \"\"; pattern \\S rejects whitespace-only, matching the hand validator's .strip() check. format is annotation-only under the bare validator (no FormatChecker), so it does not enforce ISO-8601 shape."
+      "description": "ISO-8601 timestamp when this bundle record was created. The schema enforces only that this is a non-blank string (minLength + pattern reject empty and whitespace-only); it does not assert the ISO-8601 shape itself."
     },
 
     "bundle_contents": {
