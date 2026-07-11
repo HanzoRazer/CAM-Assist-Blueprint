@@ -26,8 +26,10 @@
 
     "created_at": {
       "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
       "format": "date-time",
-      "description": "ISO-8601 timestamp when this risk assessment was created"
+      "description": "ISO-8601 timestamp when this risk assessment was created. The schema enforces only that this is a non-blank string (minLength + pattern reject empty and whitespace-only); it does not assert the ISO-8601 shape itself."
     },
 
     "overall_risk": {
