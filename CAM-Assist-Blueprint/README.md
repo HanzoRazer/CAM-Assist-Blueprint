@@ -373,6 +373,27 @@ Provides:
 
 ---
 
+### CAM-A22 — CAM-Creation-Studio Capability Request
+
+Contract-first interoperability probe: an advisory, reference-only request
+describing what downstream machining-development assistance CAM Assist is asking
+of the separate CAM-Creation-Studio product. It does not merge the repositories,
+add runtime integration, or introduce a CAM-Creation-Studio dependency.
+
+Provides:
+
+- reference-only request sidecar (`CAM Assist → CAM-Creation-Studio`, outbound only)
+- controlled `requested_capabilities` vocabulary (feeds/speeds, tooling, sequencing, …)
+- required non-execution authority block, including `does_not_require_gcode_generation`
+- structural validation plus an opt-in `--check-references` existence witness
+- inspector detection (`CAM-Creation-Studio Request: present / not declared`)
+- a deterministic artifact (no `created_at`; regeneration is byte-identical)
+- no CAM-Creation-Studio consumer, runtime import, or G-code generation
+
+See `docs/integration/CAM_CREATION_STUDIO_REQUEST.md`.
+
+---
+
 ## Repository Structure
 
 ```
