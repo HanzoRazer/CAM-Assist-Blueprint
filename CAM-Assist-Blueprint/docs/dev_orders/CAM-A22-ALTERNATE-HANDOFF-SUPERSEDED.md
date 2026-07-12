@@ -43,3 +43,15 @@ drift from an earlier draft, not corrections.
 
 This file exists so the divergence is recorded and future readers are not misled
 into treating the earlier draft as authoritative.
+
+## Maintenance
+
+This document describes the contract **as shipped in PR #27**. The authoritative
+source is always the schema, validator, and creator — never this file. If CAM-A22
+later evolves (a new `record_version`, an added authority flag, a renamed slot),
+whoever makes that change owns updating the "shipped, authoritative" column of the
+divergence table above, or deleting this file if the comparison is no longer
+useful. The `record_version` in `schemas/creation_studio_request.schema.json` is
+the signal that this note may be stale. This doc is documentation only: no test
+depends on it, so a drift here cannot break the build — which is exactly why it
+needs a human owner at change time.
