@@ -304,16 +304,62 @@ def test_request_context_emitted_with_flags(tmp_path):
     assert ctx == {"material": "mahogany", "operator_notes": "Review first."}
 
 
-def test_blank_context_flag_is_omitted(tmp_path):
-    # A blank flag value carries no information and would fail validation; the
-    # creator treats it as absent rather than emitting a semantically empty field.
+def test_blank_context_flag_is_rejected(tmp_path):
+    # A supplied-but-blank value is most likely an input mistake. Fail clearly
+    # instead of silently dropping an argument the caller explicitly provided.
     pkg = make_package(tmp_path)
     out = tmp_path / "r.json"
-    run_script(
+    code, _stdout, stderr = run_script(
         CREATE_SCRIPT, "--package", pkg, "--out", out, *_cap("tooling_review"),
         "--material", "   ",
     )
-    assert "request_context" not in load(out)
+    assert code == 1
+    assert "--material must not be blank" in stderr
+    assert not out.exists()
+
+
+def test_manifest_content_path_must_be_string(tmp_path):
+    pkg = make_package(tmp_path)
+    manifest_path = pkg / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["strategy_file"] = 42
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    out = tmp_path / "r.json"
+    code, _stdout, stderr = run_script(
+        CREATE_SCRIPT, "--package", pkg, "--out", out, *_cap("tooling_review")
+    )
+    assert code == 1
+    assert "strategy_file must be a non-blank relative path" in stderr
+    assert "Traceback" not in stderr
+
+
+def test_manifest_content_path_cannot_escape_package(tmp_path):
+    pkg = make_package(tmp_path)
+    manifest_path = pkg / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["review_packet_file"] = "../outside.md"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    out = tmp_path / "r.json"
+    code, _stdout, stderr = run_script(
+        CREATE_SCRIPT, "--package", pkg, "--out", out, *_cap("tooling_review")
+    )
+    assert code == 1
+    assert "review_packet_file must stay within the package directory" in stderr
+
+
+def test_manifest_federated_id_must_be_non_blank_string(tmp_path):
+    pkg = make_package(tmp_path)
+    manifest_path = pkg / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["federation"] = {"federated_package_id": 42}
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    out = tmp_path / "r.json"
+    code, _stdout, stderr = run_script(
+        CREATE_SCRIPT, "--package", pkg, "--out", out, *_cap("tooling_review")
+    )
+    assert code == 1
+    assert "federated_package_id must be a non-blank string" in stderr
+    assert "Traceback" not in stderr
 
 
 def test_generated_request_with_context_passes_validator(tmp_path):

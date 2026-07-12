@@ -135,6 +135,15 @@ def test_bad_record_version_fails(tmp_path):
     assert "record_version" in err
 
 
+def test_non_string_record_version_fails_cleanly(tmp_path):
+    data = valid_request()
+    data["record_version"] = 100
+    code, _out, err = run_validator(write_request(tmp_path, data))
+    assert code == 1
+    assert "record_version" in err
+    assert "Traceback" not in err
+
+
 # ---------------------------------------------------------------------------
 # package_reference
 # ---------------------------------------------------------------------------

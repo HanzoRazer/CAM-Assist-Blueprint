@@ -140,9 +140,38 @@ def load_manifest(package_dir: Path) -> dict:
 def resolve_package_reference(package_dir: Path, manifest: dict) -> str:
     """Package's portable identity: manifest federated_package_id, else dir name."""
     federation = manifest.get("federation", {})
-    if isinstance(federation, dict) and federation.get("federated_package_id"):
-        return federation["federated_package_id"]
+    if isinstance(federation, dict) and "federated_package_id" in federation:
+        value = federation["federated_package_id"]
+        if not isinstance(value, str) or not value.strip():
+            raise ManifestError(
+                "manifest federation.federated_package_id must be a non-blank string"
+            )
+        return value
     return package_dir.name
+
+
+def manifest_content_path(package_dir: Path, manifest: dict, field: str, fallback: str) -> Path:
+    """Return a safe package-local path declared by the manifest.
+
+    Manifest content fields are untrusted input. Reject malformed, absolute, and
+    parent-escaping values instead of crashing during path composition or
+    emitting a request that silently points outside the package.
+    """
+    value = manifest.get(field, fallback)
+    if not isinstance(value, str) or not value.strip():
+        raise ManifestError(f"manifest {field} must be a non-blank relative path")
+
+    relative = Path(value)
+    if relative.is_absolute() or relative.drive:
+        raise ManifestError(f"manifest {field} must be a relative path")
+
+    package_root = package_dir.resolve(strict=False)
+    candidate = (package_dir / relative).resolve(strict=False)
+    try:
+        candidate.relative_to(package_root)
+    except ValueError as e:
+        raise ManifestError(f"manifest {field} must stay within the package directory") from e
+    return candidate
 
 
 def conventional_base(package_dir: Path, sub_root: str) -> Path:
@@ -191,13 +220,17 @@ def build_contents(
     (recorded as-is, no existence check) or conventionally discovered (included
     only if the file exists).
     """
-    strategy_name = manifest.get("strategy_file") or DEFAULT_STRATEGY_FILE
-    review_packet_name = manifest.get("review_packet_file") or DEFAULT_REVIEW_PACKET_FILE
+    strategy_path = manifest_content_path(
+        package_dir, manifest, "strategy_file", DEFAULT_STRATEGY_FILE
+    )
+    review_packet_path = manifest_content_path(
+        package_dir, manifest, "review_packet_file", DEFAULT_REVIEW_PACKET_FILE
+    )
 
     contents = {
         "package_manifest_file": relref(package_dir / "manifest.json", output_dir),
-        "strategy_file": relref(package_dir / strategy_name, output_dir),
-        "review_packet_file": relref(package_dir / review_packet_name, output_dir),
+        "strategy_file": relref(strategy_path, output_dir),
+        "review_packet_file": relref(review_packet_path, output_dir),
     }
 
     if explicit_bundle is not None:
@@ -261,6 +294,13 @@ def create_request(
             "At least one --capability is required "
             f"(allowed: {', '.join(CAPABILITY_VOCABULARY)})", 1,
         )
+    for flag, value in (
+        ("--material", material),
+        ("--machine-profile", machine_profile),
+        ("--operator-notes", operator_notes),
+    ):
+        if value is not None and not value.strip():
+            return CreateResult(False, None, f"{flag} must not be blank", 1)
     unknown = [c for c in capabilities if c not in CAPABILITY_VOCABULARY]
     if unknown:
         return CreateResult(
@@ -297,6 +337,9 @@ def create_request(
             package_dir, manifest, output_path.parent,
             traceability_bundle, production_shop_handoff,
         )
+        package_reference = resolve_package_reference(package_dir, manifest)
+    except ManifestError as e:
+        return CreateResult(False, None, str(e), 1)
     except ValueError as e:
         return CreateResult(
             False, None,
@@ -307,7 +350,7 @@ def create_request(
     record = {
         "record_type": RECORD_TYPE,
         "record_version": RECORD_VERSION,
-        "package_reference": resolve_package_reference(package_dir, manifest),
+        "package_reference": package_reference,
         "request_direction": REQUEST_DIRECTION,
         "requested_capabilities": deduped,
         "contents": contents,

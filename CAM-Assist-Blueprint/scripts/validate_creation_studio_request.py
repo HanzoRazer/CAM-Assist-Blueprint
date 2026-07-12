@@ -264,7 +264,7 @@ def validate_request(data: dict) -> ValidationResult:
     record_version = data.get("record_version")
     if record_version is None:
         errors.append("Missing required field: record_version")
-    elif not VERSION_PATTERN.match(record_version):
+    elif not isinstance(record_version, str) or not VERSION_PATTERN.fullmatch(record_version):
         errors.append(
             f"Invalid record_version format: '{record_version}'. "
             "Must be semantic version (e.g., '1.0.0')"
