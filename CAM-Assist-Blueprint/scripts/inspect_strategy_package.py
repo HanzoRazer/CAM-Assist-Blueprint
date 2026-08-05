@@ -441,6 +441,59 @@ def format_creation_studio_request_section(request: dict) -> list[str]:
     return ["CAM-Creation-Studio Request:", f"  {status}"]
 
 
+# CAM-A23 creation studio capability profile: a read-only capability contract
+# published BY CAM-Creation-Studio, detected (not parsed) under its own section.
+# It shares the creation_studio/ directory with the CAM-A22 request but is NOT
+# package-specific — one profile per Creation Studio installation/version — so
+# the filename is fixed rather than derived from the package name.
+CAPABILITY_PROFILE_FILENAME = "capability_profile.json"
+
+
+def conventional_capability_profile_path(package_dir: Path) -> Path:
+    """Conventional profile location: <parent>/creation_studio/capability_profile.json.
+
+    For examples/packages/<name>, look under examples/creation_studio/ instead.
+    """
+    parent = package_dir.parent
+    if parent.name == "packages" and parent.parent.name == "examples":
+        base = parent.parent / "creation_studio"
+    else:
+        base = parent / "creation_studio"
+    return base / CAPABILITY_PROFILE_FILENAME
+
+
+def resolve_capability_profile(package_dir: Path, explicit: Path | None = None) -> dict:
+    """Detect a capability profile: explicit flag first, then conventional path.
+
+    Detection only — never opens, parses, validates, resolves references, or reads
+    which capabilities are declared. An existing-but-unparseable profile still
+    counts as present. Presence says a Creation Studio profile was published
+    alongside this package's tree; it says nothing about what Creation Studio can
+    do for THIS package, and confers no authority of any kind.
+    Returns {"present": bool, "path": str | None}.
+    """
+    path = explicit
+    if path is None:
+        candidate = conventional_capability_profile_path(package_dir)
+        if candidate.exists():
+            path = candidate
+    present = path is not None and Path(path).exists()
+    return {"present": present, "path": str(path) if present else None}
+
+
+def format_capability_profile_section(profile: dict) -> list[str]:
+    """Format the capability profile section (detection only).
+
+    The inspector detects a file at the conventional/explicit path; it never
+    parses, validates, or reads the declared capabilities. The wording says so
+    explicitly so "present" is not mistaken for "valid and supported" — run
+    validate_creation_studio_capability_profile.py for structural validity, and
+    read the profile itself for what it declares.
+    """
+    status = "present (detected, not validated)" if profile["present"] else "not declared"
+    return ["Creation Studio Capability Profile:", f"  {status}"]
+
+
 def format_terminal_output(
     result: InspectionResult,
     annotations_data: dict | None = None,
@@ -448,6 +501,7 @@ def format_terminal_output(
     bundle: dict | None = None,
     handoff: dict | None = None,
     creation_studio_request: dict | None = None,
+    capability_profile: dict | None = None,
 ) -> str:
     """Format inspection result for terminal display."""
     lines = []
@@ -561,6 +615,11 @@ def format_terminal_output(
         lines.append("")
         lines.extend(format_creation_studio_request_section(creation_studio_request))
 
+    # Creation Studio Capability Profile section (CAM-A23, detection only)
+    if capability_profile is not None:
+        lines.append("")
+        lines.extend(format_capability_profile_section(capability_profile))
+
     # Non-execution notice
     lines.append("")
     lines.append("-" * 39)
@@ -578,6 +637,7 @@ def format_json_output(
     bundle: dict | None = None,
     handoff: dict | None = None,
     creation_studio_request: dict | None = None,
+    capability_profile: dict | None = None,
 ) -> str:
     """Format inspection result as JSON."""
     output = {
@@ -603,6 +663,8 @@ def format_json_output(
         output["production_shop_handoff"] = handoff
     if creation_studio_request is not None:
         output["creation_studio_request"] = creation_studio_request
+    if capability_profile is not None:
+        output["creation_studio_capability_profile"] = capability_profile
     return json.dumps(output, indent=2)
 
 
@@ -685,6 +747,16 @@ def main() -> int:
         dest="creation_studio_request",
         help="Path to a CAM-Creation-Studio request sidecar (overrides conventional lookup; detection only)",
     )
+    parser.add_argument(
+        "--capability-profile",
+        type=Path,
+        default=None,
+        dest="capability_profile",
+        help=(
+            "Path to a Creation Studio capability profile (overrides conventional "
+            "lookup; detection only)"
+        ),
+    )
 
     args = parser.parse_args()
     package_dir: Path = args.package_dir
@@ -736,6 +808,7 @@ def main() -> int:
         ("--bundle", args.bundle),
         ("--handoff", args.handoff),
         ("--creation-studio-request", args.creation_studio_request),
+        ("--capability-profile", args.capability_profile),
     ):
         if flag_value is not None and not flag_value.exists():
             print(f"Error: {flag_name} file not found: {flag_value}", file=sys.stderr)
@@ -757,9 +830,14 @@ def main() -> int:
         package_dir, explicit=args.creation_studio_request
     )
 
+    capability_profile = resolve_capability_profile(
+        package_dir, explicit=args.capability_profile
+    )
+
     if args.json:
         print(format_json_output(
-            result, annotations_data, traceability, bundle, handoff, creation_studio_request
+            result, annotations_data, traceability, bundle, handoff,
+            creation_studio_request, capability_profile,
         ))
     elif args.quiet:
         output = format_quiet_output(result, package_dir)
@@ -769,7 +847,8 @@ def main() -> int:
             print(output, file=sys.stderr)
     else:
         print(format_terminal_output(
-            result, annotations_data, traceability, bundle, handoff, creation_studio_request
+            result, annotations_data, traceability, bundle, handoff,
+            creation_studio_request, capability_profile,
         ))
 
     return 0 if result.valid else 1
