@@ -319,6 +319,19 @@ Provides:
 
 ---
 
+### CAM-A13 — LTB Bridge Infrastructure
+
+Import bridge for Luthier's Toolbox CAM output into CAM Assist strategy packages.
+
+Provides:
+
+- documented LTB CAM output contract (`docs/LTB_CAM_OUTPUT_CONTRACT.md`)
+- import path from LTB output to a strategy package (`scripts/import_ltb_cam_output.py`)
+- worked import examples (`examples/ltb_import/`)
+- no execution authority introduced by the bridge
+
+---
+
 ### CAM-A14 — External Package Identity
 
 Optional federated identity metadata for cross-system interchange.
@@ -359,6 +372,47 @@ Provides:
 
 ---
 
+### CAM-A17 — Manufacturing Decision Traceability
+
+Sidecar records capturing *why* a manufacturing strategy looks the way it does.
+
+Provides:
+
+- manufacturing assumptions record (`schemas/manufacturing_assumptions.schema.json`)
+- risk assessment record (`schemas/risk_assessment.schema.json`)
+- manufacturing decision record (`schemas/manufacturing_decision_record.schema.json`)
+- conventional `traceability/` sidecar discovery
+- rationale captured without mutating the package
+
+---
+
+### CAM-A18 — Revision Lineage
+
+Records how a strategy package descends from its predecessors.
+
+Provides:
+
+- revision lineage record (`schemas/revision_lineage.schema.json`)
+- creator and structural validator
+- predecessor linkage without package mutation
+- inspector-visible traceability
+
+---
+
+### CAM-A19 — Traceability Bundle
+
+Aggregates the traceability sidecars into one portable, reference-only bundle.
+
+Provides:
+
+- bundle record (`schemas/traceability_bundle.schema.json`)
+- reference-only aggregation (sidecars remain authoritative, never copied)
+- structural validation plus an opt-in `--check-references` existence witness
+- inspector detection (`Traceability Bundle: present / not declared`)
+- no execution authority
+
+---
+
 ### CAM-A20 — Production Shop Handoff
 
 Read-only, outbound export of a reviewed package toward a future Production Shop runtime.
@@ -370,6 +424,21 @@ Provides:
 - structural validation plus an opt-in `--check-references` existence witness
 - inspector detection (`Production Shop Handoff: present / not declared`)
 - no Production Shop runtime dependency and no execution authority
+
+---
+
+### CAM-A21 — Product Identity and Workflow Demo
+
+Product-boundary documentation plus an end-to-end runnable demonstration.
+
+Provides:
+
+- product docs: why CAM Assist exists, the workflow, and how it differs from
+  traditional CAM (`docs/product/`)
+- the CAM Assist / CAM-Creation-Studio companion-product boundary, stated as
+  separate repositories with the merger left an open product decision
+- end-to-end pipeline demo (`scripts/run_cam_assist_demo.py`)
+- documentation kept in step with executable reality by test
 
 ---
 
@@ -391,6 +460,29 @@ Provides:
 - no CAM-Creation-Studio consumer, runtime import, or G-code generation
 
 See `docs/integration/CAM_CREATION_STUDIO_REQUEST.md`.
+
+---
+
+### Maintenance and governance work (not A-series capabilities)
+
+Some merged work hardens or maintains existing capabilities rather than adding a
+new one. It is recorded here so the capability list above stays a list of
+*capabilities*, and tracked in full in `docs/dev_orders/LEDGER.md`.
+
+- **`created_at` schema consistency** (PR #26) — extends the `created_at`
+  non-blank rule across the remaining schemas. Its branch was named
+  `cam-a23-created-at-schema-consistency`, but it is **maintenance work, not
+  CAM-A23**; it was retro-designated on 2026-08-07 and no longer occupies that
+  capability number. **CAM-A23 is the Creation Studio Capability Profile**, whose
+  dev order `docs/dev_orders/CAM-A23.md` lands with that capability's branch and
+  is not yet on `main` — see `docs/dev_orders/LEDGER.md`.
+- **A19/A20 validator cleanup** (PR #23) and **`created_at` schema parity**
+  (PR #24) — hardening against the traceability bundle and production shop handoff.
+- **A19 traceability bundle hardening** (PR #22) and **A22 example regression
+  test** (PR #28) — follow-ups to their respective capabilities.
+
+Capability status, including work that is implemented but **not** merged, is
+tracked in `docs/dev_orders/LEDGER.md`.
 
 ---
 
