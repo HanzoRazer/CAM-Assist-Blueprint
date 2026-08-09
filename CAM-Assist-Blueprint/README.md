@@ -463,6 +463,33 @@ See `docs/integration/CAM_CREATION_STUDIO_REQUEST.md`.
 
 ---
 
+### CAM-A23 — Creation Studio Capability Profile
+
+The complement of CAM-A22 and the second integration seam: a read-only,
+informational contract in which CAM-Creation-Studio declares **what it is capable
+of authoring**. CAM-A22 records what CAM Assist asks for; CAM-A23 records what
+Creation Studio says it can do. Together they form a bidirectional *information*
+exchange over a strictly one-way flow of *authority*.
+
+Provides:
+
+- read-only capability contract (`CAM-Creation-Studio → CAM Assist`, publication only)
+- open, pattern-constrained capability identifiers (Creation Studio owns its own
+  capability evolution; compatibility rests on stable identifiers plus semantic versioning)
+- a `profile_version` owned by Creation Studio, independent of the CAM Assist version
+- required non-authority block, including `does_not_require_capability_use`
+- structural validation plus an opt-in `--check-references` existence witness
+- inspector detection (`Creation Studio Capability Profile: present / not declared`)
+- a deterministic artifact (no `created_at`; sorted capabilities; byte-identical regeneration)
+- no execution authority, no automatic capability selection, no runtime dependency
+
+Consumed only for informational display, request compatibility checking, and
+documentation — never for execution decisions. **No capability implies approval.**
+
+See `docs/integration/CREATION_STUDIO_CAPABILITY_PROFILE.md`.
+
+---
+
 ### Maintenance and governance work (not A-series capabilities)
 
 Some merged work hardens or maintains existing capabilities rather than adding a

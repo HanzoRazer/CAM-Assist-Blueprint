@@ -1,0 +1,38 @@
+{
+  "record_type": "creation_studio_capability_profile",
+  "record_version": "1.0.0",
+  "profile_version": "1.0.0",
+  "studio_reference": "cam-creation-studio",
+  "publication_direction": "creation_studio_to_cam_assist",
+  "capabilities": [
+    {
+      "capability_id": "feeds_speeds_authoring",
+      "display_name": "Feeds & Speeds Authoring"
+    },
+    {
+      "capability_id": "gcode_tutorial_generation"
+    },
+    {
+      "capability_id": "machining_lesson_playback"
+    },
+    {
+      "capability_id": "post_processor_education"
+    },
+    {
+      "capability_id": "simulation_support"
+    },
+    {
+      "capability_id": "strategy_visualization"
+    },
+    {
+      "capability_id": "tool_library_editing"
+    }
+  ],
+  "authority": {
+    "is_informational": true,
+    "does_not_authorize_execution": true,
+    "does_not_bypass_human_review": true,
+    "does_not_confirm_machine_readiness": true,
+    "does_not_require_capability_use": true
+  }
+}
