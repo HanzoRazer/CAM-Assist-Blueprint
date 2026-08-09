@@ -83,12 +83,15 @@ artifacts. Full per-capability detail lives there; this is the summary.
 | Bucket | Capabilities |
 | --- | --- |
 | Merged | A0–A18, A19, A20, A21, A22 |
-| PR Open | *(none — `gh pr list` returns empty for this repository)* |
-| Local Only | **CAM-A23 Creation Studio Capability Profile**; A19/A20 parity follow-up `38e0665` |
+| PR Open | **CAM-A23 Creation Studio Capability Profile** — PR #30, opened 2026-08-08 |
+| Published, unmerged | A19/A20 parity follow-up `38e0665` — on `origin`, no open PR |
+| Local Only | *(none)* |
 | Specified | *(none — every dev order A18–A23 has an implementation)* |
 | Unverified | three blank-accepting date-time fields (§8) |
 
-Test baseline: **875 collected on `main`**; 1018 on the unpublished CAM-A23 branch.
+Statuses above are current as of 2026-08-08; see §12 for what changed and why.
+
+Test baseline: **875 collected on `main`**; 1018 on the unmerged CAM-A23 branch.
 
 ---
 
@@ -100,7 +103,7 @@ The A23 number was used twice in repository artifacts:
 PR #26   874fcb0   cam-a23-created-at-schema-consistency      MERGED to main
                    no dev order, no README section
 
-local    3c3c139   cam-a23-creation-studio-capability-profile LOCAL ONLY
+PR #30   3c3c139   cam-a23-creation-studio-capability-profile OPEN, not merged
                    docs/dev_orders/CAM-A23.md, README section, 7 commits
 ```
 
@@ -124,19 +127,27 @@ git history can resolve it without re-deriving this analysis.
 
 ---
 
-## 7. Orphaned commit — preserved, not folded in
+## 7. Stranded commit — preserved, not folded in
 
 ```text
 branch  cam-a19-a20-created-at-schema-parity @ 38e0665
         "docs: decouple created_at description from validator internals (PR #24)"
-        1 commit ahead of main, never published
-PR #24  MERGED at head 3126c9a
+        1 commit ahead of main
+        PUSHED — present on origin at refs/heads/cam-a19-a20-created-at-schema-parity
+PR #24  MERGED at head 3126c9a, closed
 ```
 
-A post-merge documentation fix was committed locally after PR #24 merged and never
-reached `main`. It is **preserved as a separate local-only follow-up pending
-review.** It has deliberately **not** been folded into these recovery artifacts,
-cherry-picked, or merged. Whether it still applies is a separate decision.
+A post-merge documentation fix was committed **and pushed** to the PR #24 branch
+after that PR had already merged. Because the PR was closed, the commit never had
+an open PR to carry it, and it never reached `main`.
+
+It is therefore **published but unmerged** — not local-only, and not orphaned in
+the git sense. Its true state has no open PR attached to it, which is precisely
+why it went unnoticed.
+
+It is **preserved pending review**: deliberately **not** folded into these
+recovery artifacts, cherry-picked, or merged. Whether it still applies is a
+separate decision.
 
 ---
 
@@ -202,3 +213,45 @@ the highest number currently in use.
 
 The final item is intentionally outstanding. Planning resumes only after these
 artifacts are reviewed and the evidence pass is re-run.
+
+---
+
+## 12. Corrections — 2026-08-08
+
+This notice was drafted on 2026-08-07 and corrected on 2026-08-08 before merge.
+The corrections are recorded rather than silently applied, because a recovery
+document that quietly rewrites itself is not evidence.
+
+**Correction 1 — `38e0665` was wrongly described as unpublished.**
+
+§5 and §7 originally placed `cam-a19-a20-created-at-schema-parity` @ `38e0665`
+in `Local Only` and stated it was "never published." It is on `origin`:
+
+```text
+$ git ls-remote --heads origin cam-a19-a20-created-at-schema-parity
+38e0665eaaabf15ea050c279d381a8faca8c8323  refs/heads/cam-a19-a20-created-at-schema-parity
+```
+
+Corrected to `Published, unmerged`. `LEDGER.md` gained that status because the
+original vocabulary could not express it: `PR Open` requires an open PR, and
+PR #24 is merged and closed.
+
+A likely cause, offered so the mistake is not repeated: `git branch -vv` shows
+this branch with no ahead/behind marker, which means *in sync with its remote* —
+easily misread as *has no remote*. `git ls-remote` is the unambiguous check.
+
+**Correction 2 — CAM-A23 is no longer Local Only.**
+
+On 2026-08-08 the branch was pushed and **PR #30** was opened against `main`.
+§5 and §6 are updated accordingly. Nothing about the capability changed; only
+its publication status did. It remains unmerged.
+
+**Still standing as written:** the contamination ruling (§1–§4), the CAM-A23
+designation ruling (§6), the README gap reconciliation (§9), and the refusal to
+assign A24 (§10).
+
+**§8 is deliberately left as written.** All three date-time claims have since
+been confirmed as real defects by direct schema inspection, so the section's
+caution was warranted rather than wrong. Promoting them from `Unverified` to
+`Confirmed` is a separate change, and belongs with whatever dev order acts on
+them.

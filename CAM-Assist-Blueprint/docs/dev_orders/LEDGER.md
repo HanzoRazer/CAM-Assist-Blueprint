@@ -12,13 +12,20 @@ that cannot be substantiated from git history, PRs, `docs/dev_orders/`, `schemas
 | Status | Meaning |
 | --- | --- |
 | **Merged** | Present on authoritative `main` |
-| **PR Open** | Implemented and published, not merged |
-| **Local Only** | Committed or working-tree implementation, not published |
+| **PR Open** | Published, not merged, with an open PR |
+| **Published, unmerged** | Pushed to `origin`, not merged, **no open PR** |
+| **Local Only** | Committed or working-tree implementation, never pushed |
 | **Specified** | Dev order exists, implementation not verified |
 | **Unverified** | Conversation claims it exists; repository evidence not yet established |
 
-`Merged` and `Local Only` are not interchangeable. A capability that exists only on
-a local branch has shipped nothing.
+`Merged` is not interchangeable with any of the three below it. A capability that
+is not on `main` has shipped nothing, however far along it looks.
+
+`Published, unmerged` was added 2026-08-08. The original vocabulary had no term
+for work that is pushed but carries no open PR, and that gap produced a real
+error: `38e0665` was recorded as `Local Only` and "never published" when it is on
+`origin`. Work in this state is the easiest to lose — it is invisible to
+`gh pr list` and invisible to anyone reading `main`.
 
 ---
 
@@ -49,7 +56,7 @@ a local branch has shipped nothing.
 | A20 | Production Shop Handoff | Merged | #21 `334f56d` | `CAM-A20.md` | yes | Cleanup #23; parity #24 |
 | A21 | Product Identity and Workflow Demo | Merged | #25 `ede5496` | `CAM-A21.md` | **added 2026-08-07** | README gap closed by recovery |
 | A22 | CAM-Creation-Studio Capability Request | Merged | #27 `f1c74b4` | `CAM-A22.md` | yes | Example regression #28 `076c6dd` |
-| **A23** | **Creation Studio Capability Profile** | **Local Only** | `728e62a..3c3c139` (7 commits) | `CAM-A23.md` — *on branch, not on `main`* | on branch only | **Never pushed. No PR exists.** See collision below |
+| **A23** | **Creation Studio Capability Profile** | **PR Open** | PR #30 `728e62a..3c3c139` (7 commits) | `CAM-A23.md` — *on branch, not on `main`* | on branch only | Pushed and opened 2026-08-08. **Not merged.** See collision below |
 | A24+ | — | *unassigned* | — | — | — | **No repository evidence of any kind** |
 
 ---
@@ -80,29 +87,35 @@ Capability Profile. The dev order and implementation branch win; the maintenance
 branch is retro-designated.
 
 Note for readers on `main`: `docs/dev_orders/CAM-A23.md` is **not present on
-`main`** — it lands with the capability's own branch, which is still `Local Only`.
-The ruling above stands regardless, because it is a designation decision, not a
-statement about which files have merged.
+`main`** — it lands with the capability's own branch, which is still unmerged
+(PR #30). The ruling above stands regardless, because it is a designation
+decision, not a statement about which files have merged.
 
 A reader encountering `cam-a23-created-at-schema-consistency` in git history should
 resolve it via this table, not by inferring a capability.
 
 ---
 
-## Unpublished and unmerged branches
+## Unmerged branches
 
 These represent work that exists but has shipped nothing. Tracked separately from
 the capability ledger on purpose.
 
 | Branch | Head | Ahead of `main` | Status | Disposition |
 | --- | --- | --- | --- | --- |
-| `cam-a23-creation-studio-capability-profile` | `3c3c139` | 7 | Local Only | Awaiting review. Never pushed; no PR. Preserved untouched by this recovery |
-| `cam-a19-a20-created-at-schema-parity` | `38e0665` | 1 | Local Only | Orphaned post-merge doc fix, committed after PR #24 merged at `3126c9a`. **Preserved pending review — deliberately not cherry-picked or folded into recovery artifacts** |
+| `cam-a23-creation-studio-capability-profile` | `3c3c139` | 7 | PR Open | **PR #30**, opened 2026-08-08. Awaiting review. Preserved untouched by this recovery |
+| `cam-a-session-recovery-2026-08-07` | *this branch* | 1 | PR Open | **PR #29**, opened 2026-08-08. These artifacts |
+| `cam-a19-a20-created-at-schema-parity` | `38e0665` | 1 | **Published, unmerged** | Post-merge doc fix, committed **and pushed** after PR #24 merged at `3126c9a` and closed. On `origin`; no open PR carries it. **Preserved pending review — deliberately not cherry-picked or folded into recovery artifacts** |
 
 Every other local branch is fully merged into `main`.
 
-**Open PRs: none.** `gh pr list --repo HanzoRazer/CAM-Assist-Blueprint --state open`
-returns empty.
+**Open PRs: #29 and #30**, both opened 2026-08-08, neither merged. They conflict
+with each other on `README.md` — both insert immediately after the CAM-A22
+section — so whichever lands second needs a rebase.
+
+Note for future audits: `gh pr list --state open` is **not** sufficient to find
+unmerged work. It returns nothing for `38e0665`, whose PR is closed. Cross-check
+`git ls-remote --heads origin` against `main` as well.
 
 ---
 

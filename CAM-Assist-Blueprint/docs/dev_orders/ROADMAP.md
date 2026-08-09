@@ -6,7 +6,8 @@ evidence.
 
 **This roadmap asserts nothing that the repository cannot substantiate.** No item
 here was inherited from conversation. Status vocabulary is the ledger's:
-`Merged` / `PR Open` / `Local Only` / `Specified` / `Unverified`.
+`Merged` / `PR Open` / `Published, unmerged` / `Local Only` / `Specified` /
+`Unverified`.
 
 ---
 
@@ -35,14 +36,14 @@ Test baseline on `main`: **875 collected**.
 
 ## In flight
 
-### CAM-A23 — Creation Studio Capability Profile — **Local Only**
+### CAM-A23 — Creation Studio Capability Profile — **PR Open**
 
 ```text
 branch   cam-a23-creation-studio-capability-profile @ 3c3c139
 commits  7  (728e62a..3c3c139)
 diff     14 files, +3440 / -2
 tests    1018 collected on the branch (875 baseline + 143)
-pushed   NO        PR  none        merged  NO
+pushed   YES       PR  #30 (2026-08-08)      merged  NO
 ```
 
 The inbound complement of CAM-A22: a read-only contract in which
@@ -50,20 +51,22 @@ CAM-Creation-Studio declares what it is capable of authoring. Schema, validator,
 creator, tool-generated example, inspector detection, integration doc, dev order,
 and README section are all present on the branch.
 
-**It has shipped nothing.** Until it is pushed, reviewed, and merged, CAM-A23 is
-not part of `main`. Next action is review — not further implementation.
+**It has still shipped nothing.** A PR is not a merge; until #30 lands, CAM-A23
+is not part of `main`. Next action is review — not further implementation.
 
-### A19/A20 parity follow-up — **Local Only**
+### A19/A20 parity follow-up — **Published, unmerged**
 
 ```text
 branch   cam-a19-a20-created-at-schema-parity @ 38e0665
 commits  1 ahead of main
+pushed   YES  (on origin)      PR  #24 merged at 3126c9a, then closed
 ```
 
-An orphaned post-merge documentation fix, committed after PR #24 merged at
-`3126c9a` and never published. **Preserved pending review.** Not cherry-picked,
-not folded into the recovery artifacts. Whether it still applies is an open
-question, and it should be resolved on its own terms.
+A post-merge documentation fix, committed **and pushed** to the PR #24 branch
+after that PR had already merged — so no open PR ever carried it to `main`.
+**Preserved pending review.** Not cherry-picked, not folded into the recovery
+artifacts. Whether it still applies is an open question, and it should be
+resolved on its own terms.
 
 ---
 
@@ -116,7 +119,7 @@ implementation, and neither creates a runtime dependency:
 | Contract | Direction | Status |
 | --- | --- | --- |
 | CAM-A22 Capability Request | CAM Assist → Creation Studio (outbound, advisory) | Merged |
-| CAM-A23 Capability Profile | Creation Studio → CAM Assist (inbound, informational) | Local Only |
+| CAM-A23 Capability Profile | Creation Studio → CAM Assist (inbound, informational) | PR Open (#30) |
 
 > No CAM-Creation-Studio remediation, DXF-import, geometry-fidelity, G-code
 > implementation, or CS-series sequencing is part of this roadmap merely because
@@ -132,10 +135,10 @@ repository and remain **deferred**. Their absence is not CAM-Assist work.
 
 Nothing new should be numbered or scoped until:
 
-1. these recovery artifacts are reviewed and merged;
+1. these recovery artifacts are reviewed and merged (PR #29);
 2. the repository evidence pass is re-run from the recovery branch;
-3. CAM-A23's Local Only status is resolved (published and reviewed, or withdrawn);
-4. the orphaned `38e0665` is reviewed on its own terms;
+3. CAM-A23 is resolved — merged or withdrawn, not merely opened (PR #30);
+4. the stranded `38e0665` is reviewed on its own terms;
 5. the three Unverified claims are confirmed or refuted against `schemas/`.
 
 Steps 3, 4 and 5 are independent of one another and can proceed in any order.
