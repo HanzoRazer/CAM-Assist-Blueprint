@@ -474,8 +474,8 @@ new one. It is recorded here so the capability list above stays a list of
   `cam-a23-created-at-schema-consistency`, but it is **maintenance work, not
   CAM-A23**; it was retro-designated on 2026-08-07 and no longer occupies that
   capability number. **CAM-A23 is the Creation Studio Capability Profile**, whose
-  dev order `docs/dev_orders/CAM-A23.md` lands with that capability's branch and
-  is not yet on `main` — see `docs/dev_orders/LEDGER.md`.
+  dev order and implementation live on that capability's branch. Current
+  publication and merge status is tracked in `docs/dev_orders/LEDGER.md`.
 - **A19/A20 validator cleanup** (PR #23) and **`created_at` schema parity**
   (PR #24) — hardening against the traceability bundle and production shop handoff.
 - **A19 traceability bundle hardening** (PR #22) and **A22 example regression

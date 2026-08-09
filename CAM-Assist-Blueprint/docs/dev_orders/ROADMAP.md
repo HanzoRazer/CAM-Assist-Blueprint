@@ -2,7 +2,8 @@
 
 Reconstructed 2026-08-07 from repository evidence only. See
 `SESSION_RECOVERY_2026-08-07.md` for why, and `LEDGER.md` for per-capability
-evidence.
+evidence and current volatile status. PR, branch, SHA, and test-count facts below
+are a dated 2026-08-08 snapshot, not a substitute for the ledger.
 
 **This roadmap asserts nothing that the repository cannot substantiate.** No item
 here was inherited from conversation. Status vocabulary is the ledger's:
@@ -30,7 +31,7 @@ A10  Strategy Package Import Staging      A22  CAM-Creation-Studio Capability Re
 A11  Staged Package Review Queue Index
 ```
 
-Test baseline on `main`: **875 collected**.
+At the 2026-08-08 snapshot, `main` was `076c6dd` and collected **875 tests**.
 
 ---
 
@@ -45,6 +46,9 @@ diff     14 files, +3440 / -2
 tests    1018 collected on the branch (875 baseline + 143)
 pushed   YES       PR  #30 (2026-08-08)      merged  NO
 ```
+
+Those values are the verified 2026-08-08 snapshot. See `LEDGER.md` for current
+status rather than carrying this block forward as live state.
 
 The inbound complement of CAM-A22: a read-only contract in which
 CAM-Creation-Studio declares what it is capable of authoring. Schema, validator,
@@ -70,19 +74,20 @@ resolved on its own terms.
 
 ---
 
-## Unverified — must be re-derived before it can become work
+## Confirmed maintenance findings — not yet scoped
 
 ```text
-review_annotations   annotation timestamp     accepts blank   ?
-review_decision_record.reviewed_at            accepts blank   ?
-strategy.approval.timestamp                   accepts blank   ?
+review_annotations   annotation timestamp     accepts blank   CONFIRMED
+review_decision_record.reviewed_at            accepts blank   CONFIRMED
+strategy.approval.timestamp                   accepts blank   CONFIRMED
 ```
 
-These were asserted in conversation and are **not** substantiated by repository
-evidence. Confirming or refuting them against `schemas/` is a prerequisite to any
-dev order that references them. If confirmed, they are maintenance work in the
-same family as PR #26 — **not** a new capability, and not automatically the next
-numbered item.
+These were re-verified directly against `schemas/` on 2026-08-08: the three
+fields lack the non-blank constraints used by the corrected `created_at` fields,
+and blank strings validate. They remain unscoped maintenance work in the same
+family as PR #26 — **not** a new capability, not part of this docs-only PR, and
+not automatically the next numbered item. Current disposition lives in
+`LEDGER.md`.
 
 ---
 
@@ -139,6 +144,7 @@ Nothing new should be numbered or scoped until:
 2. the repository evidence pass is re-run from the recovery branch;
 3. CAM-A23 is resolved — merged or withdrawn, not merely opened (PR #30);
 4. the stranded `38e0665` is reviewed on its own terms;
-5. the three Unverified claims are confirmed or refuted against `schemas/`.
+5. the three confirmed date-time defects are separately scoped or explicitly
+   deferred.
 
 Steps 3, 4 and 5 are independent of one another and can proceed in any order.

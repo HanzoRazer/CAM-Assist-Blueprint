@@ -36,8 +36,9 @@ backlog.
 CAM-Assist owns exactly two declared contracts touching that product, both of
 which are CAM-Assist artifacts and neither of which imports any CAM-Creation-Studio
 implementation: the **CAM-A22 Capability Request** (outbound, merged) and the
-**CAM-A23 Capability Profile** (inbound, read-only, not yet published). Nothing in
-the CS-series changes their scope.
+**CAM-A23 Capability Profile** (inbound, read-only; published on PR #30 at the
+2026-08-08 correction snapshot, but not merged). Nothing in the CS-series changes
+their scope. Current status lives in `LEDGER.md`.
 
 ## 3. Evidence hierarchy
 
@@ -87,11 +88,13 @@ artifacts. Full per-capability detail lives there; this is the summary.
 | Published, unmerged | A19/A20 parity follow-up `38e0665` — on `origin`, no open PR |
 | Local Only | *(none)* |
 | Specified | *(none — every dev order A18–A23 has an implementation)* |
-| Unverified | three blank-accepting date-time fields (§8) |
+| Confirmed maintenance findings | three blank-accepting date-time fields (§8, §12) |
 
 Statuses above are current as of 2026-08-08; see §12 for what changed and why.
 
-Test baseline: **875 collected on `main`**; 1018 on the unmerged CAM-A23 branch.
+At the 2026-08-08 verification snapshot, **875 tests** were collected on `main`
+and **1018** on the unmerged CAM-A23 branch. Current volatile status and the
+snapshot's SHAs live in `LEDGER.md`.
 
 ---
 
@@ -151,10 +154,10 @@ separate decision.
 
 ---
 
-## 8. Unverified claims
+## 8. Claims requiring verification at recovery time
 
-The following originated in conversation, not repository evidence, and are
-**Unverified** until confirmed by direct schema inspection:
+The following originated in conversation, not repository evidence, and were
+therefore **Unverified when this notice was drafted**:
 
 ```text
 review_annotations   annotation timestamp     accepts blank
@@ -162,7 +165,8 @@ review_decision_record.reviewed_at            accepts blank
 strategy.approval.timestamp                   accepts blank
 ```
 
-They must not be promoted to a dev order until re-derived from `schemas/`.
+They were subsequently confirmed by direct schema validation; see §12 and
+`LEDGER.md`. Confirmation does not authorize or scope their implementation.
 
 ---
 
@@ -250,8 +254,10 @@ its publication status did. It remains unmerged.
 designation ruling (§6), the README gap reconciliation (§9), and the refusal to
 assign A24 (§10).
 
-**§8 is deliberately left as written.** All three date-time claims have since
-been confirmed as real defects by direct schema inspection, so the section's
-caution was warranted rather than wrong. Promoting them from `Unverified` to
-`Confirmed` is a separate change, and belongs with whatever dev order acts on
-them.
+**Correction 3 — the §8 date-time claims are now confirmed.**
+
+Direct schema validation on 2026-08-08 confirmed that annotation `timestamp`,
+review-decision `reviewed_at`, and strategy `approval.timestamp` accept blank
+strings. §8 remains phrased as the historical recovery-time state, while §5,
+`ROADMAP.md`, and `LEDGER.md` now record the confirmed finding. No schema, test,
+or implementation change is included here; scoping remains separate.

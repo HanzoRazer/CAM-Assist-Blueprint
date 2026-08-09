@@ -1,7 +1,8 @@
 # CAM-Assist-Blueprint — Capability Ledger
 
 Evidence-backed status for every A-series capability. Rebuilt from repository
-evidence on 2026-08-07 (see `SESSION_RECOVERY_2026-08-07.md`).
+evidence on 2026-08-07 and live status re-verified on 2026-08-08
+(America/Chicago; see `SESSION_RECOVERY_2026-08-07.md`).
 
 **This ledger is derived from the repository, never from conversation.** Any entry
 that cannot be substantiated from git history, PRs, `docs/dev_orders/`, `schemas/`,
@@ -104,14 +105,19 @@ the capability ledger on purpose.
 | Branch | Head | Ahead of `main` | Status | Disposition |
 | --- | --- | --- | --- | --- |
 | `cam-a23-creation-studio-capability-profile` | `3c3c139` | 7 | PR Open | **PR #30**, opened 2026-08-08. Awaiting review. Preserved untouched by this recovery |
-| `cam-a-session-recovery-2026-08-07` | *this branch* | 1 | PR Open | **PR #29**, opened 2026-08-08. These artifacts |
+| `cam-a-session-recovery-2026-08-07` | *this branch* | — | PR Open | **PR #29**, opened 2026-08-08. These artifacts; the self-referential head and commit count intentionally are not frozen here |
 | `cam-a19-a20-created-at-schema-parity` | `38e0665` | 1 | **Published, unmerged** | Post-merge doc fix, committed **and pushed** after PR #24 merged at `3126c9a` and closed. On `origin`; no open PR carries it. **Preserved pending review — deliberately not cherry-picked or folded into recovery artifacts** |
 
-Every other local branch is fully merged into `main`.
+At the 2026-08-08 verification snapshot, `git cherry origin/main <remote-branch>`
+found no other remote branch with a unique patch absent from `main`. This
+patch-equivalence check matters: branch topology alone can report an ahead commit
+even when an equivalent patch is already on `main`.
 
-**Open PRs: #29 and #30**, both opened 2026-08-08, neither merged. They conflict
-with each other on `README.md` — both insert immediately after the CAM-A22
-section — so whichever lands second needs a rebase.
+As verified 2026-08-08, **the only open PRs are #29 and #30**; both are
+mergeable and have a successful `tests` check. They conflict with each other on
+`README.md` — both insert immediately after the CAM-A22 section — so whichever
+lands second needs a rebase and an explicit preservation check for both README
+additions.
 
 Note for future audits: `gh pr list --state open` is **not** sufficient to find
 unmerged work. It returns nothing for `38e0665`, whose PR is closed. Cross-check
@@ -119,16 +125,28 @@ unmerged work. It returns nothing for `38e0665`, whose PR is closed. Cross-check
 
 ---
 
-## Unverified claims
+## Confirmed maintenance findings (unscoped)
 
-Carried from conversation; **not** substantiated by repository evidence. Must be
-confirmed against `schemas/` before any dev order references them.
+These originated in conversation but were independently confirmed against the
+schemas on 2026-08-08. Confirmation does not assign a dev order, capability
+number, or implementation scope; no fix is included in this documentation PR.
 
 | Claim | Location to verify | Status |
 | --- | --- | --- |
-| annotation `timestamp` accepts blank | `schemas/review_annotations.schema.json` | Unverified |
-| `reviewed_at` accepts blank | `schemas/review_decision_record.schema.json` | Unverified |
-| `approval.timestamp` accepts blank | `schemas/strategy.schema.json` | Unverified |
+| annotation `timestamp` accepts blank | `schemas/review_annotations.schema.json` | Confirmed |
+| `reviewed_at` accepts blank | `schemas/review_decision_record.schema.json` | Confirmed |
+| `approval.timestamp` accepts blank | `schemas/strategy.schema.json` | Confirmed |
+
+## Verification snapshot — 2026-08-08
+
+- `main` was `076c6dd`; `pytest --collect-only -q` collected **875** tests.
+- PR #30 was open at `3c3c139` (7 commits, 14 files, +3440 / -2); its successful
+  CI run collected **1018** tests.
+- `cam-a19-a20-created-at-schema-parity` existed on `origin` at full SHA
+  `38e0665eaaabf15ea050c279d381a8faca8c8323`; PR #24 was merged and closed, and
+  no open PR carried that head.
+- PR #29 was open on this branch. Its exact head is intentionally resolved from
+  the PR rather than copied into the document it points to.
 
 ---
 
