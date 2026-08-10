@@ -29,7 +29,7 @@
       "minLength": 1,
       "pattern": "\\S",
       "format": "date-time",
-      "description": "ISO-8601 timestamp when this risk assessment was created. The schema enforces only that this is a non-blank string (minLength + pattern reject empty and whitespace-only); it does not assert the ISO-8601 shape itself."
+      "description": "Non-blank string holding the ISO-8601 timestamp when this risk assessment was created. This schema enforces non-blankness only (minLength + pattern reject empty and whitespace-only); whether the format: date-time annotation is asserted depends on the consuming validator's configuration, so the ISO-8601 shape may go unchecked."
     },
 
     "overall_risk": {
