@@ -45,11 +45,13 @@ SCHEMA_DIR = Path(__file__).resolve().parent.parent / "schemas"
 # Date-time fields WITHOUT blank-rejection guards. Every entry is a real defect
 # awaiting its own change; see docs/dev_orders/LEDGER.md. Shrinking this list is
 # the goal. Growing it requires a deliberate edit here, which is the point.
-KNOWN_GAP = {
-    ("review_annotations.schema.json", "properties/annotations/items/properties/timestamp"),
-    ("review_decision_record.schema.json", "properties/reviewed_at"),
-    ("strategy.schema.json", "properties/approval/properties/timestamp"),
-}
+#
+# EMPTY as of CAM-A24 (2026-08-10): the three fields that lived here --
+# review_annotations annotations[].timestamp, review_decision_record.reviewed_at,
+# and strategy.approval.timestamp -- are now hardened. The mechanism stays,
+# because the next date-time field added to any schema will land in
+# test_every_datetime_field_is_classified with nowhere to hide.
+KNOWN_GAP: set[tuple[str, str]] = set()
 
 # Sentence every hardened field's description must carry verbatim. Pinning the
 # exact string is what stops the wording drifting apart again.
