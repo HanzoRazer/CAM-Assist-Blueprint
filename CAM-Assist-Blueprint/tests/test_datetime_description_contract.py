@@ -45,11 +45,13 @@ SCHEMA_DIR = Path(__file__).resolve().parent.parent / "schemas"
 # Date-time fields WITHOUT blank-rejection guards. Every entry is a real defect
 # awaiting its own change; see docs/dev_orders/LEDGER.md. Shrinking this list is
 # the goal. Growing it requires a deliberate edit here, which is the point.
-KNOWN_GAP = {
-    ("review_annotations.schema.json", "properties/annotations/items/properties/timestamp"),
-    ("review_decision_record.schema.json", "properties/reviewed_at"),
-    ("strategy.schema.json", "properties/approval/properties/timestamp"),
-}
+#
+# EMPTY as of CAM-A24 (2026-08-10): the three fields that lived here --
+# review_annotations annotations[].timestamp, review_decision_record.reviewed_at,
+# and strategy.approval.timestamp -- are now hardened. The mechanism stays,
+# because the next date-time field added to any schema will land in
+# test_every_datetime_field_is_classified with nowhere to hide.
+KNOWN_GAP: set[tuple[str, str]] = set()
 
 # Sentence every hardened field's description must carry verbatim. Pinning the
 # exact string is what stops the wording drifting apart again.
@@ -149,6 +151,56 @@ def test_description_does_not_document_the_harness(name, path, node):
             "state the schema's contract, not the validator that happens to "
             "check it — harness commentary goes stale when the harness changes."
         )
+
+
+# Blank values every hardened field must actually reject. Includes Unicode
+# whitespace (NBSP, EM SPACE) to confirm pattern "\\S" agrees with the hand
+# validators' str.strip(), which also treats these as whitespace.
+BLANK_VALUES = ["", "   ", "\t", "\xa0", " "]
+BLANK_IDS = ["empty", "spaces", "tab", "nbsp", "em-space"]
+
+APPLIED_CASES = [
+    (name, path, node, blank)
+    for name, path, node in DATETIME_FIELDS
+    for blank in BLANK_VALUES
+]
+APPLIED_IDS = [
+    f"{name}::{path}::{BLANK_IDS[BLANK_VALUES.index(blank)]}"
+    for name, path, _node, blank in APPLIED_CASES
+]
+
+
+@pytest.mark.parametrize("name,path,node,blank", APPLIED_CASES, ids=APPLIED_IDS)
+def test_applied_datetime_field_rejects_blank(name, path, node, blank):
+    """APPLY the subschema — the keyword assertions above are not enough.
+
+    Every other test in this module inspects keywords. That proves the schema
+    *says* minLength and pattern, not that a validator *rejects* anything. A
+    typo'd pattern, or a pattern that a future JSON Schema draft interprets
+    differently, would satisfy the keyword checks and still accept blanks.
+
+    Validating the subschema in isolation (rather than a whole record) keeps
+    this independent of every other required field, so a failure here means the
+    date-time constraint broke and nothing else.
+    """
+    jsonschema = pytest.importorskip("jsonschema")
+    validator = jsonschema.Draft202012Validator(node)
+    assert list(validator.iter_errors(blank)), (
+        f"{name} :: {path} accepted blank value {blank!r}. Keywords present: "
+        f"minLength={node.get('minLength')!r} pattern={node.get('pattern')!r}"
+    )
+
+
+@pytest.mark.parametrize("name,path,node", DATETIME_FIELDS, ids=_ids())
+def test_applied_datetime_field_accepts_valid_timestamp(name, path, node):
+    """A guard that rejects everything would pass the blank tests vacuously."""
+    jsonschema = pytest.importorskip("jsonschema")
+    validator = jsonschema.Draft202012Validator(node)
+    errors = list(validator.iter_errors("2026-08-10T12:00:00Z"))
+    assert not errors, (
+        f"{name} :: {path} rejected a well-formed timestamp: "
+        f"{[e.message for e in errors]}"
+    )
 
 
 def test_known_gap_entries_all_exist():

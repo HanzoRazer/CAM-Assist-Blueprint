@@ -58,8 +58,10 @@
 
     "reviewed_at": {
       "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
       "format": "date-time",
-      "description": "String holding the ISO-8601 timestamp of the review decision. Known gap: no minLength/pattern guard here, so empty and whitespace-only values are accepted, unlike the created_at fields in these schemas; whether the format: date-time annotation is asserted depends on the consuming validator's configuration."
+      "description": "Non-blank string holding the ISO-8601 timestamp of the review decision. This schema enforces non-blankness only (minLength + pattern reject empty and whitespace-only); whether the format: date-time annotation is asserted depends on the consuming validator's configuration, so the ISO-8601 shape may go unchecked."
     },
 
     "notes": {

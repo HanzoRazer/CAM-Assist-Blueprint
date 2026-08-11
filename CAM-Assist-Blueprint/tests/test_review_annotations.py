@@ -329,6 +329,75 @@ class TestAnnotationValidation:
         exit_code, stdout, stderr = run_script(VALIDATE_SCRIPT, str(path))
         assert exit_code == 1
 
+    @pytest.mark.parametrize(
+        "blank",
+        ["", "   ", "\t", "\xa0", " "],
+        ids=["empty", "spaces", "tab", "nbsp", "em-space"],
+    )
+    def test_validate_blank_annotation_timestamp(self, tmp_path, blank):
+        """Should reject blank annotation timestamps (CAM-A24).
+
+        The schema's minLength + pattern "\\S" reject these; the hand validator
+        must agree, or the two layers drift exactly as CAM-A19/A20 closed for
+        created_at. Unicode whitespace is included because pattern "\\S" and
+        str.strip() must treat NBSP and EM SPACE the same way.
+        """
+        invalid = {
+            "record_type": "cam_assist_review_annotations",
+            "record_version": "1.0.0",
+            "package_reference": "test",
+            "annotations": [
+                {
+                    "annotation_id": "ann-1234",
+                    "reviewer": "test",
+                    "timestamp": blank,
+                    "severity": "info",
+                    "category": "test",
+                    "message": "test",
+                }
+            ],
+        }
+        path = tmp_path / "invalid.json"
+        path.write_text(json.dumps(invalid))
+
+        exit_code, stdout, stderr = run_script(VALIDATE_SCRIPT, str(path))
+        assert exit_code == 1
+        # Assert the specific message, not just that "timestamp" appears
+        # somewhere: a bare substring check would also pass on an unrelated
+        # failure that happened to mention the field.
+        assert "'timestamp' must be a non-blank string" in (stdout + stderr)
+
+    def test_validate_non_string_annotation_timestamp(self, tmp_path):
+        """Should reject a non-string timestamp.
+
+        The hand validator sees no schema, so without an explicit type check a
+        value like `42` would pass its own layer.
+        """
+        invalid = {
+            "record_type": "cam_assist_review_annotations",
+            "record_version": "1.0.0",
+            "package_reference": "test",
+            "annotations": [
+                {
+                    "annotation_id": "ann-1234",
+                    "reviewer": "test",
+                    "timestamp": 42,
+                    "severity": "info",
+                    "category": "test",
+                    "message": "test",
+                }
+            ],
+        }
+        path = tmp_path / "invalid.json"
+        path.write_text(json.dumps(invalid))
+
+        exit_code, stdout, stderr = run_script(VALIDATE_SCRIPT, str(path))
+        assert exit_code == 1
+        # Assert the specific message, not just that "timestamp" appears
+        # somewhere: a bare substring check would also pass on an unrelated
+        # failure that happened to mention the field.
+        assert "'timestamp' must be a non-blank string" in (stdout + stderr)
+
     def test_validate_missing_record_type(self, tmp_path):
         """Should reject annotations missing record_type."""
         invalid = {

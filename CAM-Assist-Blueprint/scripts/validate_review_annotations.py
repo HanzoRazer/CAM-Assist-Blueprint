@@ -123,6 +123,17 @@ def validate_annotations(data: dict) -> ValidationResult:
                 errors.append(f"{prefix}: duplicate annotation_id '{annotation_id}'")
             seen_ids.add(annotation_id)
 
+        # timestamp is required above; when present it must also be non-blank,
+        # mirroring the schema's minLength + pattern "\S" (CAM-A24). Checking the
+        # type here too means a non-string like `42` cannot slip past the hand
+        # validator, which sees no schema.
+        if "timestamp" in annotation:
+            timestamp = annotation["timestamp"]
+            if not isinstance(timestamp, str) or not timestamp.strip():
+                errors.append(
+                    f"{prefix}: 'timestamp' must be a non-blank string"
+                )
+
         # Validate severity
         severity = annotation.get("severity", "")
         if severity and severity not in VALID_SEVERITIES:
