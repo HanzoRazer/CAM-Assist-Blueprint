@@ -58,7 +58,8 @@ error: `38e0665` was recorded as `Local Only` and "never published" when it is o
 | A21 | Product Identity and Workflow Demo | Merged | #25 `ede5496` | `CAM-A21.md` | **added 2026-08-07** | README gap closed by recovery |
 | A22 | CAM-Creation-Studio Capability Request | Merged | #27 `f1c74b4` | `CAM-A22.md` | yes | Example regression #28 `076c6dd` |
 | **A23** | **Creation Studio Capability Profile** | **PR Open** | PR #30 `728e62a..3c3c139` (7 commits) | `CAM-A23.md` — *on branch, not on `main`* | on branch only | Pushed and opened 2026-08-08. **Not merged.** See collision below |
-| A24+ | — | *unassigned* | — | — | — | **No repository evidence of any kind** |
+| A24 | Datetime Blank-Value Hardening | *in flight* | `cam-a24-datetime-blank-hardening` | `CAM-A24.md` | n/a | **Maintenance-class, not a capability** — numbered by explicit authorization 2026-08-10, not by inference. See mapping below |
+| A25+ | — | *unassigned* | — | — | — | **No repository evidence of any kind** |
 
 ---
 
@@ -74,6 +75,8 @@ Entries that appear in git history but are **not** A-series capabilities.
 | PR #22 `0380f9b` `cam-a19-traceability-bundle-hardening` | — | Hardening of A19 | Not a separate capability |
 | PR #28 `076c6dd` `cam-a22-example-regression-test` | — | Follow-up to A22 | Additive test + supersession doc |
 | `docs/dev_orders/CAM-A22-ALTERNATE-HANDOFF-SUPERSEDED.md` | — | Superseded reference | Historical only; **not** corrective authority over the shipped A22 contract |
+| PR #31 `efcbb3d` `cam-a19-a20-created-at-description-followup` | — | Maintenance | Landed the stranded `38e0665`, restated all nine `created_at` descriptions validator-agnostically, and added the `format: date-time` discovery guard |
+| **CAM-A24** `CAM-A24.md` | A-series capability | **Maintenance / governance** | Blank-value hardening of the last three date-time fields. Adds no artifact, schema, script, or contract. It occupies an A-number by explicit authorization on 2026-08-10, which `ROADMAP.md` had anticipated: *"they are maintenance work in the same family as PR #26 — not a new capability, and not automatically the next numbered item."* Recorded here so the capability list stays a list of capabilities |
 
 ### CAM-A23 collision — resolution of record
 
@@ -102,40 +105,47 @@ resolve it via this table, not by inferring a capability.
 These represent work that exists but has shipped nothing. Tracked separately from
 the capability ledger on purpose.
 
-| Branch | Head | Ahead of `main` | Status | Disposition |
-| --- | --- | --- | --- | --- |
-| `cam-a23-creation-studio-capability-profile` | `3c3c139` | 7 | PR Open | **PR #30**, opened 2026-08-08. Awaiting review. Preserved untouched by this recovery |
-| `cam-a-session-recovery-2026-08-07` | *this branch* | — | PR Open | **PR #29**, opened 2026-08-08. These artifacts; the self-referential head and commit count intentionally are not frozen here |
-| `cam-a19-a20-created-at-schema-parity` | `38e0665` | 1 | **Published, unmerged** | Post-merge doc fix, committed **and pushed** after PR #24 merged at `3126c9a` and closed. On `origin`; no open PR carries it. **Preserved pending review — deliberately not cherry-picked or folded into recovery artifacts** |
+**As of 2026-08-10 this table is empty.** Every branch it tracked has landed:
 
-At the 2026-08-08 verification snapshot, `git cherry origin/main <remote-branch>`
-found no other remote branch with a unique patch absent from `main`. This
-patch-equivalence check matters: branch topology alone can report an ahead commit
-even when an equivalent patch is already on `main`.
+| Branch | Head | Resolved | How |
+| --- | --- | --- | --- |
+| `cam-a-session-recovery-2026-08-07` | `c7c0b51` | **Merged** | PR #29 → `1673b94` |
+| `cam-a23-creation-studio-capability-profile` | `3c3c139` | **Merged** | PR #30 → `08b3d1b`, rebased so its 7 commits landed as `54e6a6d..e61385a` |
+| `cam-a19-a20-created-at-schema-parity` | `38e0665` | **Merged by patch** | cherry-picked as `d057be9` in PR #31 → `efcbb3d`. The branch remains on `origin` and is *not* an ancestor of `main`; `git cherry` reports zero unique patches |
 
-As verified 2026-08-08, **the only open PRs are #29 and #30**; both are
-mergeable and have a successful `tests` check. They conflict with each other on
-`README.md` — both insert immediately after the CAM-A22 section — so whichever
-lands second needs a rebase and an explicit preservation check for both README
-additions.
+The `Published, unmerged` bucket that held `38e0665` for twenty-nine days is now
+empty. That entry is why the status exists — the work was pushed on 2026-07-11
+but its PR (#24) had already merged and closed, so nothing carried it to `main`
+and nothing listed it as outstanding.
+
+At the 2026-08-10 verification, `git cherry origin/main <remote-branch>` found no
+remote branch with a unique patch absent from `main`, and `gh pr list --state
+open` returned zero. This patch-equivalence check matters: branch topology alone
+can report an ahead commit even when an equivalent patch is already on `main`,
+which is exactly the state `cam-a19-a20-created-at-schema-parity` is in now.
 
 Note for future audits: `gh pr list --state open` is **not** sufficient to find
-unmerged work. It returns nothing for `38e0665`, whose PR is closed. Cross-check
-`git ls-remote --heads origin` against `main` as well.
+unmerged work. It returned nothing for `38e0665`, whose PR was closed.
+Cross-check `git ls-remote --heads origin` against `main` as well.
 
 ---
 
-## Confirmed maintenance findings (unscoped)
+## Confirmed maintenance findings — closed by CAM-A24
 
-These originated in conversation but were independently confirmed against the
-schemas on 2026-08-08. Confirmation does not assign a dev order, capability
-number, or implementation scope; no fix is included in this documentation PR.
+These originated in conversation, were independently confirmed against the
+schemas on 2026-08-08, and were fixed by CAM-A24 on 2026-08-10.
 
-| Claim | Location to verify | Status |
+| Claim | Location | Status |
 | --- | --- | --- |
-| annotation `timestamp` accepts blank | `schemas/review_annotations.schema.json` | Confirmed |
-| `reviewed_at` accepts blank | `schemas/review_decision_record.schema.json` | Confirmed |
-| `approval.timestamp` accepts blank | `schemas/strategy.schema.json` | Confirmed |
+| annotation `timestamp` accepts blank | `schemas/review_annotations.schema.json` | **Fixed** — CAM-A24 |
+| `reviewed_at` accepts blank | `schemas/review_decision_record.schema.json` | **Fixed** — CAM-A24 |
+| `approval.timestamp` accepts blank | `schemas/strategy.schema.json` | **Fixed** — CAM-A24 |
+
+All twelve `format: date-time` fields in the repository are now hardened against
+blank and whitespace-only values; the `KNOWN_GAP` allowlist in
+`tests/test_datetime_description_contract.py` is empty. The allowlist mechanism
+remains so the next date-time field added to any schema must be classified
+rather than silently accepted.
 
 ## Verification snapshot — 2026-08-08
 

@@ -37,63 +37,59 @@ At the 2026-08-08 snapshot, `main` was `076c6dd` and collected **875 tests**.
 
 ## In flight
 
-### CAM-A23 — Creation Studio Capability Profile — **PR Open**
+### CAM-A24 — Datetime Blank-Value Hardening — **maintenance-class**
 
 ```text
-branch   cam-a23-creation-studio-capability-profile @ 3c3c139
-commits  7  (728e62a..3c3c139)
-diff     14 files, +3440 / -2
-tests    1018 collected on the branch (875 baseline + 143)
-pushed   YES       PR  #30 (2026-08-08)      merged  NO
+branch   cam-a24-datetime-blank-hardening
+dev order docs/dev_orders/CAM-A24.md
 ```
 
-Those values are the verified 2026-08-08 snapshot. See `LEDGER.md` for current
-status rather than carrying this block forward as live state.
+Adds `minLength: 1` + `pattern: "\S"` to the last three date-time fields that
+accepted blank and whitespace-only values, empties the `KNOWN_GAP` allowlist, and
+mirrors the guard in `validate_review_annotations.py` — the only one of the three
+with a hand validator that reaches the field.
 
-The inbound complement of CAM-A22: a read-only contract in which
-CAM-Creation-Studio declares what it is capable of authoring. Schema, validator,
-creator, tool-generated example, inspector detection, integration doc, dev order,
-and README section are all present on the branch.
+**It is maintenance work, not a capability.** It adds no artifact, schema,
+script, or contract. It occupies an A-number by explicit authorization on
+2026-08-10 rather than by inference, exactly as the section below anticipated.
+See `LEDGER.md`'s supersession and maintenance mapping.
 
-**It has still shipped nothing.** A PR is not a merge; until #30 lands, CAM-A23
-is not part of `main`. Next action is review — not further implementation.
-
-### A19/A20 parity follow-up — **Published, unmerged**
+### Landed since the 2026-08-08 snapshot
 
 ```text
-branch   cam-a19-a20-created-at-schema-parity @ 38e0665
-commits  1 ahead of main
-pushed   YES  (on origin)      PR  #24 merged at 3126c9a, then closed
+PR #29  1673b94  recovery artifacts
+PR #30  08b3d1b  CAM-A23 Creation Studio Capability Profile
+PR #31  efcbb3d  datetime description contract + stranded 38e0665
 ```
 
-A post-merge documentation fix, committed **and pushed** to the PR #24 branch
-after that PR had already merged — so no open PR ever carried it to `main`.
-**Preserved pending review.** Not cherry-picked, not folded into the recovery
-artifacts. Whether it still applies is an open question, and it should be
-resolved on its own terms.
+CAM-A23 shipped. The A19/A20 parity follow-up shipped as a cherry-pick
+(`d057be9`) inside PR #31, emptying the `Published, unmerged` bucket. `LEDGER.md`
+carries current status; the snapshot blocks above are historical.
 
 ---
 
-## Confirmed maintenance findings — not yet scoped
+## Confirmed maintenance findings — closed by CAM-A24
 
 ```text
-review_annotations   annotation timestamp     accepts blank   CONFIRMED
-review_decision_record.reviewed_at            accepts blank   CONFIRMED
-strategy.approval.timestamp                   accepts blank   CONFIRMED
+review_annotations   annotation timestamp     accepts blank   FIXED
+review_decision_record.reviewed_at            accepts blank   FIXED
+strategy.approval.timestamp                   accepts blank   FIXED
 ```
 
-These were re-verified directly against `schemas/` on 2026-08-08: the three
-fields lack the non-blank constraints used by the corrected `created_at` fields,
-and blank strings validate. They remain unscoped maintenance work in the same
-family as PR #26 — **not** a new capability, not part of this docs-only PR, and
-not automatically the next numbered item. Current disposition lives in
-`LEDGER.md`.
+Re-verified directly against `schemas/` on 2026-08-08, then fixed by CAM-A24 on
+2026-08-10. All twelve `format: date-time` fields in the repository now reject
+empty and whitespace-only values.
+
+They were maintenance work in the same family as PR #26 — **not** a new
+capability, and not automatically the next numbered item. Numbering them A24 was
+a deliberate authorization, which is why `LEDGER.md` records the classification
+alongside the number.
 
 ---
 
 ## Unassigned
 
-### A24+ — **not yet authorized**
+### A25+ — **not yet authorized**
 
 ```text
 branch      none
@@ -104,14 +100,16 @@ test        none
 PR          none
 ```
 
-There is **no repository evidence of any kind** for A24 or beyond. The number is
+There is **no repository evidence of any kind** for A25 or beyond. The number is
 not reserved, the scope is not defined, and nothing in this repository implies
 what it should be.
 
-A24 is **not** assumed to be next merely because A23 is the highest number in use.
-The next capability will be determined from the clean baseline after these
-recovery artifacts land and the repository evidence pass is re-run — not inferred
-from conversation history.
+A25 is **not** assumed to be next merely because A24 is the highest number in
+use. The next capability will be determined from the repository baseline — not
+inferred from conversation history.
+
+Note that A24 is maintenance work occupying an A-number by authorization, so the
+next *capability* is the first since CAM-A23.
 
 ---
 
@@ -124,7 +122,7 @@ implementation, and neither creates a runtime dependency:
 | Contract | Direction | Status |
 | --- | --- | --- |
 | CAM-A22 Capability Request | CAM Assist → Creation Studio (outbound, advisory) | Merged |
-| CAM-A23 Capability Profile | Creation Studio → CAM Assist (inbound, informational) | PR Open (#30) |
+| CAM-A23 Capability Profile | Creation Studio → CAM Assist (inbound, informational) | Merged — PR #30 |
 
 > No CAM-Creation-Studio remediation, DXF-import, geometry-fidelity, G-code
 > implementation, or CS-series sequencing is part of this roadmap merely because
@@ -136,15 +134,18 @@ repository and remain **deferred**. Their absence is not CAM-Assist work.
 
 ---
 
-## Ordering constraint
+## Ordering constraint — satisfied 2026-08-10
 
-Nothing new should be numbered or scoped until:
+Nothing new was to be numbered or scoped until:
 
-1. these recovery artifacts are reviewed and merged (PR #29);
-2. the repository evidence pass is re-run from the recovery branch;
-3. CAM-A23 is resolved — merged or withdrawn, not merely opened (PR #30);
-4. the stranded `38e0665` is reviewed on its own terms;
-5. the three confirmed date-time defects are separately scoped or explicitly
-   deferred.
+1. ~~these recovery artifacts are reviewed and merged (PR #29)~~ — merged `1673b94`;
+2. ~~the repository evidence pass is re-run from the recovery branch~~ — re-run;
+3. ~~CAM-A23 is resolved — merged or withdrawn, not merely opened (PR #30)~~ — merged `08b3d1b`;
+4. ~~the stranded `38e0665` is reviewed on its own terms~~ — reviewed, confirmed still
+   needed, landed as `d057be9` in PR #31;
+5. ~~the three confirmed date-time defects are separately scoped or explicitly
+   deferred~~ — scoped as CAM-A24 and fixed.
 
-Steps 3, 4 and 5 are independent of one another and can proceed in any order.
+All five are discharged. The constraint stays recorded rather than deleted: it is
+the checklist the recovery used to decide when planning could resume, and a
+future recovery should be able to see that it was followed rather than dropped.
