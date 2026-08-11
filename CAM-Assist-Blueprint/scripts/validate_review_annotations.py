@@ -131,7 +131,7 @@ def validate_annotations(data: dict) -> ValidationResult:
             timestamp = annotation["timestamp"]
             if not isinstance(timestamp, str) or not timestamp.strip():
                 errors.append(
-                    f"{prefix}: 'timestamp' must be a non-empty string"
+                    f"{prefix}: 'timestamp' must be a non-blank string"
                 )
 
         # Validate severity

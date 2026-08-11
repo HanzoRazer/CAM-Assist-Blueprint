@@ -362,7 +362,10 @@ class TestAnnotationValidation:
 
         exit_code, stdout, stderr = run_script(VALIDATE_SCRIPT, str(path))
         assert exit_code == 1
-        assert "timestamp" in (stdout + stderr)
+        # Assert the specific message, not just that "timestamp" appears
+        # somewhere: a bare substring check would also pass on an unrelated
+        # failure that happened to mention the field.
+        assert "'timestamp' must be a non-blank string" in (stdout + stderr)
 
     def test_validate_non_string_annotation_timestamp(self, tmp_path):
         """Should reject a non-string timestamp.
@@ -390,7 +393,10 @@ class TestAnnotationValidation:
 
         exit_code, stdout, stderr = run_script(VALIDATE_SCRIPT, str(path))
         assert exit_code == 1
-        assert "timestamp" in (stdout + stderr)
+        # Assert the specific message, not just that "timestamp" appears
+        # somewhere: a bare substring check would also pass on an unrelated
+        # failure that happened to mention the field.
+        assert "'timestamp' must be a non-blank string" in (stdout + stderr)
 
     def test_validate_missing_record_type(self, tmp_path):
         """Should reject annotations missing record_type."""
