@@ -419,8 +419,8 @@ def load_json(path: Path, label: str) -> dict:
     return doc
 
 
-def read_requested(path: Path) -> list[str]:
-    """Extract requested_capabilities from a CAM-A22 request.
+def read_request(path: Path) -> tuple[list[str], RequestProvenance]:
+    """Read a CAM-A22 request once, returning identifiers and provenance.
 
     Structural minimum only. This does not re-implement CAM-A22 validation; it
     requires just enough to read identifiers and otherwise defers to
@@ -432,11 +432,11 @@ def read_requested(path: Path) -> list[str]:
         raise InputError(f"Request has no 'requested_capabilities' array: {path}")
     if not all(isinstance(v, str) for v in values):
         raise InputError(f"Request 'requested_capabilities' must be strings: {path}")
-    return values
+    return values, extract_request_provenance(doc, path)
 
 
-def read_declared(path: Path) -> list[str]:
-    """Extract capabilities[].capability_id from a CAM-A23 profile."""
+def read_profile(path: Path) -> tuple[list[str], ProfileProvenance]:
+    """Read a CAM-A23 profile once, returning identifiers and provenance."""
     doc = load_json(path, "Capability profile")
     entries = doc.get("capabilities")
     if not isinstance(entries, list):
@@ -451,7 +451,7 @@ def read_declared(path: Path) -> list[str]:
                 f"Profile capabilities[{index}] has no string 'capability_id': {path}"
             )
         declared.append(capability_id)
-    return declared
+    return declared, extract_profile_provenance(doc, path)
 
 
 # --- CLI ---------------------------------------------------------------------
@@ -512,24 +512,24 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
     try:
+        # Resolution precedence is applied first, so provenance always reports
+        # the path that actually won -- an override, or the derived location.
         request_path = resolve_request(args.package, args.request)
         profile_path = resolve_profile(args.package, args.profile)
-        requested = read_requested(request_path)
-        declared = read_declared(profile_path)
+        requested, request_provenance = read_request(request_path)
+        declared, profile_provenance = read_profile(profile_path)
     except InputError as exc:
         # stderr, always: a --json caller must never receive polluted stdout.
         print(f"ERROR: {exc}", file=sys.stderr)
         return EXIT_INPUT_ERROR
 
+    provenance = InputProvenance(request=request_provenance, profile=profile_provenance)
     result = reconcile(requested, declared)
 
     if args.json:
-        print(json.dumps(result.as_dict(), indent=2))
+        print(json.dumps(serialize_reconciliation(result, provenance), indent=2))
     else:
-        # Traceability: which inputs produced this result. Paths only -- versions
-        # are surfaced, never interpreted.
-        print(f"Request: {request_path}")
-        print(f"Profile: {profile_path}")
+        print(format_input_traceability(provenance))
         print()
         print(format_report(result))
 

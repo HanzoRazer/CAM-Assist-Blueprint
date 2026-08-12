@@ -104,6 +104,105 @@ def test_report_names_the_resolved_inputs(workspace: Path):
     assert "capability_profile.json" in result.stdout
 
 
+# --- provenance at the process boundary --------------------------------------
+
+
+def test_json_provenance_reports_the_derived_paths(workspace: Path):
+    payload = json.loads(run("--package", str(workspace), "--json").stdout)
+    assert payload["inputs"]["request"]["path"].endswith(
+        "packages/creation_studio/pkg_request.json"
+    )
+    assert payload["inputs"]["profile"]["path"].endswith(
+        "packages/creation_studio/capability_profile.json"
+    )
+
+
+def test_json_provenance_paths_are_posix_normalized(workspace: Path):
+    payload = json.loads(run("--package", str(workspace), "--json").stdout)
+    for record in ("request", "profile"):
+        assert "\\" not in payload["inputs"][record]["path"], "native separators leaked into JSON"
+
+
+def test_json_provenance_surfaces_actual_record_fields(workspace: Path):
+    payload = json.loads(run("--package", str(workspace), "--json").stdout)
+    assert payload["inputs"]["request"]["record_version"] == "1.0.0"
+    assert payload["inputs"]["request"]["package_reference"] == "pkg"
+    assert payload["inputs"]["profile"]["profile_version"] == "1.0.0"
+    assert payload["inputs"]["profile"]["studio_reference"] == "cam-creation-studio"
+
+
+def test_json_provenance_reports_an_explicit_request_override(workspace: Path, tmp_path: Path):
+    other = write_request(tmp_path / "elsewhere" / "other.json", ["c"])
+    payload = json.loads(
+        run("--package", str(workspace), "--request", str(other), "--json").stdout
+    )
+    # The override won, and the profile is still conventionally derived.
+    assert payload["inputs"]["request"]["path"].endswith("elsewhere/other.json")
+    assert payload["inputs"]["profile"]["path"].endswith("creation_studio/capability_profile.json")
+
+
+def test_json_provenance_reports_an_explicit_profile_override(workspace: Path, tmp_path: Path):
+    other = write_profile(tmp_path / "elsewhere" / "other.json", ["a"])
+    payload = json.loads(
+        run("--package", str(workspace), "--profile", str(other), "--json").stdout
+    )
+    assert payload["inputs"]["profile"]["path"].endswith("elsewhere/other.json")
+    assert payload["inputs"]["request"]["path"].endswith("creation_studio/pkg_request.json")
+
+
+def test_json_provenance_reports_both_overrides_simultaneously(workspace: Path, tmp_path: Path):
+    req = write_request(tmp_path / "o" / "r.json", ["z"])
+    prof = write_profile(tmp_path / "o" / "p.json", ["z"])
+    payload = json.loads(
+        run(
+            "--package", str(workspace),
+            "--request", str(req),
+            "--profile", str(prof),
+            "--json",
+        ).stdout
+    )
+    assert payload["inputs"]["request"]["path"].endswith("o/r.json")
+    assert payload["inputs"]["profile"]["path"].endswith("o/p.json")
+    assert payload["satisfied"] == ["z"]
+
+
+def test_human_report_shows_provenance_before_the_counts(workspace: Path):
+    stdout = run("--package", str(workspace)).stdout
+    assert stdout.index("Request:") < stdout.index("Requested:")
+    assert stdout.index("Profile:") < stdout.index("Requested:")
+    for label in ("Package:", "Request record version:", "Studio:", "Profile version:"):
+        assert label in stdout
+
+
+def test_provenance_does_not_change_the_reconciliation(tmp_path: Path):
+    """Identical capability sets, different record metadata and paths."""
+    payloads = []
+    for name, version, studio in [("one", "1.0.0", "studio-a"), ("two", "9.9.9", "studio-b")]:
+        package = tmp_path / name / "packages" / "pkg"
+        package.mkdir(parents=True)
+        base = tmp_path / name / "packages" / "creation_studio"
+        write_request(base / "pkg_request.json", ["a", "b"])
+        write_profile(base / "capability_profile.json", ["b", "c"])
+
+        # Vary profile metadata without touching declared capabilities.
+        doc = json.loads((base / "capability_profile.json").read_text(encoding="utf-8"))
+        doc["profile_version"] = version
+        doc["studio_reference"] = studio
+        (base / "capability_profile.json").write_text(json.dumps(doc), encoding="utf-8")
+
+        payloads.append(json.loads(run("--package", str(package), "--json").stdout))
+
+    assert payloads[0]["inputs"] != payloads[1]["inputs"]
+    for key in ("satisfied", "unsatisfied", "declared_but_unrequested", "findings"):
+        assert payloads[0][key] == payloads[1][key], f"{key} varied with provenance"
+
+
+def test_repeated_invocations_are_byte_identical(workspace: Path):
+    first = run("--package", str(workspace), "--json")
+    second = run("--package", str(workspace), "--json")
+    assert first.stdout == second.stdout
+
+
 def test_examples_layout_resolves_without_walking_up(tmp_path: Path):
     # examples/packages/<name> puts sibling roots under examples/, matching the
     # helper the CAM-A22 creator writes through.
@@ -339,13 +438,16 @@ def test_json_mode_emits_only_json_on_stdout(workspace: Path):
     assert result.returncode == EXIT_OK
     payload = json.loads(result.stdout)  # would raise on any extra output
     assert set(payload) == {
+        "inputs",
         "satisfied",
         "unsatisfied",
         "declared_but_unrequested",
         "findings",
     }
-    # No human-report furniture leaked onto stdout.
-    for fragment in ("Request:", "Profile:", "ADVISORY", "Requested:"):
+    # No human-report furniture leaked onto stdout. "Request:" and "Profile:" are
+    # the human provenance labels; the JSON surface carries the same evidence as
+    # structured fields instead.
+    for fragment in ("Request:", "Profile:", "ADVISORY", "Requested:", "Studio:"):
         assert fragment not in result.stdout
 
 
