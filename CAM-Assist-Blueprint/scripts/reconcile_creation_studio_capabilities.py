@@ -129,6 +129,148 @@ class Reconciliation(NamedTuple):
         }
 
 
+# --- input provenance --------------------------------------------------------
+#
+# Provenance answers a question the reconciliation itself cannot: WHICH request
+# and WHICH profile produced this result.
+#
+# It is deliberately kept OUT of `reconcile()`. The core stays filesystem-free
+# and knows nothing about paths or versions, so provenance cannot influence set
+# membership by construction rather than merely by test. Versions are carried for
+# display only -- comparing them would couple CAM Assist to CAM-Creation-Studio's
+# release semantics, which is exactly what A23's open vocabulary avoids.
+#
+# Paths are POSIX-normalized and NOT absolutized: the same repository layout must
+# serialize identically on Windows and Linux, and a machine-specific root would
+# defeat that while telling a reviewer nothing useful.
+
+
+def _posix(path: Path) -> str:
+    return path.as_posix()
+
+
+def _without_missing(fields: dict) -> dict:
+    """Drop absent metadata rather than serializing it as null.
+
+    A25 reads only the structural minimum, so a field it never required may be
+    absent. Omitting is honest; `null` would assert the record carries an empty
+    value.
+    """
+    return {key: value for key, value in fields.items() if value is not None}
+
+
+class RequestProvenance(NamedTuple):
+    """Identity of the CAM-A22 request actually consumed."""
+
+    path: str
+    record_version: str | None = None
+    package_reference: str | None = None
+
+    def as_dict(self) -> dict:
+        return _without_missing(
+            {
+                "path": self.path,
+                "record_version": self.record_version,
+                "package_reference": self.package_reference,
+            }
+        )
+
+
+class ProfileProvenance(NamedTuple):
+    """Identity of the CAM-A23 profile actually consumed.
+
+    `profile_version` is the Creation-Studio-owned capability-set version;
+    `record_version` is the format version owned by this repository. Both are
+    surfaced, neither is interpreted.
+    """
+
+    path: str
+    record_version: str | None = None
+    profile_version: str | None = None
+    studio_reference: str | None = None
+
+    def as_dict(self) -> dict:
+        return _without_missing(
+            {
+                "path": self.path,
+                "record_version": self.record_version,
+                "profile_version": self.profile_version,
+                "studio_reference": self.studio_reference,
+            }
+        )
+
+
+class InputProvenance(NamedTuple):
+    request: RequestProvenance
+    profile: ProfileProvenance
+
+    def as_dict(self) -> dict:
+        return {"request": self.request.as_dict(), "profile": self.profile.as_dict()}
+
+
+def _optional_str(doc: dict, key: str) -> str | None:
+    """Read a metadata field, ignoring anything that is not a string.
+
+    A25 does not re-validate A22/A23; a malformed metadata value is surfaced as
+    absent rather than escalated, because it cannot affect the reconciliation.
+    """
+    value = doc.get(key)
+    return value if isinstance(value, str) else None
+
+
+def extract_request_provenance(doc: dict, path: Path) -> RequestProvenance:
+    return RequestProvenance(
+        path=_posix(path),
+        record_version=_optional_str(doc, "record_version"),
+        package_reference=_optional_str(doc, "package_reference"),
+    )
+
+
+def extract_profile_provenance(doc: dict, path: Path) -> ProfileProvenance:
+    return ProfileProvenance(
+        path=_posix(path),
+        record_version=_optional_str(doc, "record_version"),
+        profile_version=_optional_str(doc, "profile_version"),
+        studio_reference=_optional_str(doc, "studio_reference"),
+    )
+
+
+def serialize_reconciliation(
+    result: Reconciliation, provenance: InputProvenance | None = None
+) -> dict:
+    """Compose the ephemeral JSON payload: provenance first, then the result.
+
+    Still not a repository contract, schema, or stored sidecar -- just a process
+    output that now says which inputs produced it.
+    """
+    payload: dict = {}
+    if provenance is not None:
+        payload["inputs"] = provenance.as_dict()
+    payload.update(result.as_dict())
+    return payload
+
+
+def format_input_traceability(provenance: InputProvenance) -> str:
+    """Compact human provenance. Native separators are fine here; only the JSON
+    surface must normalize. Absent metadata omits its line entirely."""
+    lines = [f"Request: {provenance.request.path}"]
+    if provenance.request.package_reference is not None:
+        lines.append(f"Package: {provenance.request.package_reference}")
+    if provenance.request.record_version is not None:
+        lines.append(f"Request record version: {provenance.request.record_version}")
+
+    lines.append("")
+    lines.append(f"Profile: {provenance.profile.path}")
+    if provenance.profile.studio_reference is not None:
+        lines.append(f"Studio: {provenance.profile.studio_reference}")
+    if provenance.profile.profile_version is not None:
+        lines.append(f"Profile version: {provenance.profile.profile_version}")
+    if provenance.profile.record_version is not None:
+        lines.append(f"Profile record version: {provenance.profile.record_version}")
+
+    return "\n".join(lines)
+
+
 def reconcile(requested: list[str], declared: list[str]) -> Reconciliation:
     """Compare two capability vocabularies by exact identifier.
 
