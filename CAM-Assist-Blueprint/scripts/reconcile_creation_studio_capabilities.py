@@ -42,8 +42,26 @@ This file is reference-only tooling. It reads two records and writes nothing.
 """
 from __future__ import annotations
 
+import argparse
+import json
+import sys
 import textwrap
+from pathlib import Path
 from typing import NamedTuple
+
+# CAM-A23 fixes this filename. Profile discovery matches the FILE, never merely a
+# creation_studio/ directory -- a package's request sidecars live in a directory
+# of that name too, and stopping there would resolve to a location holding no
+# profile at all.
+PROFILE_FILENAME = "capability_profile.json"
+REQUEST_SUFFIX = "_request.json"
+CREATION_STUDIO_DIR = "creation_studio"
+
+# Exit codes. 2 is an input failure, never a reconciliation result: a missing
+# profile must not be reported as "nothing declared".
+EXIT_OK = 0
+EXIT_UNSATISFIED_STRICT = 1
+EXIT_INPUT_ERROR = 2
 
 # Human-report wrap width. The canonical finding message stays a single string in
 # the JSON output; only the console rendering is wrapped.
@@ -168,3 +186,217 @@ def format_report(result: Reconciliation) -> str:
     lines.append("")
     lines.append(ADVISORY_NOTICE)
     return "\n".join(lines)
+
+
+# --- input resolution --------------------------------------------------------
+#
+# Scope distinction, load-bearing throughout this section:
+#
+#     request  = package-scoped        one per package under review
+#     profile  = installation-scoped   one per Creation Studio installation
+#     --package = resolution anchor only
+#
+# Deriving both from one anchor is PATH RESOLUTION. It does not imply package
+# ownership of the profile, which remains authoritative at its own location.
+
+
+class InputError(Exception):
+    """An input is missing, unreadable, or not a readable record of its type."""
+
+
+def conventional_base(package_dir: Path) -> Path:
+    """Conventional root for Creation Studio artifacts beside a package.
+
+    Mirrors the helper the CAM-A22 creator writes through, so the reconciler
+    reads exactly where the request lands: for examples/packages/<name> the
+    sibling roots live under examples/, otherwise beside the package directory.
+    """
+    parent = package_dir.parent
+    if parent.name == "packages" and parent.parent.name == "examples":
+        return parent.parent / CREATION_STUDIO_DIR
+    return parent / CREATION_STUDIO_DIR
+
+
+def resolve_request(package_dir: Path, override: Path | None) -> Path:
+    """Explicit override, else conventional derivation."""
+    if override is not None:
+        return override
+    return conventional_base(package_dir) / f"{package_dir.name}{REQUEST_SUFFIX}"
+
+
+def profile_search_paths(package_dir: Path) -> list[Path]:
+    """Candidate profile locations, nearest first.
+
+    The conventional base first (in the shipped layout it already holds the
+    profile), then package ancestors for the genuine installation-scoped case
+    where the profile sits at a workspace root above the package.
+    """
+    candidates = [conventional_base(package_dir) / PROFILE_FILENAME]
+    for ancestor in [package_dir, *package_dir.parents]:
+        candidate = ancestor / CREATION_STUDIO_DIR / PROFILE_FILENAME
+        if candidate not in candidates:
+            candidates.append(candidate)
+    return candidates
+
+
+def resolve_profile(package_dir: Path, override: Path | None) -> Path:
+    """Explicit override, else the first EXISTING capability_profile.json.
+
+    Existence of the profile FILE decides, never existence of a creation_studio/
+    directory: a package's request sidecars live in a directory of that name, so
+    stopping at the directory would resolve to a location holding no profile.
+    """
+    if override is not None:
+        return override
+
+    searched = profile_search_paths(package_dir)
+    for candidate in searched:
+        if candidate.is_file():
+            return candidate
+
+    listing = "\n".join(f"  {p}" for p in searched)
+    raise InputError(
+        f"No {PROFILE_FILENAME} found. Searched:\n{listing}\n"
+        "Pass --profile to point at an installation-scoped profile explicitly."
+    )
+
+
+def load_json(path: Path, label: str) -> dict:
+    if not path.is_file():
+        raise InputError(f"{label} not found: {path}")
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise InputError(f"{label} could not be read: {path} ({exc})") from exc
+    try:
+        doc = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise InputError(f"{label} is not valid JSON: {path} ({exc})") from exc
+    if not isinstance(doc, dict):
+        raise InputError(f"{label} must be a JSON object: {path}")
+    return doc
+
+
+def read_requested(path: Path) -> list[str]:
+    """Extract requested_capabilities from a CAM-A22 request.
+
+    Structural minimum only. This does not re-implement CAM-A22 validation; it
+    requires just enough to read identifiers and otherwise defers to
+    validate_creation_studio_request.py.
+    """
+    doc = load_json(path, "Request")
+    values = doc.get("requested_capabilities")
+    if not isinstance(values, list):
+        raise InputError(f"Request has no 'requested_capabilities' array: {path}")
+    if not all(isinstance(v, str) for v in values):
+        raise InputError(f"Request 'requested_capabilities' must be strings: {path}")
+    return values
+
+
+def read_declared(path: Path) -> list[str]:
+    """Extract capabilities[].capability_id from a CAM-A23 profile."""
+    doc = load_json(path, "Capability profile")
+    entries = doc.get("capabilities")
+    if not isinstance(entries, list):
+        raise InputError(f"Profile has no 'capabilities' array: {path}")
+    declared: list[str] = []
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            raise InputError(f"Profile capabilities[{index}] must be an object: {path}")
+        capability_id = entry.get("capability_id")
+        if not isinstance(capability_id, str):
+            raise InputError(
+                f"Profile capabilities[{index}] has no string 'capability_id': {path}"
+            )
+        declared.append(capability_id)
+    return declared
+
+
+# --- CLI ---------------------------------------------------------------------
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Reconcile a CAM-A22 Creation Studio request against a CAM-A23 "
+            "capability profile (read-only, advisory)"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__,
+    )
+    parser.add_argument(
+        "--package",
+        type=Path,
+        required=True,
+        help=(
+            "Package directory. Resolution anchor only: the request is "
+            "package-scoped and the profile is installation-scoped; this derives "
+            "both paths and implies no package ownership of the profile."
+        ),
+    )
+    parser.add_argument(
+        "--request",
+        type=Path,
+        default=None,
+        help="Explicit CAM-A22 request path, overriding conventional derivation",
+    )
+    parser.add_argument(
+        "--profile",
+        type=Path,
+        default=None,
+        help="Explicit CAM-A23 profile path, overriding conventional derivation",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help=(
+            "Emit the reconciliation as JSON on stdout and nothing else. An "
+            "ephemeral serialization of the calculation, not a stored contract."
+        ),
+    )
+    parser.add_argument(
+        "--fail-on-unsatisfied",
+        action="store_true",
+        help=(
+            "Exit 1 when 'unsatisfied' is non-empty. Exit-status policy only: it "
+            "changes no classification, and namespace_divergence never "
+            "independently changes the exit code."
+        ),
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+
+    try:
+        request_path = resolve_request(args.package, args.request)
+        profile_path = resolve_profile(args.package, args.profile)
+        requested = read_requested(request_path)
+        declared = read_declared(profile_path)
+    except InputError as exc:
+        # stderr, always: a --json caller must never receive polluted stdout.
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return EXIT_INPUT_ERROR
+
+    result = reconcile(requested, declared)
+
+    if args.json:
+        print(json.dumps(result.as_dict(), indent=2))
+    else:
+        # Traceability: which inputs produced this result. Paths only -- versions
+        # are surfaced, never interpreted.
+        print(f"Request: {request_path}")
+        print(f"Profile: {profile_path}")
+        print()
+        print(format_report(result))
+
+    # Strict mode keys on unsatisfied ALONE. namespace_divergence is diagnostic
+    # evidence, not a second gate.
+    if args.fail_on_unsatisfied and result.unsatisfied:
+        return EXIT_UNSATISFIED_STRICT
+    return EXIT_OK
+
+
+if __name__ == "__main__":
+    sys.exit(main())
