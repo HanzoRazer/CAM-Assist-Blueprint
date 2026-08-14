@@ -490,6 +490,57 @@ See `docs/integration/CREATION_STUDIO_CAPABILITY_PROFILE.md`.
 
 ---
 
+### CAM-A25 — Creation Studio Capability Reconciliation
+
+Closes the loop opened by CAM-A22 and CAM-A23 by comparing them: what a package
+*requests* against what a supplied profile *declares*.
+
+```bash
+python scripts/reconcile_creation_studio_capabilities.py \
+  --package examples/packages/ltb_vcarve_synthetic_example
+```
+
+Machine-readable, and a strict form for CI:
+
+```bash
+python scripts/reconcile_creation_studio_capabilities.py \
+  --package examples/packages/ltb_vcarve_synthetic_example \
+  --json
+
+python scripts/reconcile_creation_studio_capabilities.py \
+  --package examples/packages/ltb_vcarve_synthetic_example \
+  --json \
+  --fail-on-unsatisfied
+```
+
+Provides:
+
+- exact, case-sensitive comparison producing `satisfied`, `unsatisfied`, and
+  `declared_but_unrequested`
+- one package directory as the anchor, deriving the package-scoped request and
+  the installation-scoped profile, with `--request` / `--profile` overrides
+- a `namespace_divergence` advisory when both vocabularies are non-empty and
+  share no identifiers
+- input provenance in both surfaces — which request and which profile produced
+  the result, with versions surfaced but never interpreted
+- `--fail-on-unsatisfied` as exit-status policy only; the payload is identical
+  with and without it
+- no schema, creator, example sidecar, or persisted state — the result is
+  derived and recomputed, never stored
+
+**"Satisfied" means only that a requested capability identifier appears in the
+supplied capability profile.** An unsatisfied capability is a compatibility
+finding, not a prohibition; a satisfied capability is a declaration match, not
+authorization.
+
+The shipped A22 and A23 vocabularies currently share no exact identifiers. That
+does not mean CAM-Creation-Studio supports nothing — it means the two contracts
+presently use different identifier namespaces.
+
+See `docs/integration/CREATION_STUDIO_CAPABILITY_RECONCILIATION.md`.
+
+---
+
 ### Maintenance and governance work (not A-series capabilities)
 
 Some merged work hardens or maintains existing capabilities rather than adding a

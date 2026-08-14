@@ -59,7 +59,8 @@ error: `38e0665` was recorded as `Local Only` and "never published" when it is o
 | A22 | CAM-Creation-Studio Capability Request | Merged | #27 `f1c74b4` | `CAM-A22.md` | yes | Example regression #28 `076c6dd` |
 | **A23** | **Creation Studio Capability Profile** | **PR Open** | PR #30 `728e62a..3c3c139` (7 commits) | `CAM-A23.md` — *on branch, not on `main`* | on branch only | Pushed and opened 2026-08-08. **Not merged.** See collision below |
 | A24 | Datetime Blank-Value Hardening | *in flight* | `cam-a24-datetime-blank-hardening` | `CAM-A24.md` | n/a | **Maintenance-class, not a capability** — numbered by explicit authorization 2026-08-10, not by inference. See mapping below |
-| A25+ | — | *unassigned* | — | — | — | **No repository evidence of any kind** |
+| **A25** | **Creation Studio Capability Reconciliation** | **PR Open** | PR #33 `fa02b7c..39c1f74` (7 commits) | `CAM-A25.md` — *on branch, not on `main`* | on branch only | Opened 2026-08-14. **Not merged.** Report-only and advisory: exact identifier matching, `namespace_divergence` finding, request/profile provenance. No persisted artifact, no semantic mapping layer |
+| A26+ | — | *unassigned* | — | — | — | **No repository evidence of any kind** |
 
 ---
 
@@ -123,6 +124,11 @@ remote branch with a unique patch absent from `main`, and `gh pr list --state
 open` returned zero. This patch-equivalence check matters: branch topology alone
 can report an ahead commit even when an equivalent patch is already on `main`,
 which is exactly the state `cam-a19-a20-created-at-schema-parity` is in now.
+
+Viability re-examined and closed 2026-08-13: `38e0665` is **not viable to merge** —
+PR #31 superseded its wording for all nine descriptions, and its text carries none
+of the clauses now pinned by `tests/test_datetime_description_contract.py`, so
+applying it would regress two of the nine fields.
 
 Note for future audits: `gh pr list --state open` is **not** sufficient to find
 unmerged work. It returned nothing for `38e0665`, whose PR was closed.
