@@ -187,6 +187,15 @@ computation, not a repository contract, schema, or stored sidecar.**
 ### Human report
 
 ```text
+Request: examples/creation_studio/ltb_vcarve_synthetic_example_request.json
+Package: luthiers-toolbox:vcarve:les-paul-custom-2024
+Request record version: 1.0.0
+
+Profile: examples/creation_studio/capability_profile.json
+Studio: cam-creation-studio
+Profile version: 1.0.0
+Profile record version: 1.0.0
+
 Requested:                8
 Satisfied:                0
 Unsatisfied:              8
@@ -204,6 +213,19 @@ machine readiness, or downstream availability.
 
 ```json
 {
+  "inputs": {
+    "request": {
+      "path": "examples/creation_studio/ltb_vcarve_synthetic_example_request.json",
+      "record_version": "1.0.0",
+      "package_reference": "luthiers-toolbox:vcarve:les-paul-custom-2024"
+    },
+    "profile": {
+      "path": "examples/creation_studio/capability_profile.json",
+      "record_version": "1.0.0",
+      "profile_version": "1.0.0",
+      "studio_reference": "cam-creation-studio"
+    }
+  },
   "satisfied": [],
   "unsatisfied": [
     "feeds_speeds_recommendation",
@@ -226,6 +248,33 @@ machine readiness, or downstream availability.
 Deterministic: all three sets are **sorted**, so output depends only on input
 content and never on file or argument order. `findings` is a list so later
 diagnoses can be added without reshaping the output.
+
+### Input provenance
+
+The `inputs` block belongs to the **serialized report**, not to the
+reconciliation model:
+
+```text
+Reconciliation core        derived comparison only          4 keys
+serialize_reconciliation   core result + input provenance   5 keys
+```
+
+Provenance is composed *around* the comparison, never folded into it. The pure
+reconciler takes two identifier lists and nothing else, so a path or version has
+no route by which to influence set membership — non-participation is structural,
+not merely tested. The four-key core model remains the reconciliation result and
+is independently usable without any filesystem knowledge.
+
+Provenance answers the one question the sets cannot: which request and which
+profile produced this result. Paths reflect resolution precedence, so an override
+is reported rather than the location it replaced. They are forward-slashed and
+repository-relative, so the same layout serializes identically on Windows and
+Linux and carries no machine-specific root.
+
+Only fields the records actually carry are surfaced — `record_version` and
+`package_reference` from the request; `record_version`, `profile_version`, and
+`studio_reference` from the profile. Absent metadata is omitted rather than
+serialized as `null`, which would assert an empty value. Nothing is synthesized.
 
 ## CLI and input resolution
 
@@ -310,8 +359,9 @@ requires enough structure to read the identifiers and otherwise defers.
 2. Reconciler core + tests — pure set logic, filesystem-free.
 3. CLI: `--package` anchor with derivation, `--request` / `--profile` overrides,
    human report, `--json`, `--fail-on-unsatisfied`, exit codes + tests.
-4. Documentation: `docs/integration/CAPABILITY_RECONCILIATION.md`, README
-   section, `LEDGER.md`, `ROADMAP.md`.
+4. Input provenance: model, CLI surfacing, and non-participation tests.
+5. Documentation: `docs/integration/CREATION_STUDIO_CAPABILITY_RECONCILIATION.md`,
+   README section, then `LEDGER.md` and `ROADMAP.md` governance.
 
 Per-commit greenness applies: a test file may depend only on artifacts from its
 own commit or earlier.
@@ -322,10 +372,12 @@ The reconciler computes the three sets by exact identifier comparison; output is
 deterministic and sorted; `namespace_divergence` fires on exactly the three
 stated conditions and on no others; `--fail-on-unsatisfied` keys on `unsatisfied`
 alone; a single `--package` anchor derives both inputs, with per-input overrides
-taking precedence; a missing input exits 2 rather than reconciling; both
-authority invariants are asserted by test; no schema, creator, example sidecar,
-or persisted derived state is introduced; no execution authority is granted; the
-full suite passes.
+taking precedence; a missing input exits 2 rather than reconciling; input
+provenance identifies the files actually consumed, in both surfaces, without
+being able to alter set membership; versions are surfaced and never interpreted;
+both authority invariants are asserted by test; no schema, creator, example
+sidecar, or persisted derived state is introduced; no execution authority is
+granted; the full suite passes.
 
 ## Forward-looking note
 
