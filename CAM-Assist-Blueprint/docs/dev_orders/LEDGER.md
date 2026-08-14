@@ -124,6 +124,11 @@ open` returned zero. This patch-equivalence check matters: branch topology alone
 can report an ahead commit even when an equivalent patch is already on `main`,
 which is exactly the state `cam-a19-a20-created-at-schema-parity` is in now.
 
+Viability re-examined and closed 2026-08-13: `38e0665` is **not viable to merge** —
+PR #31 superseded its wording for all nine descriptions, and its text carries none
+of the clauses now pinned by `tests/test_datetime_description_contract.py`, so
+applying it would regress two of the nine fields.
+
 Note for future audits: `gh pr list --state open` is **not** sufficient to find
 unmerged work. It returned nothing for `38e0665`, whose PR was closed.
 Cross-check `git ls-remote --heads origin` against `main` as well.
