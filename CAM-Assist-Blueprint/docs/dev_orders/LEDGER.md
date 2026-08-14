@@ -59,7 +59,8 @@ error: `38e0665` was recorded as `Local Only` and "never published" when it is o
 | A22 | CAM-Creation-Studio Capability Request | Merged | #27 `f1c74b4` | `CAM-A22.md` | yes | Example regression #28 `076c6dd` |
 | **A23** | **Creation Studio Capability Profile** | **PR Open** | PR #30 `728e62a..3c3c139` (7 commits) | `CAM-A23.md` — *on branch, not on `main`* | on branch only | Pushed and opened 2026-08-08. **Not merged.** See collision below |
 | A24 | Datetime Blank-Value Hardening | *in flight* | `cam-a24-datetime-blank-hardening` | `CAM-A24.md` | n/a | **Maintenance-class, not a capability** — numbered by explicit authorization 2026-08-10, not by inference. See mapping below |
-| A25+ | — | *unassigned* | — | — | — | **No repository evidence of any kind** |
+| **A25** | **Creation Studio Capability Reconciliation** | **PR Open** | PR #33 `fa02b7c..39c1f74` (7 commits) | `CAM-A25.md` — *on branch, not on `main`* | on branch only | Opened 2026-08-14. **Not merged.** Report-only and advisory: exact identifier matching, `namespace_divergence` finding, request/profile provenance. No persisted artifact, no semantic mapping layer |
+| A26+ | — | *unassigned* | — | — | — | **No repository evidence of any kind** |
 
 ---
 
