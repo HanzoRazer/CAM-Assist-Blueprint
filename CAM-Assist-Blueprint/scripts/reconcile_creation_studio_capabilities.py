@@ -54,7 +54,12 @@ import textwrap
 from pathlib import Path
 from typing import NamedTuple
 
-from validate_creation_studio_capability_map import load_capability_map
+from _shared.creation_studio_capability_map import (
+    CapabilityMapContractError,
+    CapabilityMapInputError,
+    load_capability_map,
+    normalize_provenance_path,
+)
 
 # CAM-A23 fixes this filename. Profile discovery matches the FILE, never merely a
 # creation_studio/ directory -- a package's request sidecars live in a directory
@@ -153,10 +158,6 @@ class Reconciliation(NamedTuple):
     def requested_count(self) -> int:
         return len(self.satisfied) + len(self.unsatisfied)
 
-    @property
-    def declared_count(self) -> int:
-        return len(self.satisfied) + len(self.declared_but_unrequested)
-
     def has_finding(self, code: str) -> bool:
         return any(f.code == code for f in self.findings)
 
@@ -197,7 +198,7 @@ class Reconciliation(NamedTuple):
 
 
 def _posix(path: Path) -> str:
-    return path.as_posix()
+    return normalize_provenance_path(path)
 
 
 def _without_missing(fields: dict) -> dict:
@@ -633,6 +634,10 @@ def read_request(path: Path) -> tuple[list[str], RequestProvenance]:
         raise InputError(f"Request has no 'requested_capabilities' array: {path}")
     if not all(isinstance(v, str) for v in values):
         raise InputError(f"Request 'requested_capabilities' must be strings: {path}")
+    if any(not v.strip() for v in values):
+        raise InputError(
+            f"Request 'requested_capabilities' must be non-blank strings: {path}"
+        )
     return values, extract_request_provenance(doc, path)
 
 
@@ -650,6 +655,10 @@ def read_profile(path: Path) -> tuple[list[str], ProfileProvenance]:
         if not isinstance(capability_id, str):
             raise InputError(
                 f"Profile capabilities[{index}] has no string 'capability_id': {path}"
+            )
+        if not capability_id.strip():
+            raise InputError(
+                f"Profile capabilities[{index}].capability_id must be a non-blank string: {path}"
             )
         declared.append(capability_id)
     return declared, extract_profile_provenance(doc, path)
@@ -735,14 +744,14 @@ def main(argv: list[str] | None = None) -> int:
         if args.capability_map is not None:
             try:
                 _doc, map_index, map_identity = load_capability_map(args.capability_map)
-            except ValueError as exc:
+            except (CapabilityMapInputError, CapabilityMapContractError) as exc:
                 raise InputError(str(exc)) from exc
             map_provenance = MapProvenance(
                 path=_posix(args.capability_map),
                 record_version=map_identity.record_version,
                 map_version=map_identity.map_version,
             )
-    except InputError as exc:
+    except (InputError, CapabilityMapInputError, CapabilityMapContractError) as exc:
         # stderr, always: a --json caller must never receive polluted stdout.
         print(f"ERROR: {exc}", file=sys.stderr)
         return EXIT_INPUT_ERROR

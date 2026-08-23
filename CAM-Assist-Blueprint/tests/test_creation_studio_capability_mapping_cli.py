@@ -389,3 +389,140 @@ def test_mapped_json_carries_no_authority_equivalents(workspace: Path, tmp_path:
         "permission",
     ):
         assert word not in blob
+
+
+# --- CAM-A27 runtime hardening -----------------------------------------------
+
+
+def _assert_input_error(result: subprocess.CompletedProcess) -> None:
+    assert result.returncode == EXIT_INPUT_ERROR
+    assert result.stdout.strip() == ""
+    assert "ERROR" in result.stderr
+    assert "Traceback (most recent call last)" not in result.stderr
+
+
+def test_blank_request_identifier_is_an_input_error(workspace: Path, tmp_path: Path):
+    bad = write_request(tmp_path / "blank.json", [""])
+    result = run("--package", str(workspace), "--request", str(bad), "--json")
+    _assert_input_error(result)
+    assert "non-blank" in result.stderr
+
+
+def test_whitespace_request_identifier_is_an_input_error(workspace: Path, tmp_path: Path):
+    bad = write_request(tmp_path / "ws.json", ["   "])
+    result = run("--package", str(workspace), "--request", str(bad), "--json")
+    _assert_input_error(result)
+    assert "non-blank" in result.stderr
+
+
+def test_blank_profile_capability_id_is_an_input_error(workspace: Path, tmp_path: Path):
+    bad = write_profile(tmp_path / "blank.json", [""])
+    result = run("--package", str(workspace), "--profile", str(bad), "--json")
+    _assert_input_error(result)
+    assert "non-blank" in result.stderr
+
+
+def test_whitespace_profile_capability_id_is_an_input_error(workspace: Path, tmp_path: Path):
+    bad = write_profile(tmp_path / "ws.json", ["   "])
+    result = run("--package", str(workspace), "--profile", str(bad), "--json")
+    _assert_input_error(result)
+    assert "non-blank" in result.stderr
+
+
+def test_unusual_nonblank_identifier_is_not_schema_validated(tmp_path: Path):
+    """Structural minimum only: unusual non-blank strings still reconcile."""
+    package = tmp_path / "packages" / "pkg"
+    package.mkdir(parents=True)
+    write_request(tmp_path / "packages" / "creation_studio" / "pkg_request.json", ["NotAnA22Enum"])
+    write_profile(
+        tmp_path / "packages" / "creation_studio" / "capability_profile.json",
+        ["NotAnA22Enum"],
+    )
+    result = run("--package", str(package), "--json")
+    assert result.returncode == EXIT_OK, result.stderr
+    assert json.loads(result.stdout)["satisfied"] == ["NotAnA22Enum"]
+
+
+def test_malformed_map_json_exits_2_without_traceback(workspace: Path, tmp_path: Path):
+    bad = tmp_path / "bad.json"
+    bad.write_text("{ not json", encoding="utf-8")
+    result = run("--package", str(workspace), "--capability-map", str(bad), "--json")
+    _assert_input_error(result)
+
+
+def test_alternate_cwd_invocation_matches_repo_root(tmp_path: Path):
+    """Risk-review case: invoke the script by path from an unrelated cwd."""
+    package = EXAMPLE_PACKAGE
+    from_root = run(
+        "--package",
+        str(package),
+        "--capability-map",
+        str(CANONICAL_MAP),
+        "--json",
+    )
+    from_elsewhere = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--package",
+            str(package),
+            "--capability-map",
+            str(CANONICAL_MAP),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert from_root.returncode == EXIT_OK, from_root.stderr
+    assert from_elsewhere.returncode == EXIT_OK, from_elsewhere.stderr
+    assert json.loads(from_root.stdout)["satisfied"] == json.loads(from_elsewhere.stdout)["satisfied"]
+    assert json.loads(from_elsewhere.stdout)["satisfied"] == ["feeds_speeds_recommendation"]
+
+
+def test_scripts_directory_invocation_works():
+    result = subprocess.run(
+        [
+            sys.executable,
+            "reconcile_creation_studio_capabilities.py",
+            "--package",
+            str(EXAMPLE_PACKAGE),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=SCRIPT.parent,
+    )
+    assert result.returncode == EXIT_OK, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["satisfied"] == []
+    assert payload["findings"][0]["code"] == "namespace_divergence"
+
+
+def test_map_provenance_normalizes_equivalent_relative_spellings(workspace: Path):
+    variants = [
+        "contracts/creation_studio_capability_map.json",
+        "./contracts/creation_studio_capability_map.json",
+        "contracts/../contracts/creation_studio_capability_map.json",
+    ]
+    observed = []
+    for variant in variants:
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                "--package",
+                str(workspace),
+                "--capability-map",
+                variant,
+                "--json",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+        )
+        assert result.returncode == EXIT_OK, result.stderr
+        observed.append(json.loads(result.stdout)["inputs"]["capability_map"]["path"])
+    assert observed[0] == observed[1] == observed[2]
+    assert observed[0] == "contracts/creation_studio_capability_map.json"
+    assert "\\" not in observed[0]

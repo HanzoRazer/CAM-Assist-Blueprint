@@ -594,6 +594,10 @@ new one. It is recorded here so the capability list above stays a list of
   (PR #24) — hardening against the traceability bundle and production shop handoff.
 - **A19 traceability bundle hardening** (PR #22) and **A22 example regression
   test** (PR #28) — follow-ups to their respective capabilities.
+- **CAM-A27 capability-map runtime hardening** — shared import-stable map
+  module, controlled A22-schema failures, strict mapping-index construction,
+  and blank-identifier rejection. Maintenance of CAM-A26; no mapping-policy
+  change. Status is tracked in `docs/dev_orders/LEDGER.md`.
 
 Capability status, including work that is implemented but **not** merged, is
 tracked in `docs/dev_orders/LEDGER.md`.

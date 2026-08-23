@@ -45,7 +45,9 @@ EXAMPLE_PROFILE = REPO_ROOT / "examples" / "creation_studio" / "capability_profi
 SCRIPTS = REPO_ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from validate_creation_studio_capability_map import (  # noqa: E402
+from _shared.creation_studio_capability_map import (  # noqa: E402
+    CapabilityMapContractError,
+    CapabilityMapInputError,
     build_mapping_index,
     load_a22_request_enum,
     load_capability_map,
@@ -355,8 +357,88 @@ def test_load_capability_map_rejects_unknown_source(tmp_path: Path):
     doc = valid_map()
     doc["mappings"][0]["request_capability"] = "unknown_request_capability"
     path = write_map(tmp_path, doc)
-    with pytest.raises(ValueError, match="unknown_request_capability"):
+    with pytest.raises(CapabilityMapContractError, match="unknown_request_capability"):
         load_capability_map(path)
+
+
+def test_build_mapping_index_rejects_malformed_rows():
+    with pytest.raises(CapabilityMapContractError, match="must be an object"):
+        build_mapping_index({"mappings": ["not-an-object"]})
+    with pytest.raises(CapabilityMapContractError, match="request_capability"):
+        build_mapping_index({"mappings": [{"satisfied_by": ["simulation_support"]}]})
+    with pytest.raises(CapabilityMapContractError, match="satisfied_by"):
+        build_mapping_index(
+            {"mappings": [{"request_capability": "simulation_request", "satisfied_by": "x"}]}
+        )
+    with pytest.raises(CapabilityMapContractError, match="non-blank string"):
+        build_mapping_index(
+            {
+                "mappings": [
+                    {"request_capability": "simulation_request", "satisfied_by": [""]}
+                ]
+            }
+        )
+    with pytest.raises(CapabilityMapContractError, match="non-blank string"):
+        build_mapping_index(
+            {
+                "mappings": [
+                    {"request_capability": "simulation_request", "satisfied_by": [1]}
+                ]
+            }
+        )
+
+
+def test_missing_a22_schema_is_an_input_error(tmp_path: Path):
+    with pytest.raises(CapabilityMapInputError, match="not found"):
+        load_a22_request_enum(tmp_path / "missing_schema.json")
+
+
+def test_malformed_a22_schema_is_an_input_error(tmp_path: Path):
+    bad = tmp_path / "bad_schema.json"
+    bad.write_text("{ not json", encoding="utf-8")
+    with pytest.raises(CapabilityMapInputError, match="not valid JSON"):
+        load_a22_request_enum(bad)
+
+
+def test_structurally_changed_a22_schema_is_an_input_error(tmp_path: Path):
+    bad = tmp_path / "changed.json"
+    bad.write_text(json.dumps({"properties": {}}), encoding="utf-8")
+    with pytest.raises(CapabilityMapInputError, match="requested_capabilities"):
+        load_a22_request_enum(bad)
+
+
+def test_validator_cli_missing_schema_exits_2_without_traceback(
+    tmp_path: Path, monkeypatch, capsys
+):
+    import _shared.creation_studio_capability_map as shared
+    import validate_creation_studio_capability_map as validator
+
+    monkeypatch.setattr(shared, "default_a22_schema_path", lambda: tmp_path / "nope.json")
+    path = write_map(tmp_path, valid_map())
+    monkeypatch.setattr(sys, "argv", ["validate_creation_studio_capability_map.py", str(path)])
+    code = validator.main()
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "Traceback (most recent call last)" not in captured.err
+    assert "A22 request schema" in captured.err
+
+
+def test_validator_cli_malformed_schema_exits_2_without_traceback(
+    tmp_path: Path, monkeypatch, capsys
+):
+    import _shared.creation_studio_capability_map as shared
+    import validate_creation_studio_capability_map as validator
+
+    schema = tmp_path / "schema.json"
+    schema.write_text("{ not json", encoding="utf-8")
+    monkeypatch.setattr(shared, "default_a22_schema_path", lambda: schema)
+    path = write_map(tmp_path, valid_map())
+    monkeypatch.setattr(sys, "argv", ["validate_creation_studio_capability_map.py", str(path)])
+    code = validator.main()
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "Traceback (most recent call last)" not in captured.err
+    assert captured.out.strip() == ""
 
 
 # ---------------------------------------------------------------------------

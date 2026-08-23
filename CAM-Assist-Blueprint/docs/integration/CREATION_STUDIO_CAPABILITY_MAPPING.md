@@ -119,7 +119,20 @@ python scripts/validate_creation_studio_capability_map.py \
   contracts/creation_studio_capability_map.json
 ```
 
-Structural only. Exit codes: `0` valid, `1` invalid, `2` file not found.
+Structural only. Loading and indexing live in
+`scripts/_shared/creation_studio_capability_map.py`; the validator and
+reconciler are thin adapters and do not import one another. The shared
+module does not walk the filesystem at import time; the A22 schema path is
+resolved on first use.
+
+Exit codes:
+
+```text
+0  structurally valid
+1  invalid map content (including unparseable map JSON)
+2  map file missing/unreadable, or authoritative A22 schema
+   missing/unreadable/malformed
+```
 
 ## Using a map in reconciliation
 
@@ -155,6 +168,13 @@ simulation_request
 ```
 
 `--fail-on-unsatisfied` still keys only on unresolved `unsatisfied`.
+
+A missing or structurally invalid map is an input failure for the reconciler
+(exit 2, empty stdout under `--json`). Blank or whitespace-only request and
+profile identifiers are rejected at the structural-minimum boundary; full
+A22/A23 validation remains the dedicated validators' job. Map provenance
+paths are POSIX-normalized without being absolutized, so equivalent relative
+spellings collapse.
 
 ## Relationship to A22 / A23 / A25
 

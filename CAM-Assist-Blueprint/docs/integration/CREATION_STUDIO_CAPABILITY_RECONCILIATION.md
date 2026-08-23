@@ -67,7 +67,9 @@ Either input may be overridden; precedence is per input, independently:
 
 A missing or unreadable input — derived or explicit — is an **input failure**,
 never a reconciliation result. In particular, an absent profile is never reported
-as "nothing declared".
+as "nothing declared". Identifiers that participate in set membership must be
+non-blank strings; full A22/A23 validation is still delegated to the dedicated
+validators. An unusable `--capability-map` is an input failure (exit 2).
 
 ## Reconciliation rules
 
