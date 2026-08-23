@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cam-assist.lutherie/schemas/creation_studio_capability_map.schema.json",
+  "title": "CAM Assist Creation Studio Capability Map Schema",
+  "description": "Portable, CAM-Assist-owned registry of explicit semantic correspondences between CAM-A22 requested-capability identifiers and CAM-A23 declared Creation Studio capability identifiers. Direction is interpretive only: a mapping records that CAM Assist has decided a declared Creation Studio capability may satisfy a particular request category for compatibility-reporting purposes. It does not infer similarity from names, does not rewrite A22 or A23 records, does not authorize execution, does not confirm installation or reachability, does not confirm machine readiness, and does not grant permission. A22 sources are closed (the request enum). A23 targets remain open (pattern-constrained identifiers). The artifact is deterministic and carries no created_at.",
+  "type": "object",
+  "required": [
+    "record_type",
+    "record_version",
+    "map_version",
+    "mappings",
+    "authority"
+  ],
+  "additionalProperties": false,
+
+  "properties": {
+    "record_type": {
+      "type": "string",
+      "const": "cam_assist_creation_studio_capability_map",
+      "description": "Must be 'cam_assist_creation_studio_capability_map'"
+    },
+
+    "record_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of the capability-map record FORMAT. Surfaced for provenance; never interpreted for compatibility."
+    },
+
+    "map_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of the MAPPING CONTENT, independent of record_version. Surfaced for provenance; never interpreted for compatibility. Incremented when the set of human-approved correspondences changes."
+    },
+
+    "mappings": {
+      "type": "array",
+      "description": "Explicit one-to-many correspondences. Empty is permitted (an explicit declaration that no semantic bridges exist). Duplicate request_capability values are rejected by the validator; vanilla JSON Schema cannot express uniqueness by object property. Each entry is human-authored: no inferred, fuzzy, or generated mapping is valid merely because identifiers look similar.",
+      "items": {
+        "type": "object",
+        "required": ["request_capability", "satisfied_by", "rationale"],
+        "additionalProperties": false,
+        "properties": {
+          "request_capability": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "description": "A CAM-A22 requested_capabilities identifier. Must be a member of the authoritative A22 enum in creation_studio_request.schema.json. Unknown sources are structural errors. The schema does not re-enumerate that closed vocabulary so the map cannot drift from a second copy."
+          },
+          "satisfied_by": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "description": "A CAM-A23 capability_id: lowercase alphanumeric plus underscores, starting with a letter. Open vocabulary — a target need not appear in any particular profile."
+            },
+            "description": "Non-empty, unique list of A23 identifiers any one of which satisfies the request (any_of). The same target may appear in mappings for different request identifiers."
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "description": "Required human explanation of why this correspondence exists. Non-blank. This is an explicitly human-governed semantic bridge."
+          }
+        }
+      }
+    },
+
+    "authority": {
+      "type": "object",
+      "description": "Informational authority constraints. REQUIRED on a capability map. Every flag MUST be true. A mapping satisfies a compatibility request only; it cannot grant execution authority, machine readiness, approval, or permission.",
+      "required": [
+        "is_informational",
+        "does_not_authorize_execution",
+        "does_not_bypass_human_review",
+        "does_not_confirm_machine_readiness",
+        "does_not_grant_permission"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "is_informational": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. This record is informational only."
+        },
+        "does_not_authorize_execution": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. A mapping does not authorize machine execution."
+        },
+        "does_not_bypass_human_review": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. A mapping does not bypass required human review."
+        },
+        "does_not_confirm_machine_readiness": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. A mapping does NOT assert that any package or machine is ready."
+        },
+        "does_not_grant_permission": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true. A mapping does not grant permission, approval, installation, or reachability."
+        }
+      }
+    }
+  }
+}

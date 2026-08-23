@@ -283,6 +283,10 @@ Assist's request identifiers except by coincidence.
 CAM-A25 reports this truthfully rather than concealing it behind a mapping layer.
 A result of "nothing matches, and here is why" is useful evidence.
 
+Default reconciliation still uses exact identifiers only. Semantic translation
+is a separately authorized capability — CAM-A26 — and is never applied unless
+a map is supplied.
+
 ## Non-goals
 
 > **CAM-A25 does not define semantic equivalence between CAM-A22 request
@@ -293,12 +297,31 @@ case-insensitive matching, semantic-version rules, Creation Studio version
 interpretation, runtime discovery, network access, installation validation,
 capability execution testing, or persisted reconciliation state.
 
-## Future vocabulary alignment
+## Opt-in mapped reconciliation (CAM-A26)
 
-If repeated reconciliation shows persistent namespace divergence, a later
-**separately authorized** capability may define vocabulary alignment, aliases, or
-semantic mappings.
+Exact matching remains the default. An explicit map is a third input:
 
-CAM-A25's job is to make the divergence visible and measurable. Deciding what to
-do about it is a different capability, and CAM-A25 must not preempt that
-decision.
+```bash
+python scripts/reconcile_creation_studio_capabilities.py \
+  --package examples/packages/ltb_vcarve_synthetic_example \
+  --capability-map contracts/creation_studio_capability_map.json
+```
+
+When `--capability-map` is omitted, this document's exact-mode contract is
+unchanged: no semantic translation occurs.
+
+When a validated map is supplied:
+
+* exact identifier matches are classified `exact` and take precedence
+* remaining requests may be satisfied by an explicit `satisfied_by` target
+  that the profile declares (`any_of`)
+* `namespace_divergence` still reports the raw exact intersection
+* `mapped_compatibility` is added when at least one request is satisfied by
+  mapping
+* `declared_but_unrequested` remains `declared − requested`
+* JSON adds `inputs.capability_map` and `satisfaction_details`
+
+`--fail-on-unsatisfied` still keys only on unresolved `unsatisfied`.
+
+A mapped match is an explicit compatibility declaration, not authorization.
+See `docs/integration/CREATION_STUDIO_CAPABILITY_MAPPING.md`.

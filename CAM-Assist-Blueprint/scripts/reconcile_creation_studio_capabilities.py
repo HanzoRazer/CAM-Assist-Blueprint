@@ -20,12 +20,17 @@ NOT declared.
 WHAT THIS DOES NOT DO
 ---------------------
 No synonym mapping, alias table, ontology translation, semantic inference, or
-fuzzy/prefix matching. A25 does not define semantic equivalence between A22
-request identifiers and A23 capability identifiers.
+fuzzy/prefix matching is performed by default. A25 does not define semantic
+equivalence between A22 request identifiers and A23 capability identifiers.
+
+CAM-A26 adds an OPTIONAL third input -- an explicit, human-reviewed capability
+map -- behind `--capability-map`. A semantic relationship exists only when
+recorded in that map. No map means no translation.
 
 Versions are surfaced for traceability, never interpreted. `profile_version` is
 owned by CAM-Creation-Studio; inferring compatibility from it here would recreate
-the coupling A23's open vocabulary exists to avoid.
+the coupling A23's open vocabulary exists to avoid. Map versions are likewise
+surfaced and never compared.
 
 AUTHORITY
 ---------
@@ -49,6 +54,8 @@ import textwrap
 from pathlib import Path
 from typing import NamedTuple
 
+from validate_creation_studio_capability_map import load_capability_map
+
 # CAM-A23 fixes this filename. Profile discovery matches the FILE, never merely a
 # creation_studio/ directory -- a package's request sidecars live in a directory
 # of that name too, and stopping there would resolve to a location holding no
@@ -70,17 +77,32 @@ REPORT_WIDTH = 69
 # --- finding codes -----------------------------------------------------------
 
 NAMESPACE_DIVERGENCE = "namespace_divergence"
+MAPPED_COMPATIBILITY = "mapped_compatibility"
 
 NAMESPACE_DIVERGENCE_MESSAGE = (
     "The request and capability-profile vocabularies are both non-empty "
     "but share no identifiers."
 )
 
+MAPPED_COMPATIBILITY_MESSAGE = (
+    "One or more requested capabilities are satisfied by an explicit "
+    "CAM-A26 mapping rather than an exact identifier match."
+)
+
 SEVERITY_WARNING = "warning"
+SEVERITY_INFO = "info"
+
+METHOD_EXACT = "exact"
+METHOD_MAPPED = "mapped"
 
 ADVISORY_NOTICE = (
     "ADVISORY ONLY - identifier matches do not imply execution authority,\n"
     "machine readiness, or downstream availability."
+)
+
+MAPPED_ADVISORY_NOTICE = (
+    "Mapped matches are explicit compatibility declarations, not "
+    "authorization, installation, or machine readiness."
 )
 
 
@@ -95,13 +117,37 @@ class Finding(NamedTuple):
         return {"code": self.code, "severity": self.severity, "message": self.message}
 
 
+class SatisfactionDetail(NamedTuple):
+    """How one requested capability was satisfied.
+
+    Present only when mapped reconciliation is active. `method` is `exact` or
+    `mapped`. Exact wins when both would apply.
+    """
+
+    request_capability: str
+    method: str
+    matched_capability: str
+
+    def as_dict(self) -> dict:
+        return {
+            "request_capability": self.request_capability,
+            "method": self.method,
+            "matched_capability": self.matched_capability,
+        }
+
+
 class Reconciliation(NamedTuple):
-    """The complete result. Sets are sorted, so output never depends on input order."""
+    """The complete result. Sets are sorted, so output never depends on input order.
+
+    `satisfaction_details` is None in exact (CAM-A25) mode so the serialized
+    four-key core is unchanged. Mapped mode sets it to a list, possibly empty.
+    """
 
     satisfied: list[str]
     unsatisfied: list[str]
     declared_but_unrequested: list[str]
     findings: list[Finding]
+    satisfaction_details: list[SatisfactionDetail] | None = None
 
     @property
     def requested_count(self) -> int:
@@ -121,12 +167,17 @@ class Reconciliation(NamedTuple):
         consume the same numbers a human reads, and may be reshaped by a later
         capability without a migration.
         """
-        return {
+        payload = {
             "satisfied": self.satisfied,
             "unsatisfied": self.unsatisfied,
             "declared_but_unrequested": self.declared_but_unrequested,
             "findings": [f.as_dict() for f in self.findings],
         }
+        if self.satisfaction_details is not None:
+            payload["satisfaction_details"] = [
+                detail.as_dict() for detail in self.satisfaction_details
+            ]
+        return payload
 
 
 # --- input provenance --------------------------------------------------------
@@ -200,12 +251,40 @@ class ProfileProvenance(NamedTuple):
         )
 
 
+class MapProvenance(NamedTuple):
+    """Identity of the CAM-A26 capability map actually consumed.
+
+    Present only when `--capability-map` was supplied. Versions are surfaced
+    for provenance and never interpreted.
+    """
+
+    path: str
+    record_version: str | None = None
+    map_version: str | None = None
+
+    def as_dict(self) -> dict:
+        return _without_missing(
+            {
+                "path": self.path,
+                "record_version": self.record_version,
+                "map_version": self.map_version,
+            }
+        )
+
+
 class InputProvenance(NamedTuple):
     request: RequestProvenance
     profile: ProfileProvenance
+    capability_map: MapProvenance | None = None
 
     def as_dict(self) -> dict:
-        return {"request": self.request.as_dict(), "profile": self.profile.as_dict()}
+        payload = {
+            "request": self.request.as_dict(),
+            "profile": self.profile.as_dict(),
+        }
+        if self.capability_map is not None:
+            payload["capability_map"] = self.capability_map.as_dict()
+        return payload
 
 
 def _optional_str(doc: dict, key: str) -> str | None:
@@ -268,6 +347,14 @@ def format_input_traceability(provenance: InputProvenance) -> str:
     if provenance.profile.record_version is not None:
         lines.append(f"Profile record version: {provenance.profile.record_version}")
 
+    if provenance.capability_map is not None:
+        lines.append("")
+        lines.append(f"Capability map: {provenance.capability_map.path}")
+        if provenance.capability_map.map_version is not None:
+            lines.append(f"Map version: {provenance.capability_map.map_version}")
+        if provenance.capability_map.record_version is not None:
+            lines.append(f"Map record version: {provenance.capability_map.record_version}")
+
     return "\n".join(lines)
 
 
@@ -311,6 +398,110 @@ def reconcile(requested: list[str], declared: list[str]) -> Reconciliation:
     )
 
 
+def resolve_mapped_matches(
+    request_capability: str,
+    declared: set[str],
+    mapping_index: dict[str, list[str]],
+) -> list[str]:
+    """Declared targets that the explicit map names for this request.
+
+    Mapping-index targets are already sorted. Intersection order is therefore
+    deterministic and independent of mapping-array order.
+    """
+    return [target for target in mapping_index.get(request_capability, []) if target in declared]
+
+
+def reconcile_mapped(
+    requested: list[str],
+    declared: list[str],
+    mapping_index: dict[str, list[str]],
+) -> Reconciliation:
+    """Exact comparison first, then explicit A26 mappings for the remainder.
+
+    `namespace_divergence` is computed from the raw exact intersection and is
+    not cleared by mapped satisfaction. `declared_but_unrequested` remains
+    `declared - requested`. Mapped targets that satisfy a request were not
+    requested by identifier, so they stay in that set.
+    """
+    exact = reconcile(requested, declared)
+    declared_set = set(declared)
+    exact_satisfied = set(exact.satisfied)
+
+    details: list[SatisfactionDetail] = []
+    mapped_satisfied: list[str] = []
+    still_unsatisfied: list[str] = []
+
+    for request_capability in sorted(set(requested)):
+        if request_capability in exact_satisfied:
+            details.append(
+                SatisfactionDetail(
+                    request_capability=request_capability,
+                    method=METHOD_EXACT,
+                    matched_capability=request_capability,
+                )
+            )
+            continue
+        matched = resolve_mapped_matches(request_capability, declared_set, mapping_index)
+        if matched:
+            mapped_satisfied.append(request_capability)
+            for target in matched:
+                details.append(
+                    SatisfactionDetail(
+                        request_capability=request_capability,
+                        method=METHOD_MAPPED,
+                        matched_capability=target,
+                    )
+                )
+        else:
+            still_unsatisfied.append(request_capability)
+
+    findings = list(exact.findings)
+    if mapped_satisfied:
+        findings.append(
+            Finding(
+                code=MAPPED_COMPATIBILITY,
+                severity=SEVERITY_INFO,
+                message=MAPPED_COMPATIBILITY_MESSAGE,
+            )
+        )
+
+    return Reconciliation(
+        satisfied=sorted(exact_satisfied | set(mapped_satisfied)),
+        unsatisfied=sorted(still_unsatisfied),
+        declared_but_unrequested=exact.declared_but_unrequested,
+        findings=findings,
+        satisfaction_details=details,
+    )
+
+
+def format_satisfaction_detail(details: list[SatisfactionDetail]) -> list[str]:
+    """Human rendering of exact vs mapped satisfaction.
+
+    Mapped details for one request are grouped so every matched target is
+    visible, in sorted order.
+    """
+    lines: list[str] = []
+    index = 0
+    while index < len(details):
+        detail = details[index]
+        if lines:
+            lines.append("")
+        lines.append(f"[MATCH: {detail.method}]")
+        lines.append(detail.request_capability)
+        if detail.method == METHOD_MAPPED:
+            request = detail.request_capability
+            while (
+                index < len(details)
+                and details[index].request_capability == request
+                and details[index].method == METHOD_MAPPED
+            ):
+                lines.append(f"  → {details[index].matched_capability}")
+                index += 1
+            continue
+        index += 1
+    return lines
+
+
 def format_report(result: Reconciliation) -> str:
     """Human-readable report. Counts first, then findings, then the boundary."""
     lines = [
@@ -320,6 +511,10 @@ def format_report(result: Reconciliation) -> str:
         f"Declared but unrequested: {len(result.declared_but_unrequested)}",
     ]
 
+    if result.satisfaction_details:
+        lines.append("")
+        lines.extend(format_satisfaction_detail(result.satisfaction_details))
+
     for finding in result.findings:
         lines.append("")
         lines.append(f"[{finding.severity.upper()}] {finding.code}")
@@ -327,6 +522,8 @@ def format_report(result: Reconciliation) -> str:
 
     lines.append("")
     lines.append(ADVISORY_NOTICE)
+    if result.satisfaction_details is not None:
+        lines.append(MAPPED_ADVISORY_NOTICE)
     return "\n".join(lines)
 
 
@@ -505,6 +702,17 @@ def build_parser() -> argparse.ArgumentParser:
             "independently changes the exit code."
         ),
     )
+    parser.add_argument(
+        "--capability-map",
+        type=Path,
+        default=None,
+        help=(
+            "Optional CAM-A26 capability map. When omitted, reconciliation is "
+            "exact identifier comparison only. When supplied, explicit mappings "
+            "may satisfy otherwise-unsatisfied requests; exact matches still "
+            "win, and namespace_divergence still reports the raw intersection."
+        ),
+    )
     return parser
 
 
@@ -518,13 +726,32 @@ def main(argv: list[str] | None = None) -> int:
         profile_path = resolve_profile(args.package, args.profile)
         requested, request_provenance = read_request(request_path)
         declared, profile_provenance = read_profile(profile_path)
+        map_index = None
+        map_provenance = None
+        if args.capability_map is not None:
+            try:
+                _doc, map_index, map_identity = load_capability_map(args.capability_map)
+            except ValueError as exc:
+                raise InputError(str(exc)) from exc
+            map_provenance = MapProvenance(
+                path=_posix(args.capability_map),
+                record_version=map_identity.record_version,
+                map_version=map_identity.map_version,
+            )
     except InputError as exc:
         # stderr, always: a --json caller must never receive polluted stdout.
         print(f"ERROR: {exc}", file=sys.stderr)
         return EXIT_INPUT_ERROR
 
-    provenance = InputProvenance(request=request_provenance, profile=profile_provenance)
-    result = reconcile(requested, declared)
+    provenance = InputProvenance(
+        request=request_provenance,
+        profile=profile_provenance,
+        capability_map=map_provenance,
+    )
+    if map_index is not None:
+        result = reconcile_mapped(requested, declared, map_index)
+    else:
+        result = reconcile(requested, declared)
 
     if args.json:
         print(json.dumps(serialize_reconciliation(result, provenance), indent=2))

@@ -57,10 +57,11 @@ error: `38e0665` was recorded as `Local Only` and "never published" when it is o
 | A20 | Production Shop Handoff | Merged | #21 `334f56d` | `CAM-A20.md` | yes | Cleanup #23; parity #24 |
 | A21 | Product Identity and Workflow Demo | Merged | #25 `ede5496` | `CAM-A21.md` | **added 2026-08-07** | README gap closed by recovery |
 | A22 | CAM-Creation-Studio Capability Request | Merged | #27 `f1c74b4` | `CAM-A22.md` | yes | Example regression #28 `076c6dd` |
-| **A23** | **Creation Studio Capability Profile** | **PR Open** | PR #30 `728e62a..3c3c139` (7 commits) | `CAM-A23.md` — *on branch, not on `main`* | on branch only | Pushed and opened 2026-08-08. **Not merged.** See collision below |
-| A24 | Datetime Blank-Value Hardening | *in flight* | `cam-a24-datetime-blank-hardening` | `CAM-A24.md` | n/a | **Maintenance-class, not a capability** — numbered by explicit authorization 2026-08-10, not by inference. See mapping below |
-| **A25** | **Creation Studio Capability Reconciliation** | **PR Open** | PR #33 `fa02b7c..39c1f74` (7 commits) | `CAM-A25.md` — *on branch, not on `main`* | on branch only | Opened 2026-08-14. **Not merged.** Report-only and advisory: exact identifier matching, `namespace_divergence` finding, request/profile provenance. No persisted artifact, no semantic mapping layer |
-| A26+ | — | *unassigned* | — | — | — | **No repository evidence of any kind** |
+| **A23** | **Creation Studio Capability Profile** | **Merged** | PR #30 → `08b3d1b` | `CAM-A23.md` | yes | Landed 2026-08. Ledger row was stale at A25 publication; A23 is on `main`. See collision below |
+| A24 | Datetime Blank-Value Hardening | **Merged** | PR #32 `311d6a6` | `CAM-A24.md` | n/a | **Maintenance-class, not a capability** — numbered by explicit authorization 2026-08-10, not by inference. See mapping below |
+| **A25** | **Creation Studio Capability Reconciliation** | **Merged** | PR #33 → `cea7782` | `CAM-A25.md` | yes | Merged 2026-08-23. Report-only and advisory: exact identifier matching, `namespace_divergence` finding, request/profile provenance. No persisted artifact. Semantic mapping is CAM-A26 |
+| **A26** | **Creation Studio Capability Vocabulary Bridge** | **Local Only** | `cursor/cam-a26-capability-vocabulary-bridge-ec42` | `CAM-A26.md` | yes | Explicit A22→A23 mapping contract. Opt-in `--capability-map`. Exact A25 default unchanged. Status is local until a PR is opened |
+| A27+ | — | *unassigned* | — | — | — | **No repository evidence of any kind** |
 
 ---
 
@@ -91,10 +92,9 @@ branch name but shipped no dev order and no README section. `CAM-A23.md` and the
 Capability Profile. The dev order and implementation branch win; the maintenance
 branch is retro-designated.
 
-Note for readers on `main`: `docs/dev_orders/CAM-A23.md` is **not present on
-`main`** — it lands with the capability's own branch, which is still unmerged
-(PR #30). The ruling above stands regardless, because it is a designation
-decision, not a statement about which files have merged.
+Note for readers on `main`: `docs/dev_orders/CAM-A23.md` is present on `main`
+(PR #30 → `08b3d1b`). The ruling above stands regardless, because it is a
+designation decision.
 
 A reader encountering `cam-a23-created-at-schema-consistency` in git history should
 resolve it via this table, not by inferring a capability.

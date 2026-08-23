@@ -1,0 +1,36 @@
+{
+  "record_type": "cam_assist_creation_studio_capability_map",
+  "record_version": "1.0.0",
+  "map_version": "1.0.0",
+  "mappings": [
+    {
+      "request_capability": "feeds_speeds_recommendation",
+      "satisfied_by": [
+        "feeds_speeds_authoring"
+      ],
+      "rationale": "CAM Assist requests a feeds-and-speeds recommendation outcome (A22). Creation Studio declares feeds-and-speeds authoring as an authoring feature (A23). CAM Assist explicitly treats that declared authoring capability as able to satisfy the recommendation request for compatibility reporting only. The identifiers remain different; this row is the reviewable decision that they correspond."
+    },
+    {
+      "request_capability": "gcode_explanation",
+      "satisfied_by": [
+        "gcode_tutorial_generation",
+        "post_processor_education"
+      ],
+      "rationale": "CAM Assist requests G-code explanation (A22). Creation Studio declares G-code tutorial generation and post-processor education (A23). Either declared educational capability may satisfy the explanation request for compatibility reporting (any_of). Neither identifier is rewritten; both targets are recorded because each can independently produce explanatory G-code material."
+    },
+    {
+      "request_capability": "simulation_request",
+      "satisfied_by": [
+        "simulation_support"
+      ],
+      "rationale": "CAM Assist requests simulation (A22). Creation Studio declares simulation support (A23). CAM Assist explicitly treats that declared support as able to satisfy the simulation request for compatibility reporting only. Exact identifier equality still does not hold; this row is the reviewable decision that the two identifiers correspond."
+    }
+  ],
+  "authority": {
+    "is_informational": true,
+    "does_not_authorize_execution": true,
+    "does_not_bypass_human_review": true,
+    "does_not_confirm_machine_readiness": true,
+    "does_not_grant_permission": true
+  }
+}
