@@ -44,8 +44,7 @@ KNOWN_TOP_LEVEL = [
     "authority",
 ]
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-A22_SCHEMA = REPO_ROOT / "schemas" / "creation_studio_request.schema.json"
+A22_SCHEMA_RELATIVE = Path("schemas") / "creation_studio_request.schema.json"
 
 
 class CapabilityMapInputError(Exception):
@@ -68,6 +67,30 @@ class MapIdentity(NamedTuple):
 
     record_version: str | None
     map_version: str | None
+
+
+def locate_project_root(start: Path | None = None) -> Path:
+    """Return the CAM Assist project root — the directory that contains schemas/.
+
+    This checkout is nested: the git root may sit above ``scripts/``. Counting
+    parents from ``scripts/_shared/`` is therefore brittle. Walk upward from
+    this file until the authoritative A22 schema is found on disk.
+    """
+    here = (start if start is not None else Path(__file__)).resolve()
+    if here.is_file():
+        here = here.parent
+    for candidate in [here, *here.parents]:
+        if (candidate / A22_SCHEMA_RELATIVE).is_file():
+            return candidate
+    raise CapabilityMapInputError(
+        f"A22 request schema not found above {here}: expected {A22_SCHEMA_RELATIVE}"
+    )
+
+
+# Project root is discovered by the schema file, not by a parent-hop count.
+# Tests monkeypatch A22_SCHEMA; loaders read it at call time.
+REPO_ROOT = locate_project_root()
+A22_SCHEMA = REPO_ROOT / A22_SCHEMA_RELATIVE
 
 
 def normalize_provenance_path(path: Path | str) -> str:

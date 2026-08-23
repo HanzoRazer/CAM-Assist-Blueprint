@@ -37,6 +37,15 @@ No new mapping semantics.
 
 ## Design decisions recorded at implementation time
 
+### Authoritative A22 schema location
+
+The shared module lives under `scripts/_shared/`. A parent-hop count from
+that file lands on the CAM Assist project directory in the current tree, but
+this checkout is nested inside a git root that does **not** contain
+`schemas/`. Schema discovery therefore walks upward from `__file__` until
+`schemas/creation_studio_request.schema.json` exists. That is the project
+root. The git monorepo root is not used.
+
 ### Shared module location
 
 There is no existing `scripts/_shared/` convention. CAM-A27 introduces one:

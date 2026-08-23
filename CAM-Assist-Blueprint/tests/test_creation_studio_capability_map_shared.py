@@ -21,12 +21,15 @@ CANONICAL_MAP = REPO_ROOT / "contracts" / "creation_studio_capability_map.json"
 sys.path.insert(0, str(SCRIPTS))
 
 from _shared.creation_studio_capability_map import (  # noqa: E402
+    A22_SCHEMA,
+    A22_SCHEMA_RELATIVE,
     CapabilityMapContractError,
     CapabilityMapInputError,
     build_mapping_index,
     load_a22_request_enum,
     load_capability_map,
     load_capability_map_document,
+    locate_project_root,
     normalize_provenance_path,
     validate_capability_map_document,
 )
@@ -138,3 +141,52 @@ def test_validate_document_accepts_a_supplied_enum(tmp_path: Path):
         a22_enum=["simulation_request"],
     )
     assert result.valid
+
+
+def test_a22_schema_default_resolves_to_on_disk_request_schema() -> None:
+    """Default A22 path must be the schema next to this project's scripts/."""
+    expected = (REPO_ROOT / A22_SCHEMA_RELATIVE).resolve()
+    assert expected.is_file()
+    assert A22_SCHEMA.resolve() == expected
+    assert A22_SCHEMA.parent.name == "schemas"
+    assert A22_SCHEMA.parent.parent == REPO_ROOT
+
+
+def test_locate_project_root_is_cam_assist_not_git_monorepo() -> None:
+    """Discovery must stop at the project that owns schemas/, not the git root."""
+    project = locate_project_root()
+    assert project == REPO_ROOT
+    assert (project / "scripts").is_dir()
+    assert (project / A22_SCHEMA_RELATIVE).is_file()
+    # This checkout may sit inside a larger git tree. The directory above
+    # CAM-Assist-Blueprint is not the project root even if it is the git root.
+    parent = project.parent
+    assert not (parent / A22_SCHEMA_RELATIVE).is_file()
+    from_tests = locate_project_root(Path(__file__))
+    assert from_tests == REPO_ROOT
+
+
+def test_load_a22_request_enum_default_reads_on_disk_schema() -> None:
+    """Calling the loader with no path must read the real A22 request enum."""
+    on_disk = json.loads((REPO_ROOT / A22_SCHEMA_RELATIVE).read_text(encoding="utf-8"))
+    expected = on_disk["properties"]["requested_capabilities"]["items"]["enum"]
+    assert load_a22_request_enum() == expected
+    assert "feeds_speeds_recommendation" in expected
+    assert "simulation_request" in expected
+
+
+def test_fixed_parent_hop_count_is_layout_sensitive() -> None:
+    """Three hops land on this project today; one more hop leaves schemas/ behind."""
+    shared_file = REPO_ROOT / "scripts" / "_shared" / "creation_studio_capability_map.py"
+    three_hops = shared_file.resolve().parent.parent.parent
+    four_hops = shared_file.resolve().parent.parent.parent.parent
+    assert three_hops == REPO_ROOT
+    assert (three_hops / A22_SCHEMA_RELATIVE).is_file()
+    assert four_hops != REPO_ROOT
+    assert not (four_hops / A22_SCHEMA_RELATIVE).is_file()
+    assert locate_project_root(shared_file) == three_hops
+
+
+def test_locate_project_root_raises_when_schema_absent(tmp_path: Path) -> None:
+    with pytest.raises(CapabilityMapInputError, match="A22 request schema not found"):
+        locate_project_root(tmp_path)
