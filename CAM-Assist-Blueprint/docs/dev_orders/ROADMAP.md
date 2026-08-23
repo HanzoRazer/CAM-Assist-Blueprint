@@ -64,6 +64,7 @@ PR #34  fc9ab51  CAM-A26 Creation Studio Capability Vocabulary Bridge
 ```text
 branch    cursor/cam-a27-capability-map-runtime-hardening-ec42
 dev order docs/dev_orders/CAM-A27.md
+PR        #35
 ```
 
 Hardens A26 map loading: shared import-stable module, controlled schema
