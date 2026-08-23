@@ -52,7 +52,7 @@ from reconcile_creation_studio_capabilities import (  # noqa: E402
     reconcile,
     reconcile_mapped,
 )
-from validate_creation_studio_capability_map import (  # noqa: E402
+from _shared.creation_studio_capability_map import (  # noqa: E402
     build_mapping_index,
     load_capability_map,
 )
@@ -256,6 +256,7 @@ def test_mapped_result_carries_no_authority_fields():
     }
     assert not forbidden & set(result.as_dict())
     assert not forbidden & set(Reconciliation._fields)
+    assert "declared_count" not in Reconciliation._fields
     payload = json.dumps(result.as_dict())
     for word in ("approved", "authorized", "execution_allowed", "machine_ready"):
         assert word not in payload

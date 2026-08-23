@@ -53,17 +53,23 @@ a cherry-pick (`d057be9`) inside PR #31, emptying the `Published, unmerged`
 bucket. `LEDGER.md` carries current status; the snapshot blocks above are
 historical.
 
-### CAM-A26 — Creation Studio Capability Vocabulary Bridge — **in flight**
+### Landed — CAM-A26
 
 ```text
-branch    cursor/cam-a26-capability-vocabulary-bridge-ec42
-dev order docs/dev_orders/CAM-A26.md
-PR        #34
+PR #34  fc9ab51  CAM-A26 Creation Studio Capability Vocabulary Bridge
 ```
 
-Explicit, versioned A22→A23 capability mapping. Opt-in `--capability-map` on
-the A25 reconciler. Exact matching remains the default. Assigned by this
-capability's own handoff; A27+ remains unassigned.
+### CAM-A27 — Capability Map Runtime Hardening — **maintenance-class**
+
+```text
+branch    cursor/cam-a27-capability-map-runtime-hardening-ec42
+dev order docs/dev_orders/CAM-A27.md
+```
+
+Hardens A26 map loading: shared import-stable module, controlled schema
+failures, strict mapping-index construction, blank-identifier rejection,
+normalized provenance. **Not a new mapping capability.** Canonical A26 rows
+are unchanged. A28+ remains unassigned.
 
 ---
 
@@ -88,7 +94,7 @@ alongside the number.
 
 ## Unassigned
 
-### A27+ — **not yet authorized**
+### A28+ — **not yet authorized**
 
 ```text
 branch      none
@@ -99,13 +105,13 @@ test        none
 PR          none
 ```
 
-There is **no repository evidence of any kind** for A27 or beyond. The number is
+There is **no repository evidence of any kind** for A28 or beyond. The number is
 not reserved, the scope is not defined, and nothing in this repository implies
 what it should be.
 
-A27 is **not** assumed to be next merely because A26 is the highest assigned
-capability. The next capability will be determined from the repository baseline
-— not inferred from conversation history.
+A28 is **not** assumed to be next merely because A27 is the highest assigned
+number. A27 is maintenance work occupying an A-number by authorization, so the
+next *capability* is the first since CAM-A26.
 
 ---
 
@@ -119,7 +125,7 @@ implementation, and none create a runtime dependency:
 | --- | --- | --- |
 | CAM-A22 Capability Request | CAM Assist → Creation Studio (outbound, advisory) | Merged |
 | CAM-A23 Capability Profile | Creation Studio → CAM Assist (inbound, informational) | Merged — PR #30 |
-| CAM-A26 Capability Map | CAM Assist interpretive bridge (A22 sources → A23 targets) | In flight — A26 |
+| CAM-A26 Capability Map | CAM Assist interpretive bridge (A22 sources → A23 targets) | Merged — PR #34 |
 
 > No CAM-Creation-Studio remediation, DXF-import, geometry-fidelity, G-code
 > implementation, or CS-series sequencing is part of this roadmap merely because
