@@ -58,6 +58,7 @@ historical.
 ```text
 branch    cursor/cam-a26-capability-vocabulary-bridge-ec42
 dev order docs/dev_orders/CAM-A26.md
+PR        #34
 ```
 
 Explicit, versioned A22→A23 capability mapping. Opt-in `--capability-map` on

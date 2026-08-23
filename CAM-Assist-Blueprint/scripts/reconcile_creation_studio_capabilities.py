@@ -405,10 +405,14 @@ def resolve_mapped_matches(
 ) -> list[str]:
     """Declared targets that the explicit map names for this request.
 
-    Mapping-index targets are already sorted. Intersection order is therefore
-    deterministic and independent of mapping-array order.
+    Intersection is sorted so mapping-array order, and an unsorted caller
+    index, cannot change the result.
     """
-    return [target for target in mapping_index.get(request_capability, []) if target in declared]
+    return sorted(
+        target
+        for target in mapping_index.get(request_capability, [])
+        if target in declared
+    )
 
 
 def reconcile_mapped(
