@@ -33,7 +33,6 @@ import sys
 from pathlib import Path
 
 from _shared.creation_studio_capability_map import (  # noqa: F401
-    A22_SCHEMA,
     AUTHORITY_FLAGS,
     CAPABILITY_ID_PATTERN,
     KNOWN_TOP_LEVEL,

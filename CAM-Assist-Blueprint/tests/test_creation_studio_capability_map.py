@@ -413,7 +413,7 @@ def test_validator_cli_missing_schema_exits_2_without_traceback(
     import _shared.creation_studio_capability_map as shared
     import validate_creation_studio_capability_map as validator
 
-    monkeypatch.setattr(shared, "A22_SCHEMA", tmp_path / "nope.json")
+    monkeypatch.setattr(shared, "default_a22_schema_path", lambda: tmp_path / "nope.json")
     path = write_map(tmp_path, valid_map())
     monkeypatch.setattr(sys, "argv", ["validate_creation_studio_capability_map.py", str(path)])
     code = validator.main()
@@ -431,7 +431,7 @@ def test_validator_cli_malformed_schema_exits_2_without_traceback(
 
     schema = tmp_path / "schema.json"
     schema.write_text("{ not json", encoding="utf-8")
-    monkeypatch.setattr(shared, "A22_SCHEMA", schema)
+    monkeypatch.setattr(shared, "default_a22_schema_path", lambda: schema)
     path = write_map(tmp_path, valid_map())
     monkeypatch.setattr(sys, "argv", ["validate_creation_studio_capability_map.py", str(path)])
     code = validator.main()

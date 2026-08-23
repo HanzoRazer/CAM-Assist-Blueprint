@@ -2,8 +2,8 @@
 Reusable CAM-A26 capability-map loading and indexing.
 
 Import-stable module. CLI adapters in ``scripts/`` consume this file; they
-must not import one another. This module has no argument parsing and no
-printing.
+must not import one another. This module has no argument parsing, no
+printing, and no filesystem discovery at import time.
 
 A22 SOURCE AUTHORITY
 --------------------
@@ -19,6 +19,7 @@ A23 TARGETS REMAIN OPEN
 
 from __future__ import annotations
 
+import functools
 import json
 import posixpath
 import re
@@ -87,10 +88,15 @@ def locate_project_root(start: Path | None = None) -> Path:
     )
 
 
-# Project root is discovered by the schema file, not by a parent-hop count.
-# Tests monkeypatch A22_SCHEMA; loaders read it at call time.
-REPO_ROOT = locate_project_root()
-A22_SCHEMA = REPO_ROOT / A22_SCHEMA_RELATIVE
+@functools.lru_cache(maxsize=1)
+def get_project_root() -> Path:
+    """Cached CAM Assist project root. Not invoked at import time."""
+    return locate_project_root()
+
+
+def default_a22_schema_path() -> Path:
+    """Default on-disk A22 request schema. Discovers the project root on first use."""
+    return get_project_root() / A22_SCHEMA_RELATIVE
 
 
 def normalize_provenance_path(path: Path | str) -> str:
@@ -105,7 +111,7 @@ def normalize_provenance_path(path: Path | str) -> str:
 
 def load_a22_request_enum(schema_path: Path | None = None) -> list[str]:
     """Read the authoritative A22 request vocabulary from the request schema."""
-    path = schema_path if schema_path is not None else A22_SCHEMA
+    path = schema_path if schema_path is not None else default_a22_schema_path()
     try:
         text = path.read_text(encoding="utf-8")
     except FileNotFoundError as exc:

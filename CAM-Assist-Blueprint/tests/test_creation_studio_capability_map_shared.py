@@ -8,6 +8,7 @@ is on sys.path, independently of either CLI adapter.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -21,11 +22,12 @@ CANONICAL_MAP = REPO_ROOT / "contracts" / "creation_studio_capability_map.json"
 sys.path.insert(0, str(SCRIPTS))
 
 from _shared.creation_studio_capability_map import (  # noqa: E402
-    A22_SCHEMA,
     A22_SCHEMA_RELATIVE,
     CapabilityMapContractError,
     CapabilityMapInputError,
     build_mapping_index,
+    default_a22_schema_path,
+    get_project_root,
     load_a22_request_enum,
     load_capability_map,
     load_capability_map_document,
@@ -33,6 +35,7 @@ from _shared.creation_studio_capability_map import (  # noqa: E402
     normalize_provenance_path,
     validate_capability_map_document,
 )
+import _shared.creation_studio_capability_map as shared_module  # noqa: E402
 
 
 CANONICAL_INDEX = {
@@ -48,6 +51,10 @@ def test_importing_the_shared_module_has_no_cli_side_effects(capsys):
     assert captured.err == ""
     assert callable(load_capability_map)
     assert callable(build_mapping_index)
+    assert not hasattr(shared_module, "A22_SCHEMA")
+    assert not hasattr(shared_module, "REPO_ROOT")
+    assert callable(default_a22_schema_path)
+    assert callable(get_project_root)
 
 
 def test_scripts_do_not_import_one_another():
@@ -147,9 +154,11 @@ def test_a22_schema_default_resolves_to_on_disk_request_schema() -> None:
     """Default A22 path must be the schema next to this project's scripts/."""
     expected = (REPO_ROOT / A22_SCHEMA_RELATIVE).resolve()
     assert expected.is_file()
-    assert A22_SCHEMA.resolve() == expected
-    assert A22_SCHEMA.parent.name == "schemas"
-    assert A22_SCHEMA.parent.parent == REPO_ROOT
+    resolved = default_a22_schema_path().resolve()
+    assert resolved == expected
+    assert resolved.parent.name == "schemas"
+    assert resolved.parent.parent == REPO_ROOT
+    assert get_project_root() == REPO_ROOT
 
 
 def test_locate_project_root_is_cam_assist_not_git_monorepo() -> None:
@@ -190,3 +199,23 @@ def test_fixed_parent_hop_count_is_layout_sensitive() -> None:
 def test_locate_project_root_raises_when_schema_absent(tmp_path: Path) -> None:
     with pytest.raises(CapabilityMapInputError, match="A22 request schema not found"):
         locate_project_root(tmp_path)
+
+
+def test_import_succeeds_when_on_disk_schema_is_absent(tmp_path: Path) -> None:
+    """Partial checkout / isolated tooling must be able to import the module."""
+    dest = tmp_path / "creation_studio_capability_map.py"
+    dest.write_text(
+        (SCRIPTS / "_shared" / "creation_studio_capability_map.py").read_text(
+            encoding="utf-8"
+        ),
+        encoding="utf-8",
+    )
+    spec = importlib.util.spec_from_file_location("isolated_capability_map", dest)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert callable(module.load_a22_request_enum)
+    with pytest.raises(module.CapabilityMapInputError, match="A22 request schema"):
+        module.default_a22_schema_path()
+    with pytest.raises(module.CapabilityMapInputError, match="A22 request schema"):
+        module.load_a22_request_enum()

@@ -46,6 +46,12 @@ this checkout is nested inside a git root that does **not** contain
 `schemas/creation_studio_request.schema.json` exists. That is the project
 root. The git monorepo root is not used.
 
+Discovery is lazy. Import does not walk the filesystem and cannot raise
+`CapabilityMapInputError` for a missing schema. `get_project_root()` and
+`default_a22_schema_path()` run on first use; `load_a22_request_enum()`
+calls the latter when no path is supplied. Failure stays at the use site
+so isolated tests, tooling, and partial checkouts can import the module.
+
 ### Shared module location
 
 There is no existing `scripts/_shared/` convention. CAM-A27 introduces one:

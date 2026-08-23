@@ -121,7 +121,9 @@ python scripts/validate_creation_studio_capability_map.py \
 
 Structural only. Loading and indexing live in
 `scripts/_shared/creation_studio_capability_map.py`; the validator and
-reconciler are thin adapters and do not import one another.
+reconciler are thin adapters and do not import one another. The shared
+module does not walk the filesystem at import time; the A22 schema path is
+resolved on first use.
 
 Exit codes:
 
