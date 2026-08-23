@@ -541,6 +541,42 @@ See `docs/integration/CREATION_STUDIO_CAPABILITY_RECONCILIATION.md`.
 
 ---
 
+### CAM-A26 — Creation Studio Capability Vocabulary Bridge
+
+Adds an explicit, versioned mapping from A22 request identifiers to A23
+declared capabilities. Mapping is never inferred: a semantic relationship
+exists only when a human-reviewed row records it.
+
+Exact CAM-A25 reconciliation remains the default. Mapped reconciliation is
+opt-in:
+
+```bash
+python scripts/reconcile_creation_studio_capabilities.py \
+  --package examples/packages/ltb_vcarve_synthetic_example \
+  --capability-map contracts/creation_studio_capability_map.json
+```
+
+```bash
+python scripts/validate_creation_studio_capability_map.py \
+  contracts/creation_studio_capability_map.json
+```
+
+Provides:
+
+- a CAM-Assist-owned mapping contract and canonical registry
+- structural validation of sources against the authoritative A22 enum
+- open A23 target identifiers (pattern-constrained, not enumerated)
+- required non-blank rationale on every mapping
+- distinguishable `exact` vs `mapped` satisfaction, with map provenance
+- raw `namespace_divergence` preserved alongside `mapped_compatibility`
+
+A mapped match is an explicit compatibility declaration, not authorization,
+installation, machine readiness, or permission.
+
+See `docs/integration/CREATION_STUDIO_CAPABILITY_MAPPING.md`.
+
+---
+
 ### Maintenance and governance work (not A-series capabilities)
 
 Some merged work hardens or maintains existing capabilities rather than adding a
@@ -580,6 +616,7 @@ examples/
   review_decisions/     # Example review decisions
 
 schemas/                # JSON Schema definitions
+contracts/              # CAM-Assist-owned non-example policy artifacts
 
 scripts/                # CLI tools
   validate_strategy_package.py

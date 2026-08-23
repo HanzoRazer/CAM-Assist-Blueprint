@@ -47,6 +47,9 @@ jobs:
       - name: Verify non-execution invariant
         run: python scripts/ci_verify_non_execution_invariant.py
 
+      - name: Validate canonical creation studio capability map
+        run: python scripts/validate_creation_studio_capability_map.py contracts/creation_studio_capability_map.json
+
       - name: Verify committed creation studio requests (references resolve)
         # Structural validity is not enough for a committed artifact: its declared
         # references must actually resolve. --check-references is existence-only and
