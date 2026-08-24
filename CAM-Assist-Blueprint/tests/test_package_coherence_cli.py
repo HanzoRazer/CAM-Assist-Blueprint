@@ -79,6 +79,22 @@ def test_json_is_stdout_pure_and_identical_in_strict_mode(tmp_path: Path) -> Non
     assert "\\" not in payload["artifacts"]["manifest"]["path"]
 
 
+def test_json_paths_do_not_depend_on_process_cwd(tmp_path: Path) -> None:
+    package = make_package(tmp_path)
+    write_sidecar_set(package, "luthiers-toolbox:vcarve:test-001")
+    from_repo = run_audit("--package", str(package), "--json", cwd=REPO_ROOT)
+    from_tmp = run_audit("--package", str(package), "--json", cwd=tmp_path)
+    assert from_repo.returncode == 0, from_repo.stderr
+    assert from_tmp.returncode == 0, from_tmp.stderr
+    assert from_repo.stdout == from_tmp.stdout
+    payload = json.loads(from_repo.stdout)
+    assert payload["package"]["path"] == package.as_posix()
+    assert payload["artifacts"]["manifest"]["path"] == "manifest.json"
+    assert payload["artifacts"]["assumptions"]["path"] == (
+        f"../traceability/{package.name}_assumptions.json"
+    )
+
+
 def test_json_is_byte_identical_across_discovery_order(tmp_path: Path) -> None:
     package = make_package(tmp_path)
     write_sidecar_set(package, "luthiers-toolbox:vcarve:test-001")

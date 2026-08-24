@@ -159,7 +159,9 @@ stderr on a completed audit.
 }
 ```
 
-Paths are POSIX-normalized and not stored as absolute paths. The document
+Artifact paths are POSIX-normalized relative to the package directory.
+`package.path` keeps the input spelling (relative or absolute) after POSIX
+normalization and is never rewritten against the process cwd. The document
 is not a persisted contract.
 
 The payload must not contain `approved`, `authorized`,

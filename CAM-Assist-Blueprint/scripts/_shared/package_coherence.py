@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import os
 import posixpath
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Callable, NamedTuple
 
 from _shared.package_discovery import (
@@ -87,6 +87,14 @@ _MANIFEST_REFERENCE_PREFIXES = (
 
 class PackageCoherenceInputError(Exception):
     """The package cannot be established as an audit anchor."""
+
+
+class StructuralResult(NamedTuple):
+    """Local structural result. Matches the validator ``ValidationResult`` shape."""
+
+    valid: bool
+    errors: list[str]
+    warnings: list[str]
 
 
 class ArtifactStatus(NamedTuple):
@@ -168,23 +176,32 @@ def finding_to_dict(finding: CoherenceFinding) -> dict:
     }
 
 
+def _posix_text(path: Path | str) -> str:
+    """Host-independent POSIX spelling. Does not consult cwd or resolve()."""
+    if isinstance(path, Path):
+        return path.as_posix()
+    return str(path).replace("\\", "/")
+
+
 def normalize_report_path(path: Path | str, relative_to: Path | None = None) -> str:
-    """POSIX-normalize a report path without inventing a new location."""
-    raw = path.as_posix() if isinstance(path, Path) else PurePosixPath(path).as_posix()
+    """POSIX-normalize a report path without rebasing onto the process cwd.
+
+    Contract:
+    * If ``relative_to`` is supplied, report the path relative to that explicit
+      anchor. Paths outside the anchor use ``..``. Relativization compares
+      resolved filesystem locations of Path objects and does not read cwd.
+    * Otherwise the input spelling is preserved: relative stays relative,
+      absolute stays absolute. Both are POSIX-normalized. Backslashes become
+      slashes. ``os.getcwd()`` is never consulted.
+    """
     if relative_to is not None:
+        fs_path = path if isinstance(path, Path) else Path(_posix_text(path))
         try:
-            rel = os.path.relpath(str(Path(path).resolve()), str(relative_to.resolve()))
+            rel = os.path.relpath(str(fs_path.resolve()), str(relative_to.resolve()))
             return posixpath.normpath(rel.replace("\\", "/"))
         except OSError:
             pass
-    normalized = posixpath.normpath(raw)
-    if Path(path).is_absolute():
-        try:
-            rel = os.path.relpath(str(Path(path)), os.getcwd())
-            return posixpath.normpath(rel.replace("\\", "/"))
-        except OSError:
-            return normalized
-    return normalized
+    return posixpath.normpath(_posix_text(path))
 
 
 def expected_package_identity(package_dir: Path, manifest: dict) -> str:
@@ -221,6 +238,16 @@ def _same_file(left: Path, right: Path) -> bool:
 
 def _is_reference_existence_error(error: str) -> bool:
     return any(error.startswith(prefix) for prefix in _MANIFEST_REFERENCE_PREFIXES)
+
+
+def manifest_anchor_blocking_errors(errors: list[str]) -> list[str]:
+    """Errors that prevent the package from being established as an audit anchor.
+
+    ``validate_manifest_file`` also reports missing referenced files. Those do
+    not block startup: the manifest JSON is still usable for identity. They
+    remain ``STRUCTURAL_INVALID`` findings on the manifest artifact.
+    """
+    return [error for error in errors if not _is_reference_existence_error(error)]
 
 
 def discover_package_artifacts(package_dir: Path, manifest: dict | None) -> dict[str, Path | None]:
@@ -289,7 +316,7 @@ def validate_artifact(name: str, path: Path):
         return validate_strategy_file(path)
     if name == "review_packet":
         valid, errors = _validate_review_packet(path)
-        return type("Result", (), {"valid": valid, "errors": errors, "warnings": []})()
+        return StructuralResult(valid=valid, errors=errors, warnings=[])
     validators: dict[str, Callable] = {
         "annotations": validate_annotations_file,
         "assumptions": validate_assumptions_file,
@@ -449,6 +476,7 @@ def compare_reference_target(
     resolved: Path,
     discovered: Path | None,
     path: str | None,
+    relative_to: Path | None = None,
 ) -> CoherenceFinding | None:
     if not resolved.exists():
         return CoherenceFinding(
@@ -462,16 +490,18 @@ def compare_reference_target(
             slot=slot,
         )
     if discovered is not None and discovered.exists() and not _same_file(resolved, discovered):
+        expected = normalize_report_path(discovered, relative_to=relative_to)
+        actual = normalize_report_path(resolved, relative_to=relative_to)
         return CoherenceFinding(
             code=CODE_REFERENCE_MISMATCH,
             severity=SEVERITY_ERROR,
             artifact=artifact,
             message=(
-                f"{artifact} {slot} resolves to a different artifact than "
-                f"conventional discovery"
+                f"{artifact} {slot} declared {declared!r} resolves to {actual} "
+                f"instead of the discovered {expected}"
             ),
-            expected=str(discovered),
-            actual=declared,
+            expected=expected,
+            actual=actual,
             path=path,
             slot=slot,
         )
@@ -493,12 +523,10 @@ def audit_package_coherence(package_dir: Path) -> PackageCoherenceResult:
     manifest = load_json_object(manifest_path)
     if manifest is None:
         raise PackageCoherenceInputError(f"manifest.json is not readable JSON: {manifest_path}")
-    if not manifest_result.valid and any(
-        not _is_reference_existence_error(error) for error in manifest_result.errors
-    ):
+    blocking = manifest_anchor_blocking_errors(manifest_result.errors)
+    if blocking:
         raise PackageCoherenceInputError(
-            "Package manifest is not structurally usable: "
-            + "; ".join(manifest_result.errors)
+            "Package manifest is not structurally usable: " + "; ".join(blocking)
         )
 
     expected = expected_package_identity(package_dir, manifest)
@@ -513,21 +541,9 @@ def audit_package_coherence(package_dir: Path) -> PackageCoherenceResult:
             statuses[name] = ArtifactStatus(name, False, None, None)
             continue
         report = normalize_report_path(path, relative_to=package_dir)
-        if name == "manifest" and not manifest_result.valid:
-            statuses[name] = ArtifactStatus(name, True, report, "invalid")
-            findings.append(
-                CoherenceFinding(
-                    code=CODE_STRUCTURAL_INVALID,
-                    severity=SEVERITY_ERROR,
-                    artifact=name,
-                    message="manifest failed structural validation",
-                    path=report,
-                    actual="; ".join(manifest_result.errors),
-                )
-            )
-            continue
-        result = validate_artifact(name, Path(path)) if name != "manifest" else manifest_result
         if name == "manifest":
+            # Anchor-usable manifests can still be artifact-invalid when the
+            # only validator failures are missing referenced files.
             statuses[name] = ArtifactStatus(
                 name, True, report, "valid" if manifest_result.valid else "invalid"
             )
@@ -543,6 +559,7 @@ def audit_package_coherence(package_dir: Path) -> PackageCoherenceResult:
                     )
                 )
             continue
+        result = validate_artifact(name, Path(path))
         if not result.valid:
             statuses[name] = ArtifactStatus(name, True, report, "invalid")
             findings.append(
@@ -590,7 +607,13 @@ def audit_package_coherence(package_dir: Path) -> PackageCoherenceResult:
             resolved = declaring.parent / declared
             target_path = discovered.get(target) if target is not None else None
             finding = compare_reference_target(
-                name, slot, declared, resolved, target_path, status.path
+                name,
+                slot,
+                declared,
+                resolved,
+                target_path,
+                status.path,
+                relative_to=package_dir,
             )
             if finding is not None:
                 findings.append(finding)
@@ -641,6 +664,7 @@ def format_human_report(result: PackageCoherenceResult) -> str:
             "Summary:",
             f"  errors: {summary['errors']}",
             f"  warnings: {summary['warnings']}",
+            f"  infos: {summary['infos']}",
             "",
             "This audit reports evidence consistency only.",
             "It does not approve a package, authorize execution, or establish machine readiness.",

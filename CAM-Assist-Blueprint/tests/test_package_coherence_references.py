@@ -68,6 +68,9 @@ def test_declared_vs_conventional_mismatch(tmp_path: Path) -> None:
     ]
     assert mismatch
     assert mismatch[0].slot == "bundle_contents.risk_file"
+    assert mismatch[0].expected == f"../traceability/{package.name}_risk.json"
+    assert mismatch[0].actual == "../traceability/old_risk.json"
+    assert "old_risk.json" in mismatch[0].message
 
 
 def test_bundle_consistent_with_discovery(tmp_path: Path) -> None:

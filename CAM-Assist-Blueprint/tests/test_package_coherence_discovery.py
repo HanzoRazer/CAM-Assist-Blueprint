@@ -24,6 +24,16 @@ from _shared.package_discovery import (  # noqa: E402
     is_examples_package,
     resolve_traceability,
 )
+import _shared.package_discovery as discovery_module  # noqa: E402
+
+
+def test_importing_discovery_has_no_cli_side_effects(capsys) -> None:
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""
+    assert callable(discovery_module.resolve_traceability)
+    assert callable(discovery_module.resolve_bundle)
+    assert "argparse" not in discovery_module.__doc__.lower()
 
 
 def test_examples_layout_is_detected() -> None:

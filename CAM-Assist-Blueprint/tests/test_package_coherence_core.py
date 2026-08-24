@@ -27,6 +27,8 @@ from _shared.package_coherence import (  # noqa: E402
     PackageCoherenceInputError,
     audit_package_coherence,
     expected_package_identity,
+    manifest_anchor_blocking_errors,
+    normalize_report_path,
     serialize_coherence,
     sort_findings,
     CoherenceFinding,
@@ -167,3 +169,55 @@ def test_json_payload_has_no_authority_fields(tmp_path: Path) -> None:
     assert payload["summary"]["errors"] == 0
     assert "artifacts" in payload
     assert "findings" in payload
+
+
+def test_normalize_report_path_preserves_relative_and_absolute_input() -> None:
+    assert normalize_report_path("examples/packages/pkg") == "examples/packages/pkg"
+    assert normalize_report_path("./examples/../examples/packages/pkg") == (
+        "examples/packages/pkg"
+    )
+    assert normalize_report_path("/abs/pkg") == "/abs/pkg"
+    assert normalize_report_path("examples\\packages\\pkg") == "examples/packages/pkg"
+
+
+def test_normalize_report_path_uses_explicit_anchor_not_cwd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    package = tmp_path / "pkg"
+    package.mkdir()
+    sidecar = tmp_path / "traceability" / "pkg_risk.json"
+    sidecar.parent.mkdir()
+    sidecar.write_text("{}", encoding="utf-8")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    relative = normalize_report_path(sidecar, relative_to=package)
+    assert relative == "../traceability/pkg_risk.json"
+    outside = normalize_report_path(tmp_path / "other" / "file.json", relative_to=package)
+    assert outside == "../other/file.json"
+    # Without an anchor, an absolute Path stays absolute and is not cwd-rebased.
+    reported = normalize_report_path(package)
+    assert reported == package.as_posix()
+    assert Path(reported).is_absolute()
+
+
+def test_manifest_missing_referenced_files_do_not_block_anchor(tmp_path: Path) -> None:
+    package = make_package(tmp_path)
+    (package / "strategy.json").unlink()
+    result = audit_package_coherence(package)
+    assert result.package_reference == "luthiers-toolbox:vcarve:test-001"
+    assert result.artifacts["manifest"].structural == "invalid"
+    assert any(
+        finding.code == CODE_STRUCTURAL_INVALID and finding.artifact == "manifest"
+        for finding in result.findings
+    )
+    assert result.artifacts["strategy"].present is False
+
+
+def test_manifest_anchor_blocking_errors_ignore_missing_references() -> None:
+    errors = [
+        "Referenced strategy file not found: strategy.json",
+        "Missing required field: authority",
+    ]
+    blocking = manifest_anchor_blocking_errors(errors)
+    assert blocking == ["Missing required field: authority"]
