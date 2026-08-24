@@ -24,9 +24,11 @@ SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
 VALIDATE_SCRIPT = SCRIPTS_DIR / "validate_traceability_bundle.py"
 
 
-def run_validator(*args) -> tuple[int, str, str]:
+def run_validator(*args, cwd: Path | None = None) -> tuple[int, str, str]:
     cmd = [sys.executable, str(VALIDATE_SCRIPT)] + [str(a) for a in args]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, cwd=str(cwd) if cwd else None
+    )
     return result.returncode, result.stdout, result.stderr
 
 
@@ -266,6 +268,16 @@ def test_base_overrides_resolution_directory(tmp_path):
 
     # With --base pointing at refs/, the same reference resolves.
     code, out, _err = run_validator(path, "--check-references", "--base", refs_dir)
+    assert code == 0
+    assert "does not resolve" not in out
+
+
+def test_resolution_relative_to_bundle_dir_independent_of_cwd(tmp_path):
+    (tmp_path / "r.json").write_text("{}", encoding="utf-8")
+    path = write_bundle(tmp_path, {"risk_file": "r.json"})
+    other_cwd = tmp_path / "elsewhere"
+    other_cwd.mkdir()
+    code, out, _err = run_validator(path, "--check-references", cwd=other_cwd)
     assert code == 0
     assert "does not resolve" not in out
 
