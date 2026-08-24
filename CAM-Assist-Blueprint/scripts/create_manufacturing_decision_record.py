@@ -35,6 +35,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import NamedTuple
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _shared.artifact_references import relative_reference
+
 
 RECORD_TYPE = "cam_assist_manufacturing_decision_record"
 RECORD_VERSION = "1.0.0"
@@ -65,6 +68,16 @@ def resolve_package_reference(package_dir: Path) -> str:
         except (json.JSONDecodeError, OSError):
             pass
     return package_dir.name
+
+
+def _locate_cli_path(path: Path | str) -> Path:
+    """Locate a CLI-supplied path. Relative values follow process CWD.
+
+    This is argument location, not reference resolution. Stored references are
+    then computed with relative_reference() against the output file.
+    """
+    located = Path(path)
+    return located if located.is_absolute() else Path.cwd() / located
 
 
 def default_output_path(package_dir: Path) -> Path:
@@ -128,10 +141,24 @@ def create_decision_record(
     }
 
     # Linked traceability sidecars are referenced, never mutated.
-    if assumptions_file:
-        record["assumptions_file"] = assumptions_file
-    if risk_file:
-        record["risk_file"] = risk_file
+    # Store declaring-file-relative portable paths, not the raw CLI string.
+    output_located = _locate_cli_path(output_path)
+    try:
+        if assumptions_file:
+            record["assumptions_file"] = relative_reference(
+                output_located, _locate_cli_path(assumptions_file)
+            )
+        if risk_file:
+            record["risk_file"] = relative_reference(
+                output_located, _locate_cli_path(risk_file)
+            )
+    except ValueError as e:
+        return CreateResult(
+            False,
+            None,
+            f"Cannot compute a relative path from the output location to a "
+            f"linked sidecar (are they on different drives?): {e}",
+        )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     try:

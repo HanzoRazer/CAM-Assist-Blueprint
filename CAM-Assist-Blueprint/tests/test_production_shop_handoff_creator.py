@@ -313,7 +313,7 @@ def test_missing_package_is_argument_error_exit_1(tmp_path):
 
 
 def test_cross_drive_relpath_reported_cleanly(tmp_path, monkeypatch):
-    # os.path.relpath raises ValueError for paths on different Windows drives.
+    # relative_reference raises ValueError for paths on different Windows drives.
     # That must surface as a clean argument error (exit 1), not a traceback.
     mod = _load_creator_module()
     pkg = make_package(tmp_path)
@@ -321,7 +321,7 @@ def test_cross_drive_relpath_reported_cleanly(tmp_path, monkeypatch):
     def boom(*_a, **_k):
         raise ValueError("path is on mount 'C:', start on mount 'D:'")
 
-    monkeypatch.setattr(mod.os.path, "relpath", boom)
+    monkeypatch.setattr(mod, "relative_reference", boom)
     result = mod.create_handoff(pkg, output_path=tmp_path / "out" / "h.json")
     assert result.success is False
     assert result.exit_code == 1

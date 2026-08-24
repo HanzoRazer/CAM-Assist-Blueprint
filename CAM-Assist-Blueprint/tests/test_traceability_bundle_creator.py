@@ -245,8 +245,8 @@ def test_write_error_returns_exit_2(tmp_path):
 
 
 def test_cross_drive_relpath_reported_cleanly(tmp_path, monkeypatch):
-    # os.path.relpath raises ValueError for paths on different Windows drives.
-    # A discovered sidecar triggers relpath; the error must surface as a clean
+    # relative_reference raises ValueError for paths on different Windows drives.
+    # A discovered sidecar triggers it; the error must surface as a clean
     # argument error (exit 1), not an uncaught traceback.
     mod = _load_creator_module()
     pkg = make_package(tmp_path)
@@ -255,7 +255,7 @@ def test_cross_drive_relpath_reported_cleanly(tmp_path, monkeypatch):
     def boom(*_a, **_k):
         raise ValueError("path is on mount 'C:', start on mount 'D:'")
 
-    monkeypatch.setattr(mod.os.path, "relpath", boom)
+    monkeypatch.setattr(mod, "relative_reference", boom)
     result = mod.create_bundle(pkg, output_path=tmp_path / "out" / "b.json")
     assert result.success is False
     assert result.exit_code == 1

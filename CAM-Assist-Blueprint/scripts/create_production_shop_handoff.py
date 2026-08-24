@@ -52,11 +52,13 @@ Exit codes:
 
 import argparse
 import json
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import NamedTuple
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _shared.artifact_references import relative_reference
 
 
 RECORD_TYPE = "cam_assist_production_shop_handoff"
@@ -126,11 +128,6 @@ def conventional_base(package_dir: Path, sub_root: str) -> Path:
     return parent / sub_root
 
 
-def relref(target: Path, output_dir: Path) -> str:
-    """Path to target relative to output_dir, forward-slashed for portability."""
-    return Path(os.path.relpath(target, start=output_dir)).as_posix()
-
-
 def default_output_path(package_dir: Path) -> Path:
     """Conventional output: <production_shop_base>/<package>_handoff.json."""
     return conventional_base(package_dir, "production_shop") / f"{package_dir.name}{OUTPUT_SUFFIX}"
@@ -144,10 +141,10 @@ def conventional_bundle_path(package_dir: Path) -> Path:
 def build_contents(
     package_dir: Path,
     manifest: dict,
-    output_dir: Path,
+    output_file: Path,
     explicit_bundle: Path | None,
 ) -> dict:
-    """Build the contents reference map, all relative to output_dir.
+    """Build the contents reference map, all relative to the output file.
 
     The core three references are always emitted. The traceability bundle is
     included only when explicitly supplied (recorded as-is, no existence check)
@@ -157,17 +154,17 @@ def build_contents(
     review_packet_name = manifest.get("review_packet_file") or DEFAULT_REVIEW_PACKET_FILE
 
     contents = {
-        "package_manifest_file": relref(package_dir / "manifest.json", output_dir),
-        "strategy_file": relref(package_dir / strategy_name, output_dir),
-        "review_packet_file": relref(package_dir / review_packet_name, output_dir),
+        "package_manifest_file": relative_reference(output_file, package_dir / "manifest.json"),
+        "strategy_file": relative_reference(output_file, package_dir / strategy_name),
+        "review_packet_file": relative_reference(output_file, package_dir / review_packet_name),
     }
 
     if explicit_bundle is not None:
-        contents["traceability_bundle_file"] = relref(explicit_bundle, output_dir)
+        contents["traceability_bundle_file"] = relative_reference(output_file, explicit_bundle)
     else:
         conventional = conventional_bundle_path(package_dir)
         if conventional.exists():
-            contents["traceability_bundle_file"] = relref(conventional, output_dir)
+            contents["traceability_bundle_file"] = relative_reference(output_file, conventional)
 
     return contents
 
@@ -194,13 +191,13 @@ def create_handoff(
 
     manifest = load_manifest(package_dir)
 
-    # References are stored relative to the output directory. os.path.relpath
+    # References are stored relative to the output file. relative_reference
     # raises ValueError when the two paths share no common anchor — most notably
     # a package and output on different Windows drives — so surface that as a
     # clean argument error rather than an uncaught traceback.
     try:
         contents = build_contents(
-            package_dir, manifest, output_path.parent, traceability_bundle
+            package_dir, manifest, output_path, traceability_bundle
         )
     except ValueError as e:
         return CreateResult(
