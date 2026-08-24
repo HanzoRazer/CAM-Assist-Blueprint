@@ -73,7 +73,7 @@ index construction. Canonical A26 rows unchanged.
 ```text
 branch    cursor/cam-a28-package-coherence-audit-ec42
 dev order docs/dev_orders/CAM-A28.md
-PR        none yet
+PR        #36
 ```
 
 Read-only identity and reference audit for one strategy package. Advisory
