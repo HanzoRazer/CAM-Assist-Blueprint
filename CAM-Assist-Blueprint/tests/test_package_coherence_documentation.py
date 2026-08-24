@@ -43,12 +43,14 @@ def test_authority_boundary_is_stated():
     assert "authorized for execution" in doc
 
 
-def test_example_debt_is_classified_honestly():
+def test_example_reference_paths_are_classified_honestly():
     doc = _norm(DOC)
-    assert "example/repository debt" in doc
+    assert "declaring-file-relative" in doc
     assert "missing_reference" in doc
-    assert "decision record" in doc
+    assert "decision-record" in doc or "decision record" in doc
     assert "revision lineage" in doc
+    assert "fixture/contract correction" in doc
+    assert "no project-root fallback" in doc
 
 
 def test_documented_cli_forms_work():
