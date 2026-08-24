@@ -68,16 +68,23 @@ PR #35  7f20320  CAM-A27 Capability Map Runtime Hardening
 Maintenance-class. Shared map module, controlled schema failures, strict
 index construction. Canonical A26 rows unchanged.
 
-### CAM-A28 — Package Coherence Audit — **capability**
+### Landed — CAM-A28
 
 ```text
-branch    cursor/cam-a28-package-coherence-audit-ec42
-dev order docs/dev_orders/CAM-A28.md
-PR        #36
+PR #36  65e9f4c  CAM-A28 Package Coherence Audit
 ```
 
-Read-only identity and reference audit for one strategy package. Advisory
-by default. A29+ remains unassigned.
+Capability. Read-only identity and reference audit. Advisory by default.
+
+### CAM-A29 — Traceability Reference Path Canonicalization — **maintenance**
+
+```text
+branch    cursor/cam-a29-traceability-reference-path-canonicalization-ec42
+dev order docs/dev_orders/CAM-A29.md
+```
+
+Canonical declaring-file-relative artifact references. Not a product
+capability. A30+ remains unassigned.
 
 ---
 
@@ -102,7 +109,7 @@ alongside the number.
 
 ## Unassigned
 
-### A29+ — **not yet authorized**
+### A30+ — **not yet authorized**
 
 ```text
 branch      none
@@ -113,7 +120,7 @@ test        none
 PR          none
 ```
 
-There is **no repository evidence of any kind** for A29 or beyond. The number is
+There is **no repository evidence of any kind** for A30 or beyond. The number is
 not reserved, the scope is not defined, and nothing in this repository implies
 what it should be.
 

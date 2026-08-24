@@ -62,8 +62,9 @@ error: `38e0665` was recorded as `Local Only` and "never published" when it is o
 | **A25** | **Creation Studio Capability Reconciliation** | **Merged** | PR #33 → `cea7782` | `CAM-A25.md` | yes | Merged 2026-08-23. Report-only and advisory: exact identifier matching, `namespace_divergence` finding, request/profile provenance. No persisted artifact. Semantic mapping is CAM-A26 |
 | **A26** | **Creation Studio Capability Vocabulary Bridge** | **Merged** | PR #34 → `fc9ab51` | `CAM-A26.md` | yes | Merged 2026-08-23. Explicit A22→A23 mapping contract. Opt-in `--capability-map`. Exact A25 default unchanged |
 | A27 | Capability Map Runtime Hardening | **Merged** | PR #35 → `7f20320` | `CAM-A27.md` | n/a | **Maintenance-class, not a capability** — numbered by explicit authorization. Shared map module, controlled errors, blank-identifier rejection. No mapping-policy change. Merged 2026-08-23. |
-| **A28** | **Package Coherence Audit** | **PR Open** | PR #36 `cursor/cam-a28-package-coherence-audit-ec42` | `CAM-A28.md` | yes | Capability. Read-only identity/reference audit. Advisory by default. Example decision-record/lineage paths classified as repository debt. Opened 2026-08-24. **Not merged.** |
-| A29+ | — | *unassigned* | — | — | — | **No repository evidence of any kind** |
+| **A28** | **Package Coherence Audit** | **Merged** | PR #36 → `65e9f4c` | `CAM-A28.md` | yes | Capability. Read-only identity/reference audit. Advisory by default. Merged 2026-08-24. Declaring-file-relative references only; no project-root fallback. |
+| A29 | Traceability Reference Path Canonicalization | **Local Only** | `cursor/cam-a29-traceability-reference-path-canonicalization-ec42` | `CAM-A29.md` | compact | **Maintenance-class, not a capability** — numbered by explicit authorization. One declaring-file-relative rule shared by creators, completeness validators, and CAM-A28. Fixture path strings corrected; manufacturing semantics unchanged. |
+| A30+ | — | *unassigned* | — | — | — | **No repository evidence of any kind** |
 
 ---
 
@@ -82,6 +83,7 @@ Entries that appear in git history but are **not** A-series capabilities.
 | PR #31 `efcbb3d` `cam-a19-a20-created-at-description-followup` | — | Maintenance | Landed the stranded `38e0665`, restated all nine `created_at` descriptions validator-agnostically, and added the `format: date-time` discovery guard |
 | **CAM-A24** `CAM-A24.md` | A-series capability | **Maintenance / governance** | Blank-value hardening of the last three date-time fields. Adds no artifact, schema, script, or contract. It occupies an A-number by explicit authorization on 2026-08-10, which `ROADMAP.md` had anticipated: *"they are maintenance work in the same family as PR #26 — not a new capability, and not automatically the next numbered item."* Recorded here so the capability list stays a list of capabilities |
 | **CAM-A27** `CAM-A27.md` | A-series capability | **Maintenance / runtime-hardening** | Post-A26 hardening of map loading, import boundary, error classification, mapping-index strictness, blank identifiers, and provenance paths. No mapping-policy change. Occupies an A-number by explicit authorization, the same family as CAM-A24 |
+| **CAM-A29** `CAM-A29.md` | A-series capability | **Maintenance / contract-coherence** | Canonicalizes traceability file references to declaring-file-relative portable paths. Occupies an A-number by explicit authorization, the same family as CAM-A24 and CAM-A27. Does not add a product capability. |
 
 ### CAM-A23 collision — resolution of record
 
