@@ -81,6 +81,7 @@ Capability. Read-only identity and reference audit. Advisory by default.
 ```text
 branch    cursor/cam-a29-traceability-reference-path-canonicalization-ec42
 dev order docs/dev_orders/CAM-A29.md
+PR        #37
 ```
 
 Canonical declaring-file-relative artifact references. Not a product
