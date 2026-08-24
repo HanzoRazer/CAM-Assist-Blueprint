@@ -143,3 +143,6 @@ For packages under `examples/packages/<name>`, the convention is
 The inspector reports the sidecar under the `Traceability:` section as
 `revision lineage: present`. A decision record may reference a lineage sidecar via
 `record_review_decision.py --lineage-file` (referenced, never mutated).
+
+Path references in `related_records` follow
+`docs/integration/ARTIFACT_REFERENCE_PATHS.md`.

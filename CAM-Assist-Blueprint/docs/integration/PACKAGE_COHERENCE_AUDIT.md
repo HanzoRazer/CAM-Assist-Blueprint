@@ -202,4 +202,4 @@ a repo-root-style string as `MISSING_REFERENCE` if one is reintroduced.
 
 CAM-A28 does not repair artifacts, generate missing sidecars, normalize
 identities, perform capability reconciliation, assess machining quality,
-authorize execution, persist an audit record, or define CAM-A29.
+authorize execution, persist an audit record, or assign later numbered work.
