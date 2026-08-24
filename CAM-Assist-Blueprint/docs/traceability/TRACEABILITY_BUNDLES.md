@@ -74,7 +74,8 @@ Optional: `created_at`, `authority`.
 
 `bundle_contents` is an object whose keys are drawn from a fixed set of known
 slots; each value is a string path **reference**, resolved relative to the
-bundle file's own location. The known slots are:
+bundle file's own location (the canonical declaring-file-relative rule in
+`docs/integration/ARTIFACT_REFERENCE_PATHS.md`). The known slots are:
 
 | Slot | References |
 | --- | --- |
@@ -109,8 +110,9 @@ traceability/<package>_lineage.json           -> lineage_file
 review_annotations/<package>_annotations.json -> annotations_file
 ```
 
-Each discovered file is recorded as a path relative to the bundle's output
-directory (forward-slashed); absent sidecars are omitted.
+Each discovered file is recorded as a path relative to the bundle output
+file (forward-slashed); absent sidecars are omitted. See
+`docs/integration/ARTIFACT_REFERENCE_PATHS.md`.
 
 ## Creating a Bundle
 
@@ -168,8 +170,9 @@ python scripts/validate_traceability_bundle.py \
 ```
 
 The opt-in completeness layer resolves each **declared** reference relative to
-the bundle file's own directory (override with `--base <dir>`) and emits a
-**warning** for each completeness finding:
+the bundle file's own directory using the shared declaring-file-relative rule.
+`--base <dir>` is an explicit operator override of that resolution directory,
+not a silent repository-root fallback. Completeness findings are **warnings**:
 
 - a declared reference that **does not resolve** on disk;
 - a known sidecar slot that is **absent** from `bundle_contents` (an omission —

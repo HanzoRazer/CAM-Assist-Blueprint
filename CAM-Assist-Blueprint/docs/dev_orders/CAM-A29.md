@@ -217,6 +217,27 @@ Those files live under `examples/traceability/`. Declaring-file-relative
 resolution correctly fails because the stored strings are
 repository-root-style.
 
+## Phase 2 inventory
+
+| Artifact | Field | Writer | Consumer | Pre-A29 convention | Canonical? |
+| --- | --- | --- | --- | --- | --- |
+| manufacturing decision record | `assumptions_file`, `risk_file`, `lineage_file` | `create_manufacturing_decision_record.py` (assumptions/risk; no `--lineage-file`) | structural type-check; A28 existence | CLI string stored verbatim | after A29: writer emits declaring-file-relative |
+| revision lineage | `revisions[].related_records.*` | creator does not emit related_records | structural type-check; A28 existence | committed example was repo-root-style | fixture corrected; creator unchanged for emission |
+| traceability bundle | `bundle_contents.*` | `create_traceability_bundle.py` | `--check-references`; A28 | already declaring-file-relative | yes; now uses shared helper |
+| Production Shop handoff | `contents.*` | `create_production_shop_handoff.py` | `--check-references`; A28 | already declaring-file-relative | yes; now uses shared helper |
+| Creation Studio request | `contents.*` | `create_creation_studio_request.py` | `--check-references`; A28 | already declaring-file-relative | yes; now uses shared helper |
+| A12 review decision | `assumptions_file`, `risk_file`, `lineage_file` | `record_review_decision.py` | structural | CLI string stored verbatim | **out of rewrite**; inventoried only |
+| package manifest | `strategy_file`, `review_packet_file` | package assembly | manifest validator; A28 | relative to manifest | **out of rewrite**; inventoried only |
+
+## Phase 6 characterization (before fixture correction)
+
+After shared resolution was in place and before committed examples were
+edited, `audit_package_coherence.py --json` against
+`examples/packages/ltb_vcarve_synthetic_example` reported exactly three
+error-level findings: the three `MISSING_REFERENCE` slots listed in Phase 0.
+No unrelated A28 errors. After fixture correction those findings are gone
+and `--json --fail-on-errors` exits 0.
+
 ## Non-goals
 
 See Scope. Additional coherence defects exposed while running CAM-A28

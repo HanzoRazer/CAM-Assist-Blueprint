@@ -43,8 +43,8 @@ must be `true`:
   "reviewed_by": "Senior Reviewer",
   "decision": "approved",
   "rationale": "Tooling, fixturing, and material assumptions reviewed against identified risks.",
-  "assumptions_file": "examples/traceability/ltb_vcarve_synthetic_example_assumptions.json",
-  "risk_file": "examples/traceability/ltb_vcarve_synthetic_example_risk.json",
+  "assumptions_file": "ltb_vcarve_synthetic_example_assumptions.json",
+  "risk_file": "ltb_vcarve_synthetic_example_risk.json",
   "authority": {
     "is_informational": true,
     "does_not_authorize_execution": true,
@@ -60,7 +60,8 @@ Required fields: `record_type`, `record_version`, `package_reference`, `prepared
 
 `assumptions_file` and `risk_file` are optional references to the assumptions and
 risk-assessment sidecars that informed the decision. They are referenced only; the
-linked files are never modified.
+linked files are never modified. Stored values are declaring-file-relative
+portable paths. See `docs/integration/ARTIFACT_REFERENCE_PATHS.md`.
 
 ## Creating a Decision Record
 
@@ -108,5 +109,6 @@ sidecar under the `Traceability:` section.
 
 ## Related
 
+- `docs/integration/ARTIFACT_REFERENCE_PATHS.md`
 - `MANUFACTURING_ASSUMPTIONS.md`
 - `RISK_ASSESSMENT.md`

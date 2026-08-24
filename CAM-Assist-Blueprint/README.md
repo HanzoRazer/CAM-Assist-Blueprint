@@ -598,6 +598,8 @@ python scripts/audit_package_coherence.py \
 machine readiness, or execution authority.
 
 See `docs/integration/PACKAGE_COHERENCE_AUDIT.md`.
+Declared paths resolve declaring-file-relative; see
+`docs/integration/ARTIFACT_REFERENCE_PATHS.md`.
 
 ---
 
@@ -622,6 +624,11 @@ new one. It is recorded here so the capability list above stays a list of
   import-stable map module, controlled A22-schema failures, strict
   mapping-index construction, and blank-identifier rejection. Maintenance of
   CAM-A26; no mapping-policy change. **Merged.**
+- **CAM-A29 traceability reference-path canonicalization** — one
+  declaring-file-relative rule for inter-artifact file references, shared by
+  creators, completeness validators, and CAM-A28. See
+  `docs/integration/ARTIFACT_REFERENCE_PATHS.md`. Maintenance of the
+  traceability ecosystem, not a new product capability.
 
 Capability status, including work that is implemented but **not** merged, is
 tracked in `docs/dev_orders/LEDGER.md`.
