@@ -24,6 +24,16 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
+from _shared.package_discovery import (
+    TRACEABILITY_SPECS,
+    conventional_annotations_path,
+    resolve_bundle,
+    resolve_capability_profile,
+    resolve_creation_studio_request,
+    resolve_handoff,
+    resolve_traceability,
+)
+
 KNOWN_MANIFEST_VERSIONS = ["1.0.0", "1.1.0"]
 VALID_SEVERITIES = ["info", "warning", "concern", "blocking"]
 MIN_REVIEW_PACKET_SIZE = 1024  # 1 KB
@@ -262,57 +272,6 @@ def format_annotations_section(annotations_data: dict, quiet: bool = False) -> l
     return lines
 
 
-# CAM-A17 traceability sidecar conventions
-TRACEABILITY_SPECS = [
-    ("assumptions", "assumptions", "_assumptions.json"),
-    ("risk_assessment", "risk assessment", "_risk.json"),
-    ("decision_record", "decision record", "_decision_record.json"),
-    ("revision_lineage", "revision lineage", "_lineage.json"),
-]
-
-
-def conventional_traceability_path(package_dir: Path, suffix: str) -> Path:
-    """Conventional sidecar location: <parent>/traceability/<package><suffix>.
-
-    For examples/packages/<name>, look under examples/traceability/ instead.
-    """
-    parent = package_dir.parent
-    if parent.name == "packages" and parent.parent.name == "examples":
-        base = parent.parent / "traceability"
-    else:
-        base = parent / "traceability"
-    return base / f"{package_dir.name}{suffix}"
-
-
-def resolve_traceability(
-    package_dir: Path,
-    assumptions: Path | None = None,
-    risk: Path | None = None,
-    decision_record: Path | None = None,
-    revision_lineage: Path | None = None,
-) -> dict:
-    """Resolve traceability sidecars: explicit flag first, then conventional fallback.
-
-    Does not broad-scan. Returns {key: {"present": bool, "path": str | None}}.
-    """
-    explicit = {
-        "assumptions": assumptions,
-        "risk_assessment": risk,
-        "decision_record": decision_record,
-        "revision_lineage": revision_lineage,
-    }
-    out: dict = {}
-    for key, _label, suffix in TRACEABILITY_SPECS:
-        path = explicit.get(key)
-        if path is None:
-            candidate = conventional_traceability_path(package_dir, suffix)
-            if candidate.exists():
-                path = candidate
-        present = path is not None and Path(path).exists()
-        out[key] = {"present": present, "path": str(path) if present else None}
-    return out
-
-
 def format_traceability_section(traceability: dict) -> list[str]:
     """Format the traceability section for terminal display."""
     lines = ["Traceability:"]
@@ -325,108 +284,16 @@ def format_traceability_section(traceability: dict) -> list[str]:
     return lines
 
 
-# CAM-A19 traceability bundle: a separate aggregator artifact, detected (not
-# parsed) under its own section. Modeled on the Federated Identity block.
-BUNDLE_SUFFIX = "_bundle.json"
-
-
-def resolve_bundle(package_dir: Path, explicit: Path | None = None) -> dict:
-    """Detect a traceability bundle: explicit flag first, then conventional path.
-
-    Detection only — does not parse, validate, resolve, or completeness-check the
-    bundle's contents. Returns {"present": bool, "path": str | None}.
-    """
-    path = explicit
-    if path is None:
-        candidate = conventional_traceability_path(package_dir, BUNDLE_SUFFIX)
-        if candidate.exists():
-            path = candidate
-    present = path is not None and Path(path).exists()
-    return {"present": present, "path": str(path) if present else None}
-
-
 def format_bundle_section(bundle: dict) -> list[str]:
     """Format the traceability bundle section (detection only)."""
     status = "present" if bundle["present"] else "not declared"
     return ["Traceability Bundle:", f"  {status}"]
 
 
-# CAM-A20 production shop handoff: a separate outbound sidecar, detected (not
-# parsed) under its own section. Unlike traceability artifacts, the conventional
-# location is a production_shop/ directory (NOT traceability/).
-HANDOFF_SUFFIX = "_handoff.json"
-
-
-def conventional_handoff_path(package_dir: Path) -> Path:
-    """Conventional handoff location: <parent>/production_shop/<package>_handoff.json.
-
-    For examples/packages/<name>, look under examples/production_shop/ instead.
-    """
-    parent = package_dir.parent
-    if parent.name == "packages" and parent.parent.name == "examples":
-        base = parent.parent / "production_shop"
-    else:
-        base = parent / "production_shop"
-    return base / f"{package_dir.name}{HANDOFF_SUFFIX}"
-
-
-def resolve_handoff(package_dir: Path, explicit: Path | None = None) -> dict:
-    """Detect a production shop handoff: explicit flag first, then conventional path.
-
-    Detection only — never opens, parses, validates, resolves references, or
-    completeness-checks the handoff, and makes no Production Shop runtime
-    assumptions. An existing-but-unparseable handoff still counts as present.
-    Returns {"present": bool, "path": str | None}.
-    """
-    path = explicit
-    if path is None:
-        candidate = conventional_handoff_path(package_dir)
-        if candidate.exists():
-            path = candidate
-    present = path is not None and Path(path).exists()
-    return {"present": present, "path": str(path) if present else None}
-
-
 def format_handoff_section(handoff: dict) -> list[str]:
     """Format the production shop handoff section (detection only)."""
     status = "present" if handoff["present"] else "not declared"
     return ["Production Shop Handoff:", f"  {status}"]
-
-
-# CAM-A22 creation studio request: a separate outbound, advisory sidecar,
-# detected (not parsed) under its own section. The conventional location is a
-# creation_studio/ directory.
-REQUEST_SUFFIX = "_request.json"
-
-
-def conventional_request_path(package_dir: Path) -> Path:
-    """Conventional request location: <parent>/creation_studio/<package>_request.json.
-
-    For examples/packages/<name>, look under examples/creation_studio/ instead.
-    """
-    parent = package_dir.parent
-    if parent.name == "packages" and parent.parent.name == "examples":
-        base = parent.parent / "creation_studio"
-    else:
-        base = parent / "creation_studio"
-    return base / f"{package_dir.name}{REQUEST_SUFFIX}"
-
-
-def resolve_creation_studio_request(package_dir: Path, explicit: Path | None = None) -> dict:
-    """Detect a creation studio request: explicit flag first, then conventional path.
-
-    Detection only — never opens, parses, validates, resolves references, infers
-    supported capabilities, or completeness-checks the request. An
-    existing-but-unparseable request still counts as present.
-    Returns {"present": bool, "path": str | None}.
-    """
-    path = explicit
-    if path is None:
-        candidate = conventional_request_path(package_dir)
-        if candidate.exists():
-            path = candidate
-    present = path is not None and Path(path).exists()
-    return {"present": present, "path": str(path) if present else None}
 
 
 def format_creation_studio_request_section(request: dict) -> list[str]:
@@ -439,46 +306,6 @@ def format_creation_studio_request_section(request: dict) -> list[str]:
     """
     status = "present (detected, not validated)" if request["present"] else "not declared"
     return ["CAM-Creation-Studio Request:", f"  {status}"]
-
-
-# CAM-A23 creation studio capability profile: a read-only capability contract
-# published BY CAM-Creation-Studio, detected (not parsed) under its own section.
-# It shares the creation_studio/ directory with the CAM-A22 request but is NOT
-# package-specific — one profile per Creation Studio installation/version — so
-# the filename is fixed rather than derived from the package name.
-CAPABILITY_PROFILE_FILENAME = "capability_profile.json"
-
-
-def conventional_capability_profile_path(package_dir: Path) -> Path:
-    """Conventional profile location: <parent>/creation_studio/capability_profile.json.
-
-    For examples/packages/<name>, look under examples/creation_studio/ instead.
-    """
-    parent = package_dir.parent
-    if parent.name == "packages" and parent.parent.name == "examples":
-        base = parent.parent / "creation_studio"
-    else:
-        base = parent / "creation_studio"
-    return base / CAPABILITY_PROFILE_FILENAME
-
-
-def resolve_capability_profile(package_dir: Path, explicit: Path | None = None) -> dict:
-    """Detect a capability profile: explicit flag first, then conventional path.
-
-    Detection only — never opens, parses, validates, resolves references, or reads
-    which capabilities are declared. An existing-but-unparseable profile still
-    counts as present. Presence says a Creation Studio profile was published
-    alongside this package's tree; it says nothing about what Creation Studio can
-    do for THIS package, and confers no authority of any kind.
-    Returns {"present": bool, "path": str | None}.
-    """
-    path = explicit
-    if path is None:
-        candidate = conventional_capability_profile_path(package_dir)
-        if candidate.exists():
-            path = candidate
-    present = path is not None and Path(path).exists()
-    return {"present": present, "path": str(path) if present else None}
 
 
 def format_capability_profile_section(profile: dict) -> list[str]:
@@ -777,19 +604,7 @@ def main() -> int:
             print(f"Error: Annotations file not found: {annotations_path}", file=sys.stderr)
             return 2
     else:
-        # Check conventional path
-        # If under examples/packages/<name>, check examples/review_annotations/<name>_annotations.json
-        # Otherwise, check <package_parent>/review_annotations/<package_name>_annotations.json
-        package_parent = package_dir.parent
-        if package_parent.name == "packages" and package_parent.parent.name == "examples":
-            # examples/packages/<name> -> examples/review_annotations/<name>_annotations.json
-            conventional_path = (
-                package_parent.parent / "review_annotations" / f"{package_dir.name}_annotations.json"
-            )
-        else:
-            conventional_path = (
-                package_parent / "review_annotations" / f"{package_dir.name}_annotations.json"
-            )
+        conventional_path = conventional_annotations_path(package_dir)
         if conventional_path.exists():
             annotations_path = conventional_path
 
