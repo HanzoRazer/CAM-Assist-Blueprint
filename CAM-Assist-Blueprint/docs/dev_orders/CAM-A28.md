@@ -207,9 +207,10 @@ exit 1. `--fail-on-errors` changes only the exit status; JSON is identical.
 
 ### JSON
 
-Deterministic, stdout-pure, ephemeral. Paths are POSIX-normalized and not
-absolutized. No approval, authorization, machine-readiness, or
-permission fields.
+Deterministic, stdout-pure, ephemeral. Artifact paths are POSIX-normalized
+relative to the package directory. `package.path` preserves the input
+spelling and is never rewritten against the process cwd. No approval,
+authorization, machine-readiness, or permission fields.
 
 ### Phase 8 is a classification gate
 
