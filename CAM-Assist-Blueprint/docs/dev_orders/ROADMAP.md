@@ -59,18 +59,25 @@ historical.
 PR #34  fc9ab51  CAM-A26 Creation Studio Capability Vocabulary Bridge
 ```
 
-### CAM-A27 — Capability Map Runtime Hardening — **maintenance-class**
+### Landed — CAM-A27
 
 ```text
-branch    cursor/cam-a27-capability-map-runtime-hardening-ec42
-dev order docs/dev_orders/CAM-A27.md
-PR        #35
+PR #35  7f20320  CAM-A27 Capability Map Runtime Hardening
 ```
 
-Hardens A26 map loading: shared import-stable module, controlled schema
-failures, strict mapping-index construction, blank-identifier rejection,
-normalized provenance. **Not a new mapping capability.** Canonical A26 rows
-are unchanged. A28+ remains unassigned.
+Maintenance-class. Shared map module, controlled schema failures, strict
+index construction. Canonical A26 rows unchanged.
+
+### CAM-A28 — Package Coherence Audit — **capability**
+
+```text
+branch    cursor/cam-a28-package-coherence-audit-ec42
+dev order docs/dev_orders/CAM-A28.md
+PR        none yet
+```
+
+Read-only identity and reference audit for one strategy package. Advisory
+by default. A29+ remains unassigned.
 
 ---
 
@@ -95,7 +102,7 @@ alongside the number.
 
 ## Unassigned
 
-### A28+ — **not yet authorized**
+### A29+ — **not yet authorized**
 
 ```text
 branch      none
@@ -106,13 +113,9 @@ test        none
 PR          none
 ```
 
-There is **no repository evidence of any kind** for A28 or beyond. The number is
+There is **no repository evidence of any kind** for A29 or beyond. The number is
 not reserved, the scope is not defined, and nothing in this repository implies
 what it should be.
-
-A28 is **not** assumed to be next merely because A27 is the highest assigned
-number. A27 is maintenance work occupying an A-number by authorization, so the
-next *capability* is the first since CAM-A26.
 
 ---
 

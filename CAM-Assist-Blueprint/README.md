@@ -577,6 +577,30 @@ See `docs/integration/CREATION_STUDIO_CAPABILITY_MAPPING.md`.
 
 ---
 
+### CAM-A28 — Package Coherence Audit
+
+Read-only audit of whether the evidence surrounding one strategy package
+agrees about identity and references. The result is advisory and ephemeral.
+
+```bash
+python scripts/audit_package_coherence.py \
+  --package examples/packages/ltb_vcarve_synthetic_example
+```
+
+```bash
+python scripts/audit_package_coherence.py \
+  --package examples/packages/ltb_vcarve_synthetic_example \
+  --json \
+  --fail-on-errors
+```
+
+`--fail-on-errors` changes only the exit status. Coherence is not approval,
+machine readiness, or execution authority.
+
+See `docs/integration/PACKAGE_COHERENCE_AUDIT.md`.
+
+---
+
 ### Maintenance and governance work (not A-series capabilities)
 
 Some merged work hardens or maintains existing capabilities rather than adding a
@@ -594,10 +618,10 @@ new one. It is recorded here so the capability list above stays a list of
   (PR #24) — hardening against the traceability bundle and production shop handoff.
 - **A19 traceability bundle hardening** (PR #22) and **A22 example regression
   test** (PR #28) — follow-ups to their respective capabilities.
-- **CAM-A27 capability-map runtime hardening** — shared import-stable map
-  module, controlled A22-schema failures, strict mapping-index construction,
-  and blank-identifier rejection. Maintenance of CAM-A26; no mapping-policy
-  change. Status is tracked in `docs/dev_orders/LEDGER.md`.
+- **CAM-A27 capability-map runtime hardening** (PR #35 → `7f20320`) — shared
+  import-stable map module, controlled A22-schema failures, strict
+  mapping-index construction, and blank-identifier rejection. Maintenance of
+  CAM-A26; no mapping-policy change. **Merged.**
 
 Capability status, including work that is implemented but **not** merged, is
 tracked in `docs/dev_orders/LEDGER.md`.
@@ -628,6 +652,7 @@ scripts/                # CLI tools
   validate_manifest.py
   assemble_strategy_package.py
   inspect_strategy_package.py
+  audit_package_coherence.py
   index_strategy_packages.py
   archive_strategy_package.py
   validate_package_archive.py

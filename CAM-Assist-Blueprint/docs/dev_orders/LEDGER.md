@@ -61,8 +61,9 @@ error: `38e0665` was recorded as `Local Only` and "never published" when it is o
 | A24 | Datetime Blank-Value Hardening | **Merged** | PR #32 `311d6a6` | `CAM-A24.md` | n/a | **Maintenance-class, not a capability** — numbered by explicit authorization 2026-08-10, not by inference. See mapping below |
 | **A25** | **Creation Studio Capability Reconciliation** | **Merged** | PR #33 → `cea7782` | `CAM-A25.md` | yes | Merged 2026-08-23. Report-only and advisory: exact identifier matching, `namespace_divergence` finding, request/profile provenance. No persisted artifact. Semantic mapping is CAM-A26 |
 | **A26** | **Creation Studio Capability Vocabulary Bridge** | **Merged** | PR #34 → `fc9ab51` | `CAM-A26.md` | yes | Merged 2026-08-23. Explicit A22→A23 mapping contract. Opt-in `--capability-map`. Exact A25 default unchanged |
-| A27 | Capability Map Runtime Hardening | **PR Open** | PR #35 `6460609` `cursor/cam-a27-capability-map-runtime-hardening-ec42` | `CAM-A27.md` | n/a | **Maintenance-class, not a capability** — numbered by explicit authorization. Shared map module, controlled errors, blank-identifier rejection. No mapping-policy change. Opened 2026-08-23. **Not merged.** |
-| A28+ | — | *unassigned* | — | — | — | **No repository evidence of any kind** |
+| A27 | Capability Map Runtime Hardening | **Merged** | PR #35 → `7f20320` | `CAM-A27.md` | n/a | **Maintenance-class, not a capability** — numbered by explicit authorization. Shared map module, controlled errors, blank-identifier rejection. No mapping-policy change. Merged 2026-08-23. |
+| **A28** | **Package Coherence Audit** | **Local Only** | `cursor/cam-a28-package-coherence-audit-ec42` | `CAM-A28.md` | yes | Capability. Read-only identity/reference audit. Advisory by default. Example decision-record/lineage paths classified as repository debt. **Not published.** |
+| A29+ | — | *unassigned* | — | — | — | **No repository evidence of any kind** |
 
 ---
 
