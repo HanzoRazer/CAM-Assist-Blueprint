@@ -51,7 +51,7 @@ def test_nested_directory_round_trip() -> None:
     declaring = Path("/x/a/b/c/record.json")
     target = Path("/x/a/other/deep/file.json")
     stored = relative_reference(declaring, target)
-    assert stored == "../../../other/deep/file.json"
+    assert stored == "../../other/deep/file.json"
     assert "\\" not in stored
     assert resolve_declared_reference(declaring, stored) == _norm(target)
 
