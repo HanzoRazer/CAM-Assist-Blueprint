@@ -72,7 +72,7 @@ must be `true`:
       "summary": "Reduced depth of cut after thin-wall chatter risk flagged.",
       "revised_by": "Senior Reviewer",
       "related_records": {
-        "risk_file": "examples/traceability/ltb_vcarve_synthetic_example_risk.json"
+        "risk_file": "ltb_vcarve_synthetic_example_risk.json"
       }
     }
   ],
@@ -87,7 +87,9 @@ must be `true`:
 Each revision requires `revision_id` (unique within the file) and `summary`.
 Optional fields: `supersedes` (the `revision_id` this entry replaces; absent means
 a root), `revised_by`, and `related_records` (optional pointers to
-`assumptions_file` / `risk_file` / `decision_record_file`).
+`assumptions_file` / `risk_file` / `decision_record_file`). Those pointers are
+declaring-file-relative portable paths; see
+`docs/integration/ARTIFACT_REFERENCE_PATHS.md`.
 
 ## Lineage Integrity
 
@@ -141,3 +143,6 @@ For packages under `examples/packages/<name>`, the convention is
 The inspector reports the sidecar under the `Traceability:` section as
 `revision lineage: present`. A decision record may reference a lineage sidecar via
 `record_review_decision.py --lineage-file` (referenced, never mutated).
+
+Path references in `related_records` follow
+`docs/integration/ARTIFACT_REFERENCE_PATHS.md`.

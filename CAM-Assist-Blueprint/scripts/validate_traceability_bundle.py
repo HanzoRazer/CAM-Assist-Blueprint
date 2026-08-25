@@ -21,8 +21,10 @@ file itself and never resolves or stats the referenced sidecars. A bundle whose
 references do not exist still passes structurally.
 
 The COMPLETENESS-WITNESS layer (opt-in --check-references) resolves each declared
-reference relative to a base directory (the bundle file's own directory by
-default; override with --base) and emits WARNINGS for completeness findings:
+reference relative to the bundle file's own directory by default (the canonical
+declaring-file-relative rule). ``--base`` is an explicit operator override of
+that resolution directory, not a silent repository-root fallback. Completeness
+findings are WARNINGS:
   - a declared reference that does not resolve on disk
   - a known sidecar slot that is absent from bundle_contents (an omission)
   - a resolved sidecar whose own package_reference differs from the bundle's
@@ -54,6 +56,9 @@ from pathlib import Path
 from typing import NamedTuple
 
 import json
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _shared.artifact_references import resolve_declared_reference, resolve_from_directory
 
 
 RECORD_TYPE = "cam_assist_traceability_bundle"
@@ -220,11 +225,15 @@ def referenced_package_reference(path: Path) -> str | None:
 
 
 def collect_completeness_findings(
-    data: dict, base_dir: Path, bundle_reference: str | None
+    data: dict,
+    declaring_file: Path,
+    bundle_reference: str | None,
+    *,
+    base: Path | None = None,
 ) -> tuple[list[str], list[str]]:
     """Completeness witness (warnings only).
 
-    For each known sidecar slot, relative to base_dir:
+    For each known sidecar slot, relative to declaring_file.parent (or --base):
     - present and does not resolve  -> warn (declared reference missing on disk)
     - present and resolves          -> best-effort read; warn if the sidecar's
                                        own package_reference differs from the
@@ -249,7 +258,10 @@ def collect_completeness_findings(
     for slot in CONTENT_SLOTS:
         value = contents.get(slot)
         if isinstance(value, str) and value.strip():
-            resolved = base_dir / value
+            if base is not None:
+                resolved = resolve_from_directory(base, value)
+            else:
+                resolved = resolve_declared_reference(declaring_file, value)
             if not resolved.exists():
                 msg = f"{slot} reference does not resolve: {value}"
                 warnings.append(msg)
@@ -287,12 +299,11 @@ def validate_bundle_file(
     # package_reference mismatches remain advisory. Structural rules are never
     # affected either way.
     if check_references and result.valid:
-        base_dir = base if base is not None else path.parent
         bundle_reference = data.get("package_reference")
         if not isinstance(bundle_reference, str):
             bundle_reference = None
         ref_warnings, unresolved = collect_completeness_findings(
-            data, base_dir, bundle_reference
+            data, path, bundle_reference, base=base
         )
         if fail_on_reference_warnings and unresolved:
             advisory = [w for w in ref_warnings if w not in unresolved]
@@ -345,8 +356,10 @@ def main() -> int:
         type=Path,
         default=None,
         help=(
-            "Base directory for resolving references under --check-references "
-            "(default: the bundle file's own directory)"
+            "Explicit override of the directory used to resolve references under "
+            "--check-references. Default is the bundle file's own directory "
+            "(declaring-file-relative). This is an operator override, not a "
+            "repository-root fallback."
         ),
     )
     parser.add_argument(

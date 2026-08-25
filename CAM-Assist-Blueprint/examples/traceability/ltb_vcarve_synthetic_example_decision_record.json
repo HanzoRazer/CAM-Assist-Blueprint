@@ -12,6 +12,6 @@
     "does_not_authorize_execution": true,
     "does_not_bypass_human_review": true
   },
-  "assumptions_file": "examples/traceability/ltb_vcarve_synthetic_example_assumptions.json",
-  "risk_file": "examples/traceability/ltb_vcarve_synthetic_example_risk.json"
+  "assumptions_file": "ltb_vcarve_synthetic_example_assumptions.json",
+  "risk_file": "ltb_vcarve_synthetic_example_risk.json"
 }

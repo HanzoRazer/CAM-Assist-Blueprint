@@ -10,6 +10,10 @@ checkpoints. It is informational only: it records how manufacturing reasoning
 evolved; it does NOT grant execution authority, constitute approval, or version
 individual traceability artifacts. Package contents are never modified.
 
+This creator seeds a root revision and does not emit related_records. When a
+later revision records associated files, those paths must be declaring-file-
+relative portable references (see scripts/_shared/artifact_references.py).
+
 Usage:
     python scripts/create_revision_lineage.py --package <dir> \
         --revised-by "Manufacturing Engineer" \

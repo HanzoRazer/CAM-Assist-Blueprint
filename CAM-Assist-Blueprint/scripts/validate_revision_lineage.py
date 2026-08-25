@@ -82,8 +82,9 @@ def validate_related_records(related: object, prefix: str, errors: list[str]) ->
     """Validate an optional related_records block on a revision.
 
     When present it must be an object, and any known pointer field must be a
-    string path. Pointers are referenced, never resolved or mutated; this only
-    checks shape, not file existence or package affinity.
+    string path. Pointers are referenced, never mutated; this only checks shape,
+    not file existence or package affinity. Completeness uses declaring-file-
+    relative resolution (scripts/_shared/artifact_references.py) in CAM-A28.
     """
     if not isinstance(related, dict):
         errors.append(f"{prefix}: related_records must be an object")

@@ -92,7 +92,8 @@ Required: `record_type`, `record_version`, `package_reference`,
 
 `contents` is an object whose keys are drawn from a fixed set of known slots; each
 value is a string path **reference**, resolved relative to the handoff file's own
-location and forward-slashed for portability. The known slots are:
+location and forward-slashed for portability (see
+`docs/integration/ARTIFACT_REFERENCE_PATHS.md`). The known slots are:
 
 | Slot | References |
 | --- | --- |
@@ -128,7 +129,8 @@ With no `--out`, the handoff is written to its conventional location,
 `<package_parent>/production_shop/<package_name>_handoff.json` (for packages under
 `examples/packages/<name>`, that root is `examples/production_shop/`).
 
-Every reference is recorded as a path relative to the handoff's output directory.
+Every reference is recorded as a path relative to the handoff output file,
+forward-slashed. See `docs/integration/ARTIFACT_REFERENCE_PATHS.md`.
 The core three content references are always written. The traceability bundle
 reference is included when passed explicitly with `--traceability-bundle <path>`
 (recorded as-is), or otherwise when a bundle is found at the conventional
@@ -185,8 +187,9 @@ python scripts/validate_production_shop_handoff.py \
 
 The opt-in `--check-references` layer is a narrow **existence witness**. For each
 reference **declared** in `contents`, it resolves the path relative to the handoff
-file's own directory and emits a **warning** when the path does not resolve on
-disk:
+file's own directory (declaring-file-relative; see
+`docs/integration/ARTIFACT_REFERENCE_PATHS.md`) and emits a **warning** when the
+path does not resolve on disk:
 
 ```text
 PASS: production shop handoff is structurally valid

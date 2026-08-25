@@ -1,9 +1,9 @@
 """CAM-A28 against the committed example ecosystem.
 
-Phase 8 is a classification gate. The example currently uses repo-root-style
-paths in the decision record and revision lineage. Declaring-file-relative
-resolution reports those as MISSING_REFERENCE. That is example debt, not an
-A28 defect.
+After CAM-A29 fixture correction, the canonical example is identity-coherent
+and its declared traceability references resolve declaring-file-relative.
+CAM-A28 still reports repo-root-style strings as MISSING_REFERENCE; this
+suite requires the committed example not to use that form.
 """
 
 from __future__ import annotations
@@ -29,22 +29,23 @@ def _run(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_example_audit_is_advisory_and_documents_path_debt() -> None:
+def test_example_audit_has_no_reference_path_incoherence() -> None:
     result = _run("--json")
     assert result.returncode == 0, result.stderr
     assert result.stderr == ""
     payload = json.loads(result.stdout)
     assert payload["package"]["package_reference"] == EXPECTED_IDENTITY
-    assert payload["summary"]["errors"] >= 1
+    assert payload["summary"]["errors"] == 0
+    assert payload["findings"] == []
 
     missing = [
         (finding["artifact"], finding["slot"])
         for finding in payload["findings"]
         if finding["code"] == "MISSING_REFERENCE"
     ]
-    assert ("decision_record", "assumptions_file") in missing
-    assert ("decision_record", "risk_file") in missing
-    assert ("revision_lineage", "revisions[1].related_records.risk_file") in missing
+    assert ("decision_record", "assumptions_file") not in missing
+    assert ("decision_record", "risk_file") not in missing
+    assert ("revision_lineage", "revisions[1].related_records.risk_file") not in missing
 
     identity_mismatches = [
         finding["artifact"]
@@ -54,11 +55,11 @@ def test_example_audit_is_advisory_and_documents_path_debt() -> None:
     assert identity_mismatches == []
 
 
-def test_example_strict_mode_exits_1_with_identical_json() -> None:
+def test_example_strict_mode_exits_0_with_identical_json() -> None:
     default = _run("--json")
     strict = _run("--json", "--fail-on-errors")
     assert default.returncode == 0
-    assert strict.returncode == 1
+    assert strict.returncode == 0
     assert default.stdout == strict.stdout
 
 

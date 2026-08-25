@@ -14,6 +14,7 @@ import posixpath
 from pathlib import Path
 from typing import Callable, NamedTuple
 
+from _shared.artifact_references import resolve_declared_reference
 from _shared.package_discovery import (
     resolve_annotations,
     resolve_bundle,
@@ -604,7 +605,7 @@ def audit_package_coherence(package_dir: Path) -> PackageCoherenceResult:
         if declaring is None:
             continue
         for slot, declared, target in extract_declared_references(name, data):
-            resolved = declaring.parent / declared
+            resolved = resolve_declared_reference(declaring, declared)
             target_path = discovered.get(target) if target is not None else None
             finding = compare_reference_target(
                 name,

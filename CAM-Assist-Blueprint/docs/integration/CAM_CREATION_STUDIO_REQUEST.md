@@ -129,7 +129,8 @@ python scripts/validate_creation_studio_request.py \
 ```
 
 An opt-in **existence** witness: for each declared reference, it warns when the
-path does not resolve relative to the request file's directory. Existence only — it
+path does not resolve relative to the request file's directory. See
+`docs/integration/ARTIFACT_REFERENCE_PATHS.md`. Existence only — it
 never opens, parses, or schema-checks a referenced file, performs no capability
 support check, and reports no absent-slot findings. Warnings never change validity
 or the exit code unless `--fail-on-reference-warnings` is also given (which promotes

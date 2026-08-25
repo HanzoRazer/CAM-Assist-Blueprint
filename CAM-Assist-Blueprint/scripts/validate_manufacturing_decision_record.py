@@ -112,6 +112,8 @@ def validate_decision_record(data: dict) -> ValidationResult:
         )
 
     for link_field in ("assumptions_file", "risk_file", "lineage_file"):
+        # Type-checked only. Existence is resolved declaring-file-relative by
+        # CAM-A28 through scripts/_shared/artifact_references.py, not here.
         if link_field in data and not isinstance(data.get(link_field), str):
             errors.append(f"'{link_field}' must be a string path when present")
 

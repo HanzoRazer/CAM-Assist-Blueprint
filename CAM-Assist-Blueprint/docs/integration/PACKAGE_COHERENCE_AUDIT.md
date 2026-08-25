@@ -84,8 +84,9 @@ performed.
 
 ## Reference Coherence
 
-Declared paths resolve **relative to the declaring file only**. There is
-no project-root fallback.
+Declared paths resolve **relative to the declaring file only** through the
+shared helper in `scripts/_shared/artifact_references.py`. There is no
+project-root fallback. See `docs/integration/ARTIFACT_REFERENCE_PATHS.md`.
 
 * If a declared path does not exist: `MISSING_REFERENCE` (error)
 * If it exists but is a different file than conventional discovery:
@@ -177,10 +178,7 @@ python scripts/audit_package_coherence.py \
   --fail-on-errors
 ```
 
-v1 does **not** add this command to repository GitHub Actions. The
-committed example currently has reference-path debt (see below). A later
-maintenance change can add the gate after that debt is intentionally
-resolved.
+v1 does **not** add this command to repository GitHub Actions.
 
 ## Authority Boundary
 
@@ -190,27 +188,18 @@ incoherent package is not prohibited by CAM-A28.
 
 ## Committed example classification
 
-Auditing `examples/packages/ltb_vcarve_synthetic_example` produces error
-findings because the manufacturing decision record and revision lineage
-store repo-root-style paths:
+Auditing `examples/packages/ltb_vcarve_synthetic_example` is identity-coherent
+(`luthiers-toolbox:vcarve:les-paul-custom-2024`). Declared traceability
+references resolve declaring-file-relative. CAM-A29 corrected the
+decision-record and lineage path strings that previously used
+repository-root-style form; that change was a fixture/contract correction,
+not a rewrite of the manufacturing decision.
 
-```text
-examples/traceability/ltb_vcarve_synthetic_example_assumptions.json
-examples/traceability/ltb_vcarve_synthetic_example_risk.json
-```
-
-Those strings do not resolve relative to the declaring files in
-`examples/traceability/`. CAM-A28 reports `MISSING_REFERENCE`. Package
-identity across the remaining sidecars matches
-`luthiers-toolbox:vcarve:les-paul-custom-2024`. Bundle, handoff, and
-Creation Studio request paths in that example are declaring-file-relative
-and resolve.
-
-This is classified as **example/repository debt**, not an auditor defect.
-The fixtures were not rewritten to obtain a green example.
+`--json --fail-on-errors` exits `0` for this example. CAM-A28 still reports
+a repo-root-style string as `MISSING_REFERENCE` if one is reintroduced.
 
 ## Non-Goals
 
 CAM-A28 does not repair artifacts, generate missing sidecars, normalize
 identities, perform capability reconciliation, assess machining quality,
-authorize execution, persist an audit record, or define CAM-A29.
+authorize execution, persist an audit record, or assign later numbered work.

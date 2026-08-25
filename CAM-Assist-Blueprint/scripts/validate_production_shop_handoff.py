@@ -54,6 +54,9 @@ from typing import NamedTuple
 
 import json
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _shared.artifact_references import resolve_declared_reference
+
 
 RECORD_TYPE = "cam_assist_production_shop_handoff"
 HANDOFF_DIRECTION = "cam_assist_to_production_shop"
@@ -216,15 +219,15 @@ def validate_handoff(data: dict) -> ValidationResult:
     return ValidationResult(valid=len(errors) == 0, errors=errors, warnings=warnings)
 
 
-def collect_reference_findings(data: dict, base_dir: Path) -> list[str]:
+def collect_reference_findings(data: dict, declaring_file: Path) -> list[str]:
     """Existence witness (warnings only).
 
-    For each reference DECLARED in contents, resolve it relative to base_dir and
-    warn when it does not resolve on disk. Existence only: never opens, parses,
-    or schema-checks a referenced file, performs no package_reference cross-check,
-    and emits NO absent-slot/omission findings (an omitted reference is allowed
-    and silent). Mutates nothing. Callers must not let these warnings affect
-    validity or the exit code.
+    For each reference DECLARED in contents, resolve it relative to the
+    declaring file and warn when it does not resolve on disk. Existence only:
+    never opens, parses, or schema-checks a referenced file, performs no
+    package_reference cross-check, and emits NO absent-slot/omission findings
+    (an omitted reference is allowed and silent). Mutates nothing. Callers must
+    not let these warnings affect validity or the exit code.
     """
     warnings: list[str] = []
     contents = data.get("contents")
@@ -233,7 +236,7 @@ def collect_reference_findings(data: dict, base_dir: Path) -> list[str]:
     for slot in CONTENT_SLOTS:
         value = contents.get(slot)
         if isinstance(value, str) and value.strip():
-            resolved = base_dir / value
+            resolved = resolve_declared_reference(declaring_file, value)
             if not resolved.exists():
                 warnings.append(f"{slot} reference does not resolve: {value}")
     return warnings
@@ -258,7 +261,7 @@ def validate_handoff_file(
     # exception: it promotes unresolved-reference findings to errors so CI can
     # enforce reference completeness. Structural rules are never affected either way.
     if check_references and result.valid:
-        ref_warnings = collect_reference_findings(data, path.parent)
+        ref_warnings = collect_reference_findings(data, path)
         if fail_on_reference_warnings and ref_warnings:
             result = ValidationResult(
                 valid=False,

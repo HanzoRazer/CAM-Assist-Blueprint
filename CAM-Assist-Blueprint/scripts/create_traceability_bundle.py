@@ -40,11 +40,13 @@ Exit codes:
 
 import argparse
 import json
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import NamedTuple
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _shared.artifact_references import relative_reference
 
 
 RECORD_TYPE = "cam_assist_traceability_bundle"
@@ -100,18 +102,17 @@ def conventional_base(package_dir: Path, sub_root: str) -> Path:
     return parent / sub_root
 
 
-def discover_contents(package_dir: Path, output_dir: Path) -> dict:
+def discover_contents(package_dir: Path, output_file: Path) -> dict:
     """Scan conventional sidecar locations and build reference entries.
 
-    Each discovered file is recorded as a path relative to output_dir, using
-    forward slashes for portability. Absent sidecars are omitted.
+    Each discovered file is recorded as a path relative to the bundle output
+    file, using forward slashes for portability. Absent sidecars are omitted.
     """
     contents: dict = {}
     for slot, sub_root, suffix in DISCOVERY_MAP:
         candidate = conventional_base(package_dir, sub_root) / f"{package_dir.name}{suffix}"
         if candidate.exists():
-            rel = os.path.relpath(candidate, start=output_dir)
-            contents[slot] = Path(rel).as_posix()
+            contents[slot] = relative_reference(output_file, candidate)
     return contents
 
 
@@ -140,15 +141,15 @@ def create_bundle(
             f"Output file already exists: {output_path} (use --force to overwrite)", 1,
         )
 
-    # Discovered references are stored relative to the output directory.
-    # os.path.relpath raises ValueError when the two paths share no common anchor
-    # — most notably a sidecar and output on different Windows drives — so surface
-    # that as a clean argument error rather than an uncaught traceback.
+    # Discovered references are stored relative to the output file.
+    # relative_reference raises ValueError when the two paths share no common
+    # anchor — most notably a sidecar and output on different Windows drives —
+    # so surface that as a clean argument error rather than an uncaught traceback.
     if empty:
         bundle_contents: dict = {}
     else:
         try:
-            bundle_contents = discover_contents(package_dir, output_path.parent)
+            bundle_contents = discover_contents(package_dir, output_path)
         except ValueError as e:
             return CreateResult(
                 False, None,

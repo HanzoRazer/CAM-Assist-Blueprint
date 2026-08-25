@@ -93,19 +93,47 @@ class TestCreateAndValidate:
 
     def test_linked_assumptions_file(self, package, tmp_path):
         out = tmp_path / "d.json"
-        _create_mdr(package, out, extra=("--assumptions-file", "traceability/test_pkg_assumptions.json"))
+        target = tmp_path / "assumptions.json"
+        target.write_text("{}\n", encoding="utf-8")
+        _create_mdr(package, out, extra=("--assumptions-file", str(target)))
         data = json.loads(out.read_text())
-        assert data["assumptions_file"] == "traceability/test_pkg_assumptions.json"
+        assert data["assumptions_file"] == "assumptions.json"
+        assert "\\" not in data["assumptions_file"]
         code, _, _ = run_script(VALIDATE_SCRIPT, str(out))
         assert code == 0
 
     def test_linked_risk_file(self, package, tmp_path):
-        out = tmp_path / "d.json"
-        _create_mdr(package, out, extra=("--risk-file", "traceability/test_pkg_risk.json"))
+        out = tmp_path / "out" / "d.json"
+        target = tmp_path / "traceability" / "test_pkg_risk.json"
+        target.parent.mkdir()
+        target.write_text("{}\n", encoding="utf-8")
+        _create_mdr(package, out, extra=("--risk-file", str(target)))
         data = json.loads(out.read_text())
-        assert data["risk_file"] == "traceability/test_pkg_risk.json"
+        assert data["risk_file"] == "../traceability/test_pkg_risk.json"
+        assert "\\" not in data["risk_file"]
         code, _, _ = run_script(VALIDATE_SCRIPT, str(out))
         assert code == 0
+
+    def test_cli_relative_path_is_rewritten_not_stored_verbatim(self, package, tmp_path):
+        """Repo-root-style CLI input is stored declaring-file-relative."""
+        out = tmp_path / "traceability" / "d.json"
+        target = tmp_path / "traceability" / "assumptions.json"
+        out.parent.mkdir()
+        target.write_text("{}\n", encoding="utf-8")
+        cmd = [
+            sys.executable, str(CREATE_SCRIPT),
+            "--package", str(package),
+            "--decision", "approved",
+            "--prepared-by", "Manufacturing Engineer",
+            "--reviewed-by", "Senior Reviewer",
+            "--rationale", "Reviewed assumptions and risks.",
+            "--out", "traceability/d.json",
+            "--assumptions-file", "traceability/assumptions.json",
+        ]
+        result = subprocess.run(cmd, cwd=tmp_path, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        data = json.loads(out.read_text())
+        assert data["assumptions_file"] == "assumptions.json"
 
     def test_authority_block_is_const_true(self, package, tmp_path):
         out = tmp_path / "d.json"
