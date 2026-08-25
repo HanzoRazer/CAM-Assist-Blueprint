@@ -90,6 +90,7 @@ product capability.
 ```text
 branch    cursor/cam-a30-truss-rod-channel-strategy-fc97
 dev order docs/dev_orders/CAM-A30.md
+PR        #38
 ```
 
 First post-fret-slot manufacturing-strategy operation: 2.5D open-path
