@@ -76,16 +76,24 @@ PR #36  65e9f4c  CAM-A28 Package Coherence Audit
 
 Capability. Read-only identity and reference audit. Advisory by default.
 
-### CAM-A29 — Traceability Reference Path Canonicalization — **maintenance**
+### Landed — CAM-A29
 
 ```text
-branch    cursor/cam-a29-traceability-reference-path-canonicalization-ec42
-dev order docs/dev_orders/CAM-A29.md
-PR        #37
+PR #37  0cfa5e9  CAM-A29 Traceability Reference Path Canonicalization
 ```
 
-Canonical declaring-file-relative artifact references. Not a product
-capability. A30+ remains unassigned.
+Maintenance-class. Declaring-file-relative artifact references. Not a
+product capability.
+
+### CAM-A30 — Truss Rod Channel Strategy Support — **capability**
+
+```text
+branch    cursor/cam-a30-truss-rod-channel-strategy-fc97
+dev order docs/dev_orders/CAM-A30.md
+```
+
+First post-fret-slot manufacturing-strategy operation: 2.5D open-path
+simple truss rod channel. A31+ remains unassigned.
 
 ---
 
@@ -110,7 +118,7 @@ alongside the number.
 
 ## Unassigned
 
-### A30+ — **not yet authorized**
+### A31+ — **not yet authorized**
 
 ```text
 branch      none
@@ -121,7 +129,7 @@ test        none
 PR          none
 ```
 
-There is **no repository evidence of any kind** for A30 or beyond. The number is
+There is **no repository evidence of any kind** for A31 or beyond. The number is
 not reserved, the scope is not defined, and nothing in this repository implies
 what it should be.
 

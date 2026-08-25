@@ -1,0 +1,37 @@
+{
+  "operation_type": "truss_rod_channel",
+  "strategy_id": "truss-rod-channel-straight-sample",
+  "units": "inches",
+  "coordinate_frame": {
+    "origin": "nut_centerline",
+    "x_axis": "along_neck_toward_bridge",
+    "y_axis": "across_neck_treble_positive",
+    "z_axis": "into_neck_blank",
+    "datum_point": { "x": 0, "y": 0, "z": 0 }
+  },
+  "channel": {
+    "start": { "x": 0.75, "y": 0.0 },
+    "end": { "x": 16.0, "y": 0.0 },
+    "width": 0.25,
+    "depth": 0.375
+  },
+  "tool": {
+    "diameter": 0.25,
+    "tool_type": "end_mill",
+    "description": "End mill sized to the channel width"
+  },
+  "maximum_pass_depth": 0.125,
+  "blank_thickness": 0.8,
+  "access_direction": "from_headstock",
+  "material_context": {
+    "material_class": "hardwood",
+    "species": "Hard Maple",
+    "hardness_janka": 1450,
+    "grain_direction": "along_neck_length"
+  },
+  "provenance": {
+    "source_spec_id": "sample-neck-truss-rod-channel",
+    "created_at": "2026-08-25T00:00:00Z",
+    "created_by": "cam-assist-blueprint"
+  }
+}

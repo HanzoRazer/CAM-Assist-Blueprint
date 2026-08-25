@@ -144,6 +144,7 @@ Fret slots are a "simple" strategy:
 
 **Type:** 2.5D open path  
 **Complexity:** Simple  
+**Implementation:** CAM-A30 strategy support  
 **Key parameters:** Rod dimensions, access point, depth
 
 ## Operation Schema

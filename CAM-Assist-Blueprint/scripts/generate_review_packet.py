@@ -44,6 +44,183 @@ NON_EXECUTION_NOTICE = """
 """
 
 
+def _render_fret_slot_summary(data: dict, tool: dict, params: dict, units: str) -> list[str]:
+    """Existing fret-slot summary. Keep text stable for golden regression."""
+    lines: list[str] = []
+    lines.append("## 7. Fret Slot Summary")
+    lines.append("")
+
+    positions = data.get("positions", [])
+    calc_basis = data.get("calculation_basis", {})
+
+    fret_count = len(positions)
+    scale_length = calc_basis.get("scale_length", "N/A")
+    temperament = calc_basis.get("temperament", "N/A")
+
+    first_fret = positions[0] if positions else {}
+    fret_12 = next((p for p in positions if p.get("fret") == 12), {})
+    last_fret = positions[-1] if positions else {}
+
+    lines.append("### Overview")
+    lines.append("")
+    lines.append(f"| Property | Value |")
+    lines.append(f"|----------|-------|")
+    lines.append(f"| Fret Count | {fret_count} |")
+    lines.append(f"| Scale Length | {scale_length} {units} |")
+    lines.append(f"| Temperament | {temperament} |")
+    lines.append(f"| Slot Width | {tool.get('diameter', 'N/A')} {units} |")
+    lines.append(f"| Slot Depth | {params.get('depth', 'N/A')} {units} |")
+    lines.append("")
+
+    lines.append("### Key Positions")
+    lines.append("")
+    lines.append(f"| Fret | Distance from Nut |")
+    lines.append(f"|------|-------------------|")
+    if first_fret:
+        lines.append(f"| 1 (first) | {first_fret.get('distance_from_nut', 'N/A')} {units} |")
+    if fret_12:
+        lines.append(f"| 12 (octave) | {fret_12.get('distance_from_nut', 'N/A')} {units} |")
+    if last_fret and last_fret.get("fret") != 12:
+        lines.append(f"| {last_fret.get('fret', 'N/A')} (last) | {last_fret.get('distance_from_nut', 'N/A')} {units} |")
+    lines.append("")
+
+    if positions:
+        lines.append("### All Fret Positions")
+        lines.append("")
+        lines.append("<details>")
+        lines.append("<summary>Click to expand full position table</summary>")
+        lines.append("")
+        lines.append(f"| Fret | Distance from Nut ({units}) |")
+        lines.append(f"|------|---------------------|")
+        for pos in positions:
+            lines.append(f"| {pos.get('fret', 'N/A')} | {pos.get('distance_from_nut', 'N/A')} |")
+        lines.append("")
+        lines.append("</details>")
+        lines.append("")
+
+    if calc_basis.get("formula"):
+        lines.append("### Calculation Basis")
+        lines.append("")
+        lines.append(f"**Formula:** `{calc_basis.get('formula')}`")
+        lines.append("")
+    return lines
+
+
+def _render_truss_rod_channel_summary(data: dict, units: str) -> list[str]:
+    lines: list[str] = []
+    lines.append("## 7. Truss Rod Channel Summary")
+    lines.append("")
+    channel = data.get("channel") or {}
+    depth_strategy = data.get("depth_strategy") or {}
+    compatibility = data.get("tool_compatibility") or {}
+    intent = data.get("operation_intent") or {}
+    start = channel.get("start") or {}
+    end = channel.get("end") or {}
+    evidence = (data.get("review_requirements") or {}).get("evidence") or {}
+
+    lines.append("### Overview")
+    lines.append("")
+    lines.append("| Property | Value |")
+    lines.append("|----------|-------|")
+    lines.append(f"| Operation Type | {intent.get('operation_type', 'N/A')} |")
+    lines.append(f"| Geometry Type | {intent.get('geometry_type', 'N/A')} |")
+    lines.append(f"| Strategy Complexity | {intent.get('strategy_complexity', 'N/A')} |")
+    lines.append(f"| Cut Intent | {intent.get('cut_intent', 'N/A')} |")
+    lines.append(f"| Channel Width | {channel.get('width', 'N/A')} {units} |")
+    lines.append(f"| Channel Depth | {channel.get('depth', 'N/A')} {units} |")
+    lines.append(f"| Channel Length | {channel.get('length', 'N/A')} {units} |")
+    lines.append(f"| Bottom Profile | {channel.get('bottom_profile', 'N/A')} |")
+    lines.append(f"| Start | ({start.get('x', 'N/A')}, {start.get('y', 'N/A')}) |")
+    lines.append(f"| End | ({end.get('x', 'N/A')}, {end.get('y', 'N/A')}) |")
+    lines.append("")
+
+    lines.append("### Depth Strategy")
+    lines.append("")
+    lines.append("| Property | Value |")
+    lines.append("|----------|-------|")
+    lines.append(f"| Final Depth | {depth_strategy.get('final_depth', 'N/A')} {units} |")
+    lines.append(f"| Maximum Pass Depth | {depth_strategy.get('maximum_pass_depth', 'N/A')} {units} |")
+    lines.append(f"| Pass Count | {depth_strategy.get('pass_count', 'N/A')} |")
+    passes = depth_strategy.get("passes") or []
+    lines.append(f"| Passes | {', '.join(str(p) for p in passes) if passes else 'N/A'} |")
+    lines.append("")
+    lines.append("*Depth passes are a manufacturing-strategy sequence. They are not G-code or cutter-center motion.*")
+    lines.append("")
+
+    lines.append("### Tool Compatibility")
+    lines.append("")
+    lines.append("| Property | Value |")
+    lines.append("|----------|-------|")
+    lines.append(f"| Status | {compatibility.get('status', 'N/A')} |")
+    lines.append(f"| Recommendation | {compatibility.get('recommendation', 'N/A')} |")
+    lines.append(f"| Tool Diameter | {compatibility.get('tool_diameter', 'N/A')} {units} |")
+    lines.append(f"| Width Strategy | {compatibility.get('width_strategy', 'N/A')} |")
+    lines.append("")
+
+    if evidence.get("residual_material") is not None:
+        lines.append(f"**Residual material beneath channel:** {evidence.get('residual_material')} {units}")
+        lines.append("")
+    unresolved = (data.get("review_requirements") or {}).get("unresolved_assumptions") or []
+    if unresolved:
+        lines.append("**Unresolved assumptions:**")
+        for item in unresolved:
+            lines.append(f"- {item}")
+        lines.append("")
+    return lines
+
+
+def _render_truss_rod_review_items(data: dict, units: str) -> list[str]:
+    lines: list[str] = []
+    evidence = (data.get("review_requirements") or {}).get("evidence") or {}
+    items = (data.get("review_requirements") or {}).get("items") or []
+    if items:
+        for item in items:
+            lines.append(f"- [ ] {item}")
+    else:
+        lines.append("- [ ] Channel width matches intended truss rod fit")
+        lines.append("- [ ] Channel depth matches intended rod and blank")
+        lines.append("- [ ] Start and end locations match the neck design")
+        lines.append("- [ ] Residual material beneath the channel is adequate")
+        lines.append("- [ ] Recommended tool geometrically fits the channel")
+        lines.append("- [ ] Depth-pass sequence does not overcut")
+        lines.append("- [ ] Access direction and workholding are understood")
+        lines.append("- [ ] This package does not authorize machine execution")
+    lines.append("")
+    if evidence:
+        lines.append("### Review Evidence")
+        lines.append("")
+        lines.append("| Item | Value |")
+        lines.append("|------|-------|")
+        for key in (
+            "channel_width",
+            "channel_depth",
+            "channel_length",
+            "tool_diameter",
+            "tool_compatibility",
+            "width_strategy",
+            "residual_material",
+            "access_direction",
+            "pass_count",
+        ):
+            if key in evidence:
+                value = evidence[key]
+                unit_suffix = f" {units}" if key in {
+                    "channel_width", "channel_depth", "channel_length",
+                    "tool_diameter", "residual_material",
+                } else ""
+                lines.append(f"| {key} | {value}{unit_suffix} |")
+        start = evidence.get("start")
+        end = evidence.get("end")
+        if start:
+            lines.append(f"| start | ({start.get('x')}, {start.get('y')}) |")
+        if end:
+            lines.append(f"| end | ({end.get('x')}, {end.get('y')}) |")
+        if evidence.get("passes"):
+            lines.append(f"| passes | {evidence.get('passes')} |")
+        lines.append("")
+    return lines
+
+
 def generate_review_packet(data: dict, manifest_data: dict | None = None) -> str:
     """Generate a Markdown review packet from validated strategy data.
 
@@ -148,6 +325,10 @@ def generate_review_packet(data: dict, manifest_data: dict | None = None) -> str
     lines.append(f"| Operation Type | {op_intent.get('operation_type', 'N/A')} |")
     lines.append(f"| Target Feature | {op_intent.get('target_feature', 'N/A')} |")
     lines.append(f"| Cut Intent | {op_intent.get('cut_intent', 'N/A')} |")
+    if op_intent.get("geometry_type"):
+        lines.append(f"| Geometry Type | {op_intent.get('geometry_type')} |")
+    if op_intent.get("strategy_complexity"):
+        lines.append(f"| Strategy Complexity | {op_intent.get('strategy_complexity')} |")
     non_exec = op_intent.get('non_execution_declaration')
     lines.append(f"| Non-Execution Declaration | **{non_exec}** |")
     lines.append("")
@@ -171,71 +352,18 @@ def generate_review_packet(data: dict, manifest_data: dict | None = None) -> str
     lines.append(f"**Units:** {data.get('units', 'N/A')}")
     lines.append("")
 
-    # Section 7: Fret Slot Summary
-    lines.append("---")
-    lines.append("")
-    lines.append("## 7. Fret Slot Summary")
-    lines.append("")
-
-    positions = data.get("positions", [])
-    calc_basis = data.get("calculation_basis", {})
     operation = data.get("operation", {})
     params = operation.get("parameters", {})
     tool = operation.get("tool", {})
+    units = data.get("units", "")
 
-    # Summary stats
-    fret_count = len(positions)
-    scale_length = calc_basis.get("scale_length", "N/A")
-    temperament = calc_basis.get("temperament", "N/A")
-
-    first_fret = positions[0] if positions else {}
-    fret_12 = next((p for p in positions if p.get("fret") == 12), {})
-    last_fret = positions[-1] if positions else {}
-
-    lines.append("### Overview")
+    # Section 7: Operation summary (dispatched)
+    lines.append("---")
     lines.append("")
-    lines.append(f"| Property | Value |")
-    lines.append(f"|----------|-------|")
-    lines.append(f"| Fret Count | {fret_count} |")
-    lines.append(f"| Scale Length | {scale_length} {data.get('units', '')} |")
-    lines.append(f"| Temperament | {temperament} |")
-    lines.append(f"| Slot Width | {tool.get('diameter', 'N/A')} {data.get('units', '')} |")
-    lines.append(f"| Slot Depth | {params.get('depth', 'N/A')} {data.get('units', '')} |")
-    lines.append("")
-
-    lines.append("### Key Positions")
-    lines.append("")
-    lines.append(f"| Fret | Distance from Nut |")
-    lines.append(f"|------|-------------------|")
-    if first_fret:
-        lines.append(f"| 1 (first) | {first_fret.get('distance_from_nut', 'N/A')} {data.get('units', '')} |")
-    if fret_12:
-        lines.append(f"| 12 (octave) | {fret_12.get('distance_from_nut', 'N/A')} {data.get('units', '')} |")
-    if last_fret and last_fret.get("fret") != 12:
-        lines.append(f"| {last_fret.get('fret', 'N/A')} (last) | {last_fret.get('distance_from_nut', 'N/A')} {data.get('units', '')} |")
-    lines.append("")
-
-    # Full position table
-    if positions:
-        lines.append("### All Fret Positions")
-        lines.append("")
-        lines.append("<details>")
-        lines.append("<summary>Click to expand full position table</summary>")
-        lines.append("")
-        lines.append(f"| Fret | Distance from Nut ({data.get('units', '')}) |")
-        lines.append(f"|------|---------------------|")
-        for pos in positions:
-            lines.append(f"| {pos.get('fret', 'N/A')} | {pos.get('distance_from_nut', 'N/A')} |")
-        lines.append("")
-        lines.append("</details>")
-        lines.append("")
-
-    # Calculation basis
-    if calc_basis.get("formula"):
-        lines.append("### Calculation Basis")
-        lines.append("")
-        lines.append(f"**Formula:** `{calc_basis.get('formula')}`")
-        lines.append("")
+    if op_type == "truss_rod_channel":
+        lines.extend(_render_truss_rod_channel_summary(data, units))
+    else:
+        lines.extend(_render_fret_slot_summary(data, tool, params, units))
 
     # Section 8: Tool Assumptions
     lines.append("---")
@@ -247,7 +375,7 @@ def generate_review_packet(data: dict, manifest_data: dict | None = None) -> str
         lines.append(f"|----------|-------|")
         lines.append(f"| Tool Type | {tool.get('tool_type', 'N/A')} |")
         lines.append(f"| Reference Type | {tool.get('reference_type', 'N/A')} |")
-        lines.append(f"| Diameter | {tool.get('diameter', 'N/A')} {data.get('units', '')} |")
+        lines.append(f"| Diameter | {tool.get('diameter', 'N/A')} {units} |")
         lines.append(f"| Description | {tool.get('description', 'N/A')} |")
         lines.append("")
 
@@ -264,6 +392,17 @@ def generate_review_packet(data: dict, manifest_data: dict | None = None) -> str
             for alt in alternatives:
                 lines.append(f"- {alt}")
             lines.append("")
+
+        compatibility = data.get("tool_compatibility") or {}
+        if op_type == "truss_rod_channel" and compatibility:
+            lines.append("| Compatibility | Value |")
+            lines.append("|---------------|-------|")
+            lines.append(f"| Status | {compatibility.get('status', 'N/A')} |")
+            lines.append(f"| Recommendation | {compatibility.get('recommendation', 'N/A')} |")
+            lines.append(f"| Width Strategy | {compatibility.get('width_strategy', 'N/A')} |")
+            lines.append("")
+            lines.append("*Tool fit is geometric compatibility only. It is not execution approval.*")
+            lines.append("")
     else:
         lines.append("*Not specified in strategy package.*")
         lines.append("")
@@ -273,11 +412,29 @@ def generate_review_packet(data: dict, manifest_data: dict | None = None) -> str
     lines.append("")
     lines.append("## 9. Workholding Assumptions")
     lines.append("")
-    lines.append("*Not specified in strategy package.*")
-    lines.append("")
-    lines.append("> **Operator Note:** Verify adequate workholding before machining.")
-    lines.append("> Fretboard stock must be securely clamped to prevent movement during slot cutting.")
-    lines.append("")
+    if op_type == "truss_rod_channel":
+        setup = data.get("setup_assumptions") or {}
+        workholding = setup.get("workholding")
+        if workholding:
+            lines.append(workholding)
+            lines.append("")
+        else:
+            lines.append("*Not specified in strategy package.*")
+            lines.append("")
+        if setup.get("access_direction"):
+            lines.append(f"**Access direction:** {setup.get('access_direction')}")
+            lines.append("")
+        lines.append("> **Operator Note:** Verify adequate workholding before machining.")
+        lines.append("> Neck blank must be secured against movement along the channel axis.")
+        lines.append("")
+        lines.append("*Workholding notes are advisory manufacturing assumptions. They are not fixture programs or work-offset assignments.*")
+        lines.append("")
+    else:
+        lines.append("*Not specified in strategy package.*")
+        lines.append("")
+        lines.append("> **Operator Note:** Verify adequate workholding before machining.")
+        lines.append("> Fretboard stock must be securely clamped to prevent movement during slot cutting.")
+        lines.append("")
 
     # Section 10: Safety Boundary
     lines.append("---")
@@ -304,16 +461,19 @@ def generate_review_packet(data: dict, manifest_data: dict | None = None) -> str
     lines.append("")
     lines.append("Before proceeding to CAM or machining, the operator must verify:")
     lines.append("")
-    lines.append("- [ ] Fret positions match instrument specification")
-    lines.append("- [ ] Scale length is correct for target instrument")
-    lines.append("- [ ] Slot width matches intended fret wire tang")
-    lines.append("- [ ] Slot depth is appropriate for fretboard thickness")
-    lines.append("- [ ] Material assumptions match actual workpiece")
-    lines.append("- [ ] Tool selection is appropriate and available")
-    lines.append("- [ ] Coordinate frame matches machine setup")
-    lines.append("- [ ] Workholding is adequate and secure")
-    lines.append("- [ ] Safety boundaries are understood")
-    lines.append("")
+    if op_type == "truss_rod_channel":
+        lines.extend(_render_truss_rod_review_items(data, units))
+    else:
+        lines.append("- [ ] Fret positions match instrument specification")
+        lines.append("- [ ] Scale length is correct for target instrument")
+        lines.append("- [ ] Slot width matches intended fret wire tang")
+        lines.append("- [ ] Slot depth is appropriate for fretboard thickness")
+        lines.append("- [ ] Material assumptions match actual workpiece")
+        lines.append("- [ ] Tool selection is appropriate and available")
+        lines.append("- [ ] Coordinate frame matches machine setup")
+        lines.append("- [ ] Workholding is adequate and secure")
+        lines.append("- [ ] Safety boundaries are understood")
+        lines.append("")
 
     # Section 12: Warnings and Failure Modes
     lines.append("---")
@@ -336,13 +496,22 @@ def generate_review_packet(data: dict, manifest_data: dict | None = None) -> str
 
     lines.append("### Potential Failure Modes")
     lines.append("")
-    lines.append("- **Slot too shallow:** Fret wire may not seat properly")
-    lines.append("- **Slot too deep:** May intersect truss rod channel or weaken fretboard")
-    lines.append("- **Slot too narrow:** Fret wire will not fit")
-    lines.append("- **Slot too wide:** Fret wire will be loose, poor sustain")
-    lines.append("- **Position error:** Intonation problems, unplayable instrument")
-    lines.append("- **Tearout:** Material damage from improper feed/speed or grain direction")
-    lines.append("")
+    if op_type == "truss_rod_channel":
+        lines.append("- **Channel too shallow:** Truss rod may not seat or may sit proud of the glue surface")
+        lines.append("- **Channel too deep:** Residual material under the channel may be insufficient")
+        lines.append("- **Channel too narrow:** Rod will not fit; do not enlarge corners or width silently")
+        lines.append("- **Channel too wide:** Rod will sit loosely; width must match explicit design intent")
+        lines.append("- **Oversized cutter:** Tool diameter larger than channel width is rejected, not accommodated")
+        lines.append("- **Overcut depth:** Pass calculation must never exceed requested final depth")
+        lines.append("")
+    else:
+        lines.append("- **Slot too shallow:** Fret wire may not seat properly")
+        lines.append("- **Slot too deep:** May intersect truss rod channel or weaken fretboard")
+        lines.append("- **Slot too narrow:** Fret wire will not fit")
+        lines.append("- **Slot too wide:** Fret wire will be loose, poor sustain")
+        lines.append("- **Position error:** Intonation problems, unplayable instrument")
+        lines.append("- **Tearout:** Material damage from improper feed/speed or grain direction")
+        lines.append("")
 
     # Section 13: Operator Sign-Off
     lines.append("---")

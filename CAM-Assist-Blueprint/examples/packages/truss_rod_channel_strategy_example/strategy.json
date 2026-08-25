@@ -1,0 +1,170 @@
+{
+  "strategy_version": "1.2",
+  "strategy_id": "truss-rod-channel-straight-sample",
+  "units": "inches",
+  "coordinate_frame": {
+    "origin": "nut_centerline",
+    "x_axis": "along_neck_toward_bridge",
+    "y_axis": "across_neck_treble_positive",
+    "z_axis": "into_neck_blank",
+    "datum_point": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "provenance": {
+    "source_spec_id": "sample-neck-truss-rod-channel",
+    "cam_assist_version": "0.5.0",
+    "created_at": "2026-08-25T00:00:00Z",
+    "created_by": "cam-assist-blueprint"
+  },
+  "operation_intent": {
+    "operation_type": "truss_rod_channel",
+    "target_feature": "neck",
+    "cut_intent": "channel",
+    "geometry_type": "2.5D",
+    "strategy_complexity": "simple",
+    "non_execution_declaration": true
+  },
+  "material_context": {
+    "material_class": "hardwood",
+    "species": "Hard Maple",
+    "hardness_janka": 1450,
+    "grain_direction": "along_neck_length"
+  },
+  "safety_boundary": {
+    "non_execution_declaration": true,
+    "human_review_required": true,
+    "max_depth_inches": 0.375,
+    "tool_diameter_inches": 0.25,
+    "execution_authority_claim": false
+  },
+  "geometry": {
+    "dxf_file": "geometry.dxf",
+    "primary_layer": "TRUSS_ROD_CHANNEL",
+    "reference_layers": [
+      "NECK_CENTERLINE",
+      "NECK_OUTLINE"
+    ]
+  },
+  "operation": {
+    "type": "channel_cut",
+    "tool": {
+      "reference_type": "dimension_spec",
+      "tool_type": "end_mill",
+      "diameter": 0.25,
+      "description": "End mill sized to the channel width"
+    },
+    "parameters": {
+      "depth": 0.375,
+      "width": 0.25,
+      "depth_per_pass": 0.125,
+      "notes": "Depth-pass sequence is advisory manufacturing strategy, not machine motion. No feeds or speeds are derived from material."
+    },
+    "sequence": "single_centerline_cut"
+  },
+  "channel": {
+    "start": {
+      "x": 0.75,
+      "y": 0
+    },
+    "end": {
+      "x": 16,
+      "y": 0
+    },
+    "width": 0.25,
+    "depth": 0.375,
+    "length": 15.25,
+    "bottom_profile": "flat",
+    "path_kind": "open_centerline"
+  },
+  "depth_strategy": {
+    "final_depth": 0.375,
+    "maximum_pass_depth": 0.125,
+    "pass_count": 3,
+    "passes": [
+      0.125,
+      0.25,
+      0.375
+    ]
+  },
+  "strategy_phases": [
+    {
+      "phase_id": "channel_cut",
+      "order": 1,
+      "intent": "Cut the straight truss rod channel along the supplied centerline to final depth. Tool diameter equals channel width, so a single centerline cut describes the width strategy. No cutter-offset toolpath is generated.",
+      "recommended_tool": {
+        "status": "recommended",
+        "compatibility": "compatible",
+        "reference_type": "dimension_spec",
+        "tool_type": "end_mill",
+        "diameter": 0.25,
+        "description": "End mill sized to the channel width",
+        "width_strategy": "centerline_cut"
+      },
+      "depth_strategy": {
+        "final_depth": 0.375,
+        "maximum_pass_depth": 0.125,
+        "pass_count": 3,
+        "passes": [
+          0.125,
+          0.25,
+          0.375
+        ]
+      }
+    }
+  ],
+  "tool_compatibility": {
+    "status": "compatible",
+    "recommendation": "recommended",
+    "tool_diameter": 0.25,
+    "channel_width": 0.25,
+    "width_strategy": "centerline_cut"
+  },
+  "setup_assumptions": {
+    "workholding": "Neck blank must be secured against movement along the channel axis. This is an advisory manufacturing assumption, not a fixture program or work-offset assignment.",
+    "cross_operation_scheduling": "not_specified",
+    "placement_authority": "Channel coordinates are design intent relative to the strategy coordinate frame. They are not fixture zero, a work offset, or machine home.",
+    "access_direction": "from_headstock"
+  },
+  "review_requirements": {
+    "items": [
+      "Channel start and end match the intended neck centerline location.",
+      "Channel width matches the intended truss rod and any explicit routing allowance.",
+      "Channel depth matches the intended rod and does not overcut the blank.",
+      "Residual material beneath the channel is adequate for the neck blank.",
+      "Recommended tool diameter fits the channel width.",
+      "Depth-pass sequence reaches final depth without overcutting.",
+      "Access direction and workholding are understood by the operator.",
+      "This package is advisory only and does not authorize machine execution."
+    ],
+    "evidence": {
+      "channel_width": 0.25,
+      "channel_depth": 0.375,
+      "channel_length": 15.25,
+      "start": {
+        "x": 0.75,
+        "y": 0
+      },
+      "end": {
+        "x": 16,
+        "y": 0
+      },
+      "tool_diameter": 0.25,
+      "tool_compatibility": "compatible",
+      "width_strategy": "centerline_cut",
+      "pass_count": 3,
+      "passes": [
+        0.125,
+        0.25,
+        0.375
+      ],
+      "residual_material": 0.425,
+      "access_direction": "from_headstock"
+    },
+    "unresolved_assumptions": []
+  },
+  "warnings": [],
+  "approval_state": "pending"
+}
