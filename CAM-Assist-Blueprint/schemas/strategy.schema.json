@@ -342,7 +342,11 @@
         "recommendation": { "type": "string" },
         "tool_diameter": { "type": "number" },
         "channel_width": { "type": "number" },
-        "width_strategy": { "type": "string" }
+        "width_strategy": { "type": "string" },
+        "width_clearing_required": {
+          "type": "boolean",
+          "description": "True when the recommended tool is narrower than the channel and width clearing is required. Advisory; no cutter-center offsets are generated."
+        }
       }
     },
 
@@ -416,5 +420,60 @@
         "notes": { "type": "string" }
       }
     }
-  }
+  },
+
+  "allOf": [
+    {
+      "if": {
+        "required": ["operation_intent"],
+        "properties": {
+          "operation_intent": {
+            "type": "object",
+            "required": ["operation_type"],
+            "properties": {
+              "operation_type": { "const": "truss_rod_channel" }
+            }
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "channel",
+          "depth_strategy",
+          "strategy_phases",
+          "tool_compatibility",
+          "review_requirements"
+        ],
+        "properties": {
+          "tool_compatibility": {
+            "type": "object",
+            "required": ["width_strategy", "width_clearing_required"],
+            "properties": {
+              "width_clearing_required": { "type": "boolean" }
+            }
+          },
+          "review_requirements": {
+            "type": "object",
+            "required": ["evidence"],
+            "properties": {
+              "evidence": {
+                "type": "object",
+                "required": ["blank_thickness", "residual_material"],
+                "properties": {
+                  "blank_thickness": {
+                    "type": "number",
+                    "description": "Required blank thickness. Residual material is blank_thickness minus channel depth."
+                  },
+                  "residual_material": {
+                    "type": "number",
+                    "description": "Must equal blank_thickness minus final channel depth and must be greater than zero."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

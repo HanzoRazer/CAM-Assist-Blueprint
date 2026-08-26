@@ -155,6 +155,7 @@ def _render_truss_rod_channel_summary(data: dict, units: str) -> list[str]:
     lines.append(f"| Recommendation | {compatibility.get('recommendation', 'N/A')} |")
     lines.append(f"| Tool Diameter | {compatibility.get('tool_diameter', 'N/A')} {units} |")
     lines.append(f"| Width Strategy | {compatibility.get('width_strategy', 'N/A')} |")
+    lines.append(f"| Width Clearing Required | {compatibility.get('width_clearing_required', 'N/A')} |")
     lines.append("")
 
     if evidence.get("residual_material") is not None:
@@ -198,6 +199,8 @@ def _render_truss_rod_review_items(data: dict, units: str) -> list[str]:
             "tool_diameter",
             "tool_compatibility",
             "width_strategy",
+            "width_clearing_required",
+            "blank_thickness",
             "residual_material",
             "access_direction",
             "pass_count",
@@ -206,7 +209,7 @@ def _render_truss_rod_review_items(data: dict, units: str) -> list[str]:
                 value = evidence[key]
                 unit_suffix = f" {units}" if key in {
                     "channel_width", "channel_depth", "channel_length",
-                    "tool_diameter", "residual_material",
+                    "tool_diameter", "blank_thickness", "residual_material",
                 } else ""
                 lines.append(f"| {key} | {value}{unit_suffix} |")
         start = evidence.get("start")
@@ -400,6 +403,7 @@ def generate_review_packet(data: dict, manifest_data: dict | None = None) -> str
             lines.append(f"| Status | {compatibility.get('status', 'N/A')} |")
             lines.append(f"| Recommendation | {compatibility.get('recommendation', 'N/A')} |")
             lines.append(f"| Width Strategy | {compatibility.get('width_strategy', 'N/A')} |")
+            lines.append(f"| Width Clearing Required | {compatibility.get('width_clearing_required', 'N/A')} |")
             lines.append("")
             lines.append("*Tool fit is geometric compatibility only. It is not execution approval.*")
             lines.append("")

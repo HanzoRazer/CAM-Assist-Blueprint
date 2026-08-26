@@ -146,8 +146,11 @@ invent it from tool or material.
 
 ```text
 tool_diameter >  channel_width  → validation failure (no strategy)
-tool_diameter == channel_width  → centerline_cut
-tool_diameter <  channel_width  → width_clearing_required (described, no offsets)
+tool_diameter == channel_width  → width_strategy = centerline_cut,
+                                  width_clearing_required = false
+tool_diameter <  channel_width  → width_strategy = width_clearing_required
+                                  (described, no offsets),
+                                  width_clearing_required = true
 ```
 
 Recommendation language is `recommended` / `compatible`. Never approved,
@@ -165,9 +168,13 @@ A30 does not derive or emit material-based feeds/speeds.
 
 ### Residual material
 
-When `blank_thickness` is supplied, residual = blank − channel depth and must
-be positive. When absent, record an explicit unresolved assumption. Do not
-invent truss-rod physical dimensions from brand or rod type.
+`blank_thickness` is required. Residual material is
+`blank_thickness − final_depth` (channel depth) and must be greater than
+zero. Missing, non-positive, or non-exceeding-depth values are validation
+failures. Schema (`blank_thickness_inches` on the operation request;
+`review_requirements.evidence.blank_thickness` / `residual_material` on the
+strategy) and the Python model/validator enforce the same rule. Do not invent
+truss-rod physical dimensions from brand or rod type.
 
 ### Access-end allowance
 
@@ -222,7 +229,8 @@ Locked future pickup-route rulings (recorded only, not implemented):
 scripts/_shared/depth_passes.py
 scripts/_shared/truss_rod_channel.py
 scripts/create_truss_rod_channel_strategy.py
-  <input.json>
+  <input.json>              positional input (existing form)
+  --input <input.json>      alias for the input path
   --out <strategy.json>     optional
   --force                   optional
   --quiet                   optional

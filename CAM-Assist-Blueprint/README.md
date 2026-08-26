@@ -772,6 +772,9 @@ downstream CAM tooling
 python scripts/create_truss_rod_channel_strategy.py \
     examples/operations/truss_rod_channel_example.json \
     --out examples/valid/truss_rod_channel_strategy.json
+python scripts/create_truss_rod_channel_strategy.py \
+    --input examples/operations/truss_rod_channel_example.json \
+    --out examples/valid/truss_rod_channel_strategy.json
 ```
 
 ### Validate Strategy

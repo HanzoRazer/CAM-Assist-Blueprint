@@ -101,14 +101,17 @@ def validate_tool_fit(tool_diameter: float, channel_width: float) -> dict[str, A
         )
     if abs(tool_diameter - channel_width) <= DEPTH_EPSILON:
         width_strategy = WIDTH_STRATEGY_CENTERLINE
+        width_clearing_required = False
     else:
         width_strategy = WIDTH_STRATEGY_CLEARING
+        width_clearing_required = True
     return {
         "status": "compatible",
         "recommendation": "recommended",
         "tool_diameter": json_number(tool_diameter),
         "channel_width": json_number(channel_width),
         "width_strategy": width_strategy,
+        "width_clearing_required": width_clearing_required,
     }
 
 
@@ -136,10 +139,14 @@ def _non_blank_string(name: str, value: object) -> str:
     return value
 
 
-def _optional_positive(name: str, value: object | None) -> float | None:
-    if value is None:
-        return None
-    return _positive(name, value)
+def compute_residual_material(blank_thickness: float, final_depth: float) -> float:
+    residual_material = blank_thickness - final_depth
+    if residual_material <= DEPTH_EPSILON:
+        raise TrussRodChannelError(
+            "residual_material must be greater than zero "
+            "(blank_thickness must exceed channel depth)"
+        )
+    return residual_material
 
 
 def build_review_requirements(
@@ -147,7 +154,8 @@ def build_review_requirements(
     channel: dict[str, Any],
     tool_fit: dict[str, Any],
     depth_strategy: dict[str, Any],
-    residual_material: float | None,
+    residual_material: float,
+    blank_thickness: float,
     access_direction: str | None,
     unresolved: list[str],
 ) -> dict[str, Any]:
@@ -170,11 +178,12 @@ def build_review_requirements(
         "tool_diameter": tool_fit["tool_diameter"],
         "tool_compatibility": tool_fit["status"],
         "width_strategy": tool_fit["width_strategy"],
+        "width_clearing_required": tool_fit["width_clearing_required"],
+        "blank_thickness": json_number(blank_thickness),
+        "residual_material": json_number(residual_material),
         "pass_count": depth_strategy["pass_count"],
         "passes": depth_strategy["passes"],
     }
-    if residual_material is not None:
-        evidence["residual_material"] = json_number(residual_material)
     if access_direction is not None:
         evidence["access_direction"] = access_direction
     return {
@@ -228,21 +237,12 @@ def build_channel_strategy(request: dict[str, Any], cam_assist_version: str) -> 
     depth_strategy = build_depth_strategy(float(channel["depth"]), maximum_pass_depth)
 
     unresolved: list[str] = []
-    blank_thickness = _optional_positive(
-        "blank_thickness", request.get("blank_thickness")
+    if "blank_thickness" not in request or request.get("blank_thickness") is None:
+        raise TrussRodChannelError("blank_thickness is required")
+    blank_thickness = _positive("blank_thickness", request.get("blank_thickness"))
+    residual_material = compute_residual_material(
+        blank_thickness, float(channel["depth"])
     )
-    residual_material: float | None
-    if blank_thickness is None:
-        residual_material = None
-        unresolved.append(
-            "residual_material_beneath_channel: blank_thickness not supplied"
-        )
-    else:
-        residual_material = blank_thickness - float(channel["depth"])
-        if residual_material <= DEPTH_EPSILON:
-            raise TrussRodChannelError(
-                "blank_thickness must exceed channel depth so residual material is positive"
-            )
 
     access_direction = request.get("access_direction")
     if access_direction is not None:
@@ -283,6 +283,7 @@ def build_channel_strategy(request: dict[str, Any], cam_assist_version: str) -> 
         tool_fit=tool_fit,
         depth_strategy=depth_strategy,
         residual_material=residual_material,
+        blank_thickness=blank_thickness,
         access_direction=access_direction,
         unresolved=unresolved,
     )
@@ -320,6 +321,7 @@ def build_channel_strategy(request: dict[str, Any], cam_assist_version: str) -> 
                 "diameter": json_number(tool_diameter),
                 "description": tool_description,
                 "width_strategy": width_strategy,
+                "width_clearing_required": tool_fit["width_clearing_required"],
             },
             "depth_strategy": depth_strategy,
         }
@@ -472,5 +474,43 @@ def validate_truss_rod_channel_strategy_data(data: dict[str, Any]) -> list[str]:
     compatibility = data.get("tool_compatibility") or {}
     if compatibility.get("width_strategy") != tool_fit["width_strategy"]:
         errors.append("tool_compatibility.width_strategy is inconsistent with tool fit")
+    if compatibility.get("width_clearing_required") != tool_fit["width_clearing_required"]:
+        errors.append(
+            "tool_compatibility.width_clearing_required is inconsistent with tool fit"
+        )
+
+    evidence = ((data.get("review_requirements") or {}).get("evidence") or {})
+    if "blank_thickness" not in evidence or evidence.get("blank_thickness") is None:
+        errors.append("blank_thickness is required")
+        return errors
+    try:
+        blank_thickness = _positive(
+            "review_requirements.evidence.blank_thickness",
+            evidence.get("blank_thickness"),
+        )
+        expected_residual = compute_residual_material(
+            blank_thickness, float(expected["depth"])
+        )
+    except TrussRodChannelError as exc:
+        errors.append(str(exc))
+        return errors
+
+    if "residual_material" not in evidence or evidence.get("residual_material") is None:
+        errors.append("residual_material is required")
+        return errors
+    try:
+        residual_material = _as_number(
+            "review_requirements.evidence.residual_material",
+            evidence.get("residual_material"),
+        )
+    except TrussRodChannelError as exc:
+        errors.append(str(exc))
+        return errors
+    if residual_material <= DEPTH_EPSILON:
+        errors.append("residual_material must be greater than zero")
+    if abs(residual_material - expected_residual) > DEPTH_EPSILON:
+        errors.append(
+            "residual_material must equal blank_thickness minus channel depth"
+        )
 
     return errors

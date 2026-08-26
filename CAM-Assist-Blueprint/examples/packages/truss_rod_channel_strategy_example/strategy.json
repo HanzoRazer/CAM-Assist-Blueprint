@@ -101,7 +101,8 @@
         "tool_type": "end_mill",
         "diameter": 0.25,
         "description": "End mill sized to the channel width",
-        "width_strategy": "centerline_cut"
+        "width_strategy": "centerline_cut",
+        "width_clearing_required": false
       },
       "depth_strategy": {
         "final_depth": 0.375,
@@ -120,7 +121,8 @@
     "recommendation": "recommended",
     "tool_diameter": 0.25,
     "channel_width": 0.25,
-    "width_strategy": "centerline_cut"
+    "width_strategy": "centerline_cut",
+    "width_clearing_required": false
   },
   "setup_assumptions": {
     "workholding": "Neck blank must be secured against movement along the channel axis. This is an advisory manufacturing assumption, not a fixture program or work-offset assignment.",
@@ -154,13 +156,15 @@
       "tool_diameter": 0.25,
       "tool_compatibility": "compatible",
       "width_strategy": "centerline_cut",
+      "width_clearing_required": false,
+      "blank_thickness": 0.8,
+      "residual_material": 0.425,
       "pass_count": 3,
       "passes": [
         0.125,
         0.25,
         0.375
       ],
-      "residual_material": 0.425,
       "access_direction": "from_headstock"
     },
     "unresolved_assumptions": []

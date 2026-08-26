@@ -55,6 +55,7 @@ Required:
 * `channel.start` / `channel.end` (`x`, `y`)
 * `channel.width` (positive)
 * `channel.depth` (positive)
+* `blank_thickness` (positive; must exceed channel depth)
 * `tool.diameter` (positive, must not exceed width)
 * `maximum_pass_depth` (positive)
 * `material_context.material_class`
@@ -62,11 +63,13 @@ Required:
 
 Optional:
 
-* `blank_thickness` — when present, residual material = blank − depth and must
-  be positive
 * `access_direction`
 * `tool.tool_type`, `tool.description`
 * `target_feature` (defaults to `neck`)
+
+`residual_material` is `blank_thickness − channel.depth` and must be greater
+than zero. Missing `blank_thickness` is a validation failure, not an
+unresolved assumption.
 
 CAM Assist does not invent truss-rod physical dimensions from a brand or rod
 type.
@@ -108,8 +111,10 @@ Recommendation is advisory (`recommended` / `compatible`).
 
 ```text
 tool_diameter >  channel_width  → validation failure
-tool_diameter == channel_width  → centerline_cut
-tool_diameter <  channel_width  → width_clearing_required
+tool_diameter == channel_width  → width_strategy = centerline_cut,
+                                  width_clearing_required = false
+tool_diameter <  channel_width  → width_strategy = width_clearing_required,
+                                  width_clearing_required = true
 ```
 
 Width clearing is a strategy statement. No cutter-offset toolpath is generated.
@@ -117,16 +122,20 @@ A30 does not derive feeds or speeds from material.
 
 ## Review Requirements
 
-The review packet exposes channel width, depth, start/end, residual material
-when `blank_thickness` was supplied (otherwise an unresolved assumption),
-access direction when supplied, tool compatibility, and the depth-pass
-sequence.
+The review packet exposes channel width, depth, start/end, required blank
+thickness, residual material (`blank_thickness − final_depth`), access
+direction when supplied, tool compatibility including
+`width_clearing_required`, and the depth-pass sequence.
 
 ## Example
 
 ```bash
 python scripts/create_truss_rod_channel_strategy.py \
   examples/operations/truss_rod_channel_example.json \
+  --out examples/valid/truss_rod_channel_strategy.json --force
+
+python scripts/create_truss_rod_channel_strategy.py \
+  --input examples/operations/truss_rod_channel_example.json \
   --out examples/valid/truss_rod_channel_strategy.json --force
 
 python scripts/assemble_strategy_package.py \
@@ -153,9 +162,11 @@ review_packet.md
 
 ## Validation
 
-* Positive width, depth, tool diameter, and maximum pass depth
+* Positive width, depth, tool diameter, blank thickness, and maximum pass depth
 * Non-zero centerline length
 * Tool diameter must not exceed channel width
+* Residual material must equal `blank_thickness − channel depth` and be `> 0`
+* `width_clearing_required` must match tool/channel fit
 * Depth-pass sequence must match the shared helper
 * `geometry_type` = `2.5D`, `strategy_complexity` = `simple`
 * Non-execution declarations remain required

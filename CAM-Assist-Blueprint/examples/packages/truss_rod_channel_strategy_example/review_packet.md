@@ -113,6 +113,7 @@
 | Recommendation | recommended |
 | Tool Diameter | 0.25 inches |
 | Width Strategy | centerline_cut |
+| Width Clearing Required | False |
 
 **Residual material beneath channel:** 0.425 inches
 
@@ -132,6 +133,7 @@
 | Status | compatible |
 | Recommendation | recommended |
 | Width Strategy | centerline_cut |
+| Width Clearing Required | False |
 
 *Tool fit is geometric compatibility only. It is not execution approval.*
 
@@ -185,6 +187,8 @@ Before proceeding to CAM or machining, the operator must verify:
 | tool_diameter | 0.25 inches |
 | tool_compatibility | compatible |
 | width_strategy | centerline_cut |
+| width_clearing_required | False |
+| blank_thickness | 0.8 inches |
 | residual_material | 0.425 inches |
 | access_direction | from_headstock |
 | pass_count | 3 |

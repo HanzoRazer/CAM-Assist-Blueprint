@@ -117,6 +117,10 @@
         "maximum_pass_depth_inches": {
           "type": "number",
           "description": "Maximum depth per pass for depth-strategy calculation"
+        },
+        "blank_thickness_inches": {
+          "type": "number",
+          "description": "Blank thickness in inches. Residual material is blank_thickness minus channel depth and must be greater than zero."
         }
       }
     },
@@ -180,7 +184,7 @@
           "geometry_type": { "const": "2.5D" },
           "strategy_complexity": { "const": "simple" },
           "parameters": {
-            "required": ["depth_inches", "width_inches", "start", "end"]
+            "required": ["depth_inches", "width_inches", "start", "end", "blank_thickness_inches"]
           }
         }
       }

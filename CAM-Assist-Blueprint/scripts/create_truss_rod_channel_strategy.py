@@ -12,6 +12,7 @@ Usage:
     python scripts/create_truss_rod_channel_strategy.py \\
         examples/operations/truss_rod_channel_example.json
     python scripts/create_truss_rod_channel_strategy.py input.json --out strategy.json
+    python scripts/create_truss_rod_channel_strategy.py --input input.json --out strategy.json
     python scripts/create_truss_rod_channel_strategy.py input.json --out strategy.json --force
 
 Exit codes:
@@ -39,6 +40,21 @@ class CreateResult(NamedTuple):
     output_path: Path | None
     error: str | None
     exit_code: int
+
+
+def resolve_input_path(positional: Path | None, named: Path | None) -> Path | None:
+    """Return the input path from positional form, --input, or both if they agree."""
+    if positional is not None and named is not None:
+        try:
+            same = positional.resolve() == named.resolve()
+        except OSError:
+            same = positional == named
+        if not same:
+            raise TrussRodChannelError(
+                "conflicting input paths: positional argument and --input must refer to the same file"
+            )
+        return positional
+    return positional if positional is not None else named
 
 
 def dump_strategy(data: dict, path: Path) -> None:
@@ -89,7 +105,19 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument("input_json", type=Path, help="Path to the operation input JSON")
+    parser.add_argument(
+        "input_json",
+        nargs="?",
+        type=Path,
+        help="Path to the operation input JSON",
+    )
+    parser.add_argument(
+        "--input",
+        dest="input_option",
+        type=Path,
+        default=None,
+        help="Alias for the operation input JSON path",
+    )
     parser.add_argument(
         "--out",
         type=Path,
@@ -100,11 +128,19 @@ def main() -> int:
     parser.add_argument("--quiet", "-q", action="store_true", help="Print only the output path")
     args = parser.parse_args()
 
+    try:
+        input_path = resolve_input_path(args.input_json, args.input_option)
+    except TrussRodChannelError as exc:
+        print(f"FAIL: {exc}", file=sys.stderr)
+        return 1
+    if input_path is None:
+        parser.error("input JSON is required (positional argument or --input)")
+
     output_path = args.out
     if output_path is None:
-        output_path = args.input_json.with_name(f"{args.input_json.stem}_strategy.json")
+        output_path = input_path.with_name(f"{input_path.stem}_strategy.json")
 
-    result = create_strategy(args.input_json, output_path, force=args.force)
+    result = create_strategy(input_path, output_path, force=args.force)
     if result.success:
         if args.quiet:
             print(str(result.output_path))

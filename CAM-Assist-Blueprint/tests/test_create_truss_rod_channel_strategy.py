@@ -83,3 +83,48 @@ class TestCreatorCli:
         run_creator(str(EXAMPLE_INPUT), "--out", str(first))
         run_creator(str(EXAMPLE_INPUT), "--out", str(second))
         assert first.read_bytes() == second.read_bytes()
+
+    def test_input_flag_writes_strategy(self, tmp_path):
+        output = tmp_path / "strategy.json"
+        result = run_creator("--input", str(EXAMPLE_INPUT), "--out", str(output))
+        assert result.returncode == 0, result.stderr
+        data = json.loads(output.read_text(encoding="utf-8"))
+        assert data["operation_intent"]["operation_type"] == "truss_rod_channel"
+        assert data["review_requirements"]["evidence"]["residual_material"] == 0.425
+
+    def test_input_flag_matches_positional_bytes(self, tmp_path):
+        positional = tmp_path / "positional.json"
+        named = tmp_path / "named.json"
+        pos = run_creator(str(EXAMPLE_INPUT), "--out", str(positional))
+        flag = run_creator("--input", str(EXAMPLE_INPUT), "--out", str(named))
+        assert pos.returncode == 0, pos.stderr
+        assert flag.returncode == 0, flag.stderr
+        assert positional.read_bytes() == named.read_bytes()
+
+    def test_input_flag_and_positional_agree(self, tmp_path):
+        output = tmp_path / "strategy.json"
+        result = run_creator(
+            str(EXAMPLE_INPUT),
+            "--input",
+            str(EXAMPLE_INPUT),
+            "--out",
+            str(output),
+        )
+        assert result.returncode == 0, result.stderr
+
+    def test_conflicting_input_paths_exit_1(self, tmp_path):
+        other = tmp_path / "other.json"
+        other.write_text(EXAMPLE_INPUT.read_text(encoding="utf-8"), encoding="utf-8")
+        result = run_creator(
+            str(EXAMPLE_INPUT),
+            "--input",
+            str(other),
+            "--out",
+            str(tmp_path / "out.json"),
+        )
+        assert result.returncode == 1
+        assert "conflicting input paths" in result.stderr
+
+    def test_missing_input_is_usage_error(self, tmp_path):
+        result = run_creator("--out", str(tmp_path / "out.json"))
+        assert result.returncode == 2

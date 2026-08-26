@@ -39,6 +39,7 @@ def valid_request(**overrides):
         },
         "tool": {"diameter": 0.25, "tool_type": "end_mill"},
         "maximum_pass_depth": 0.125,
+        "blank_thickness": 0.8,
         "material_context": {"material_class": "hardwood"},
         "provenance": {"created_at": "2026-08-25T00:00:00Z"},
     }
@@ -85,10 +86,12 @@ class TestToolFit:
         assert fit["status"] == "compatible"
         assert fit["recommendation"] == "recommended"
         assert fit["width_strategy"] == "centerline_cut"
+        assert fit["width_clearing_required"] is False
 
     def test_smaller_tool_requires_width_clearing(self):
         fit = validate_tool_fit(0.125, 0.25)
         assert fit["width_strategy"] == "width_clearing_required"
+        assert fit["width_clearing_required"] is True
         assert fit["recommendation"] == "recommended"
 
     def test_oversized_tool_hard_fails(self):
@@ -119,6 +122,7 @@ class TestStrategyBuild:
         request = valid_request()
         request["channel"]["depth"] = 9
         request["maximum_pass_depth"] = 4
+        request["blank_thickness"] = 12
         strategy = build_channel_strategy(request, CAM_ASSIST_VERSION)
         assert strategy["depth_strategy"]["passes"] == [4, 8, 9]
         assert compute_depth_passes(9, 4) == [4, 8, 9]
@@ -134,18 +138,38 @@ class TestStrategyBuild:
     def test_blank_thickness_residual(self):
         request = valid_request(blank_thickness=0.8)
         strategy = build_channel_strategy(request, CAM_ASSIST_VERSION)
-        assert strategy["review_requirements"]["evidence"]["residual_material"] == 0.425
+        evidence = strategy["review_requirements"]["evidence"]
+        assert evidence["blank_thickness"] == 0.8
+        assert evidence["residual_material"] == 0.425
         assert strategy["review_requirements"]["unresolved_assumptions"] == []
 
-    def test_missing_blank_thickness_is_unresolved_assumption(self):
-        strategy = build_channel_strategy(valid_request(), CAM_ASSIST_VERSION)
-        assert strategy["review_requirements"]["unresolved_assumptions"] == [
-            "residual_material_beneath_channel: blank_thickness not supplied"
-        ]
+    def test_missing_blank_thickness_is_rejected(self):
+        request = valid_request()
+        del request["blank_thickness"]
+        with pytest.raises(TrussRodChannelError, match="blank_thickness is required"):
+            build_channel_strategy(request, CAM_ASSIST_VERSION)
 
     def test_blank_thinner_than_channel_rejected(self):
-        with pytest.raises(TrussRodChannelError, match="blank_thickness"):
+        with pytest.raises(TrussRodChannelError, match="residual_material"):
             build_channel_strategy(valid_request(blank_thickness=0.1), CAM_ASSIST_VERSION)
+
+    def test_zero_residual_material_rejected(self):
+        with pytest.raises(TrussRodChannelError, match="residual_material"):
+            build_channel_strategy(valid_request(blank_thickness=0.375), CAM_ASSIST_VERSION)
+
+    def test_residual_must_equal_blank_minus_depth(self):
+        strategy = build_channel_strategy(valid_request(), CAM_ASSIST_VERSION)
+        strategy["review_requirements"]["evidence"]["residual_material"] = 0.1
+        result = validate_strategy_package(strategy)
+        assert not result.valid
+        assert any("residual_material" in error for error in result.errors)
+
+    def test_missing_blank_thickness_on_strategy_is_rejected(self):
+        strategy = build_channel_strategy(valid_request(), CAM_ASSIST_VERSION)
+        del strategy["review_requirements"]["evidence"]["blank_thickness"]
+        result = validate_strategy_package(strategy)
+        assert not result.valid
+        assert any("blank_thickness" in error for error in result.errors)
 
     def test_no_feeds_or_speeds(self):
         strategy = build_channel_strategy(valid_request(), CAM_ASSIST_VERSION)
@@ -195,6 +219,7 @@ class TestStrategyBuild:
         strategy = build_channel_strategy(valid_request(blank_thickness=0.8), CAM_ASSIST_VERSION)
         result = validate_strategy_package(strategy)
         assert result.valid, result.errors
+        assert strategy["tool_compatibility"]["width_clearing_required"] is False
 
     def test_generic_validator_rejects_oversized_tool_in_output(self):
         strategy = build_channel_strategy(valid_request(), CAM_ASSIST_VERSION)
@@ -274,6 +299,80 @@ class TestStrategyBuild:
         assert strategy["strategy_phases"][0]["phase_id"] == "channel_cut"
         assert strategy["strategy_phases"][0]["order"] == 1
 
+    def test_width_clearing_boolean_on_undersized_tool(self):
+        request = valid_request()
+        request["tool"]["diameter"] = 0.125
+        strategy = build_channel_strategy(request, CAM_ASSIST_VERSION)
+        assert strategy["tool_compatibility"]["width_strategy"] == "width_clearing_required"
+        assert strategy["tool_compatibility"]["width_clearing_required"] is True
+        result = validate_strategy_package(strategy)
+        assert result.valid, result.errors
+
+    def test_inconsistent_width_clearing_boolean_rejected(self):
+        strategy = build_channel_strategy(valid_request(), CAM_ASSIST_VERSION)
+        strategy["tool_compatibility"]["width_clearing_required"] = True
+        result = validate_strategy_package(strategy)
+        assert not result.valid
+        assert any("width_clearing_required" in error for error in result.errors)
+
     def test_wrong_operation_type_rejected(self):
         with pytest.raises(TrussRodChannelError, match="truss_rod_channel"):
             build_channel_strategy(valid_request(operation_type="fret_slots"), CAM_ASSIST_VERSION)
+
+
+def _load_schema(name: str) -> dict:
+    path = Path(__file__).parent.parent / "schemas" / name
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _operation_request(**overrides):
+    request = {
+        "operation_type": "truss_rod_channel",
+        "geometry_type": "2.5D",
+        "strategy_complexity": "simple",
+        "instrument_spec": {"instrument_type": "guitar"},
+        "parameters": {
+            "depth_inches": 0.375,
+            "width_inches": 0.25,
+            "start": {"x": 0.0, "y": 0.0},
+            "end": {"x": 10.0, "y": 0.0},
+            "blank_thickness_inches": 0.8,
+        },
+    }
+    request.update(overrides)
+    return request
+
+
+class TestSchemaParity:
+    def test_operation_schema_requires_blank_thickness_inches(self):
+        jsonschema = pytest.importorskip("jsonschema")
+        schema = _load_schema("operation.schema.json")
+        jsonschema.Draft202012Validator(schema).validate(_operation_request())
+        missing = _operation_request()
+        del missing["parameters"]["blank_thickness_inches"]
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.Draft202012Validator(schema).validate(missing)
+
+    def test_strategy_schema_requires_blank_thickness_and_residual(self):
+        jsonschema = pytest.importorskip("jsonschema")
+        schema = _load_schema("strategy.schema.json")
+        strategy = build_channel_strategy(valid_request(), CAM_ASSIST_VERSION)
+        jsonschema.Draft202012Validator(schema).validate(strategy)
+        del strategy["review_requirements"]["evidence"]["blank_thickness"]
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.Draft202012Validator(schema).validate(strategy)
+
+    def test_strategy_schema_requires_width_clearing_boolean(self):
+        jsonschema = pytest.importorskip("jsonschema")
+        schema = _load_schema("strategy.schema.json")
+        strategy = build_channel_strategy(valid_request(), CAM_ASSIST_VERSION)
+        del strategy["tool_compatibility"]["width_clearing_required"]
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.Draft202012Validator(schema).validate(strategy)
+
+    def test_fret_slot_strategy_unaffected_by_truss_rod_allof(self):
+        jsonschema = pytest.importorskip("jsonschema")
+        schema = _load_schema("strategy.schema.json")
+        path = Path(__file__).parent.parent / "examples" / "valid" / "fret_slot_strategy.json"
+        package = json.loads(path.read_text(encoding="utf-8"))
+        jsonschema.Draft202012Validator(schema).validate(package)
