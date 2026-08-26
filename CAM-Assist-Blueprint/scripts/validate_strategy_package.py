@@ -236,6 +236,14 @@ def validate_strategy_package(data: dict) -> ValidationResult:
             "strategy_id must contain only lowercase alphanumeric characters and hyphens"
         )
 
+    operation_type = None
+    if isinstance(data.get("operation_intent"), dict):
+        operation_type = data["operation_intent"].get("operation_type")
+    if operation_type == "truss_rod_channel":
+        from _shared.truss_rod_channel import validate_truss_rod_channel_strategy_data
+
+        errors.extend(validate_truss_rod_channel_strategy_data(data))
+
     return ValidationResult(
         valid=len(errors) == 0,
         errors=errors,

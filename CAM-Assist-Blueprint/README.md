@@ -603,6 +603,29 @@ Declared paths resolve declaring-file-relative; see
 
 ---
 
+### CAM-A30 — Truss Rod Channel Strategy Support
+
+Adds the first post-fret-slot manufacturing operation:
+
+```text
+truss_rod_channel
+```
+
+Straight, constant-width, flat-bottom open-path strategy. Classification is
+2.5D / simple. CAM Assist computes channel geometry intent, tool fit, and a
+deterministic depth-pass sequence. It does not generate G-code, DXF files, or
+execution authority.
+
+```bash
+python scripts/create_truss_rod_channel_strategy.py \
+    examples/operations/truss_rod_channel_example.json \
+    --out examples/valid/truss_rod_channel_strategy.json --force
+```
+
+See [docs/strategy_packages/TRUSS_ROD_CHANNEL_STRATEGY.md](docs/strategy_packages/TRUSS_ROD_CHANNEL_STRATEGY.md).
+
+---
+
 ### Maintenance and governance work (not A-series capabilities)
 
 Some merged work hardens or maintains existing capabilities rather than adding a
@@ -654,6 +677,7 @@ schemas/                # JSON Schema definitions
 contracts/              # CAM-Assist-owned non-example policy artifacts
 
 scripts/                # CLI tools
+  create_truss_rod_channel_strategy.py
   validate_strategy_package.py
   generate_review_packet.py
   validate_manifest.py
@@ -741,6 +765,17 @@ downstream CAM tooling
 ---
 
 ## CLI Tools
+
+### Create Truss Rod Channel Strategy
+
+```bash
+python scripts/create_truss_rod_channel_strategy.py \
+    examples/operations/truss_rod_channel_example.json \
+    --out examples/valid/truss_rod_channel_strategy.json
+python scripts/create_truss_rod_channel_strategy.py \
+    --input examples/operations/truss_rod_channel_example.json \
+    --out examples/valid/truss_rod_channel_strategy.json
+```
 
 ### Validate Strategy
 

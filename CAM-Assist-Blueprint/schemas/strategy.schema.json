@@ -108,7 +108,17 @@
       "properties": {
         "operation_type": {
           "type": "string",
-          "description": "Type of lutherie operation (fret_slots, pickup_route, neck_pocket, etc.)"
+          "description": "Type of lutherie operation (fret_slots, truss_rod_channel, pickup_route, neck_pocket, etc.)"
+        },
+        "geometry_type": {
+          "type": "string",
+          "enum": ["2D", "2.5D", "3D"],
+          "description": "Complexity class of operation geometry"
+        },
+        "strategy_complexity": {
+          "type": "string",
+          "enum": ["simple", "compound", "sequenced"],
+          "description": "Manufacturing-strategy complexity class"
         },
         "target_feature": {
           "type": "string",
@@ -194,7 +204,7 @@
       "properties": {
         "dxf_file": {
           "type": "string",
-          "description": "Filename of DXF geometry file"
+          "description": "Filename slot for DXF geometry. Presence of this field does not imply a DXF file was generated or packaged."
         },
         "primary_layer": {
           "type": "string",
@@ -204,6 +214,10 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Additional reference layers in DXF"
+        },
+        "generated": {
+          "type": "boolean",
+          "description": "When false, dxf_file is a contract filename only; no DXF file is generated or packaged."
         }
       }
     },
@@ -237,6 +251,7 @@
           "type": "object",
           "properties": {
             "depth": { "type": "number" },
+            "width": { "type": "number" },
             "depth_per_pass": { "type": "number" },
             "feed_rate_ipm": { "type": "number" },
             "spindle_rpm": { "type": "integer" },
@@ -265,6 +280,89 @@
           "y": { "type": "number" }
         }
       }
+    },
+
+    "channel": {
+      "type": "object",
+      "description": "Open-path channel geometry intent for truss_rod_channel strategies",
+      "properties": {
+        "start": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "z": { "type": "number" }
+          }
+        },
+        "end": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "z": { "type": "number" }
+          }
+        },
+        "width": { "type": "number" },
+        "depth": { "type": "number" },
+        "length": { "type": "number" },
+        "bottom_profile": { "type": "string" },
+        "path_kind": { "type": "string" }
+      }
+    },
+
+    "depth_strategy": {
+      "type": "object",
+      "description": "Deterministic depth-pass strategy. Advisory; not machine motion.",
+      "properties": {
+        "final_depth": { "type": "number" },
+        "maximum_pass_depth": { "type": "number" },
+        "pass_count": { "type": "integer" },
+        "passes": {
+          "type": "array",
+          "items": { "type": "number" }
+        }
+      }
+    },
+
+    "strategy_phases": {
+      "type": "array",
+      "description": "Ordered manufacturing-strategy phases. Not a machine program.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "phase_id": { "type": "string" },
+          "order": { "type": "integer" },
+          "intent": { "type": "string" },
+          "recommended_tool": { "type": "object" },
+          "depth_strategy": { "type": "object" }
+        }
+      }
+    },
+
+    "tool_compatibility": {
+      "type": "object",
+      "description": "Advisory geometric fit of the recommended tool to the feature",
+      "properties": {
+        "status": { "type": "string" },
+        "recommendation": { "type": "string" },
+        "tool_diameter": { "type": "number" },
+        "channel_width": { "type": "number" },
+        "width_strategy": { "type": "string" },
+        "width_clearing_required": {
+          "type": "boolean",
+          "description": "True when the recommended tool is narrower than the channel and width clearing is required. Advisory; no cutter-center offsets are generated."
+        }
+      }
+    },
+
+    "setup_assumptions": {
+      "type": "object",
+      "description": "Advisory workholding and access assumptions. Not fixture or WCS authority."
+    },
+
+    "review_requirements": {
+      "type": "object",
+      "description": "Human review items and dimensional evidence for this strategy"
     },
 
     "calculation_basis": {
@@ -327,5 +425,74 @@
         "notes": { "type": "string" }
       }
     }
-  }
+  },
+
+  "allOf": [
+    {
+      "if": {
+        "required": ["operation_intent"],
+        "properties": {
+          "operation_intent": {
+            "type": "object",
+            "required": ["operation_type"],
+            "properties": {
+              "operation_type": { "const": "truss_rod_channel" }
+            }
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "channel",
+          "depth_strategy",
+          "strategy_phases",
+          "tool_compatibility",
+          "review_requirements"
+        ],
+        "properties": {
+          "geometry": {
+            "type": "object",
+            "required": ["dxf_file", "primary_layer", "generated"],
+            "properties": {
+              "dxf_file": { "const": "geometry.dxf" },
+              "primary_layer": { "const": "TRUSS_ROD_CHANNEL" },
+              "generated": { "const": false }
+            }
+          },
+          "strategy_phases": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1
+          },
+          "tool_compatibility": {
+            "type": "object",
+            "required": ["width_strategy", "width_clearing_required"],
+            "properties": {
+              "width_clearing_required": { "type": "boolean" }
+            }
+          },
+          "review_requirements": {
+            "type": "object",
+            "required": ["evidence"],
+            "properties": {
+              "evidence": {
+                "type": "object",
+                "required": ["blank_thickness", "residual_material"],
+                "properties": {
+                  "blank_thickness": {
+                    "type": "number",
+                    "description": "Required blank thickness. Residual material is blank_thickness minus channel depth."
+                  },
+                  "residual_material": {
+                    "type": "number",
+                    "description": "Must equal blank_thickness minus final channel depth and must be greater than zero."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

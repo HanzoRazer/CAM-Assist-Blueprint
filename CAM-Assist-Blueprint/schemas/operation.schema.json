@@ -36,6 +36,12 @@
       "description": "Complexity class of operation geometry"
     },
 
+    "strategy_complexity": {
+      "type": "string",
+      "enum": ["simple", "compound", "sequenced"],
+      "description": "Manufacturing-strategy complexity class"
+    },
+
     "precision_class": {
       "type": "string",
       "enum": ["I", "II", "III", "IV"],
@@ -89,6 +95,32 @@
         "extension_beyond_edge_inches": {
           "type": "number",
           "description": "How far geometry extends beyond workpiece edge"
+        },
+        "start": {
+          "type": "object",
+          "description": "Open-path start point in the operation coordinate frame. For truss_rod_channel this is an XY point; depth is parameters.depth_inches, not Z.",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "z": { "type": "number" }
+          }
+        },
+        "end": {
+          "type": "object",
+          "description": "Open-path end point in the operation coordinate frame",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "z": { "type": "number" }
+          }
+        },
+        "maximum_pass_depth_inches": {
+          "type": "number",
+          "description": "Maximum depth per pass for depth-strategy calculation"
+        },
+        "blank_thickness_inches": {
+          "type": "number",
+          "description": "Blank thickness in inches. Residual material is blank thickness minus channel depth and must be greater than zero. The live creator request uses unit-agnostic blank_thickness; blank_thickness_inches is accepted as an alias only when units are inches."
         }
       }
     },
@@ -139,6 +171,40 @@
           },
           "parameters": {
             "required": ["depth_inches", "width_inches"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation_type": { "const": "truss_rod_channel" } }
+      },
+      "then": {
+        "properties": {
+          "geometry_type": { "const": "2.5D" },
+          "strategy_complexity": { "const": "simple" },
+          "parameters": {
+            "required": ["depth_inches", "width_inches", "start", "end", "blank_thickness_inches"],
+            "properties": {
+              "start": {
+                "type": "object",
+                "required": ["x", "y"],
+                "additionalProperties": false,
+                "properties": {
+                  "x": { "type": "number" },
+                  "y": { "type": "number" }
+                }
+              },
+              "end": {
+                "type": "object",
+                "required": ["x", "y"],
+                "additionalProperties": false,
+                "properties": {
+                  "x": { "type": "number" },
+                  "y": { "type": "number" }
+                }
+              }
+            }
           }
         }
       }
