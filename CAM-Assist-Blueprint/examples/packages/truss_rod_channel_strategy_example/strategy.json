@@ -46,7 +46,8 @@
     "reference_layers": [
       "NECK_CENTERLINE",
       "NECK_OUTLINE"
-    ]
+    ],
+    "generated": false
   },
   "operation": {
     "type": "channel_cut",

@@ -94,6 +94,8 @@
 | Start | (0.75, 0) |
 | End | (16, 0) |
 
+*`geometry.dxf_file` is `geometry.dxf` as a contract filename. This package does not generate or include a DXF file.*
+
 ### Depth Strategy
 
 | Property | Value |

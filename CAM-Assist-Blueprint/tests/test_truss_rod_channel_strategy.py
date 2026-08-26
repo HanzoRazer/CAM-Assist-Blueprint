@@ -79,6 +79,13 @@ class TestChannelGeometry:
                 "depth": 0.3,
             })
 
+    def test_z_coordinate_on_centerline_rejected(self):
+        with pytest.raises(TrussRodChannelError, match="XY"):
+            validate_channel_geometry({
+                **valid_request()["channel"],
+                "start": {"x": 0.0, "y": 0.0, "z": 0.0},
+            })
+
 
 class TestToolFit:
     def test_equal_diameter_is_centerline_cut(self):
@@ -319,6 +326,94 @@ class TestStrategyBuild:
         with pytest.raises(TrussRodChannelError, match="truss_rod_channel"):
             build_channel_strategy(valid_request(operation_type="fret_slots"), CAM_ASSIST_VERSION)
 
+    def test_omitted_tool_type_defaults_and_is_emitted(self):
+        request = valid_request()
+        del request["tool"]["tool_type"]
+        strategy = build_channel_strategy(request, CAM_ASSIST_VERSION)
+        assert strategy["operation"]["tool"]["tool_type"] == "end_mill"
+        result = validate_strategy_package(strategy)
+        assert result.valid, result.errors
+
+    def test_blank_tool_type_rejected(self):
+        request = valid_request()
+        request["tool"]["tool_type"] = "   "
+        with pytest.raises(TrussRodChannelError, match="tool.tool_type"):
+            build_channel_strategy(request, CAM_ASSIST_VERSION)
+
+    def test_missing_tool_type_on_strategy_rejected(self):
+        strategy = build_channel_strategy(valid_request(), CAM_ASSIST_VERSION)
+        del strategy["operation"]["tool"]["tool_type"]
+        result = validate_strategy_package(strategy)
+        assert not result.valid
+        assert any("tool_type" in error for error in result.errors)
+
+    def test_blank_thickness_inches_alias(self):
+        request = valid_request()
+        del request["blank_thickness"]
+        request["blank_thickness_inches"] = 0.8
+        strategy = build_channel_strategy(request, CAM_ASSIST_VERSION)
+        assert strategy["review_requirements"]["evidence"]["blank_thickness"] == 0.8
+        assert strategy["review_requirements"]["evidence"]["residual_material"] == 0.425
+
+    def test_blank_thickness_inches_must_agree(self):
+        with pytest.raises(TrussRodChannelError, match="must agree"):
+            build_channel_strategy(
+                valid_request(blank_thickness_inches=0.9), CAM_ASSIST_VERSION
+            )
+
+    def test_blank_thickness_inches_rejected_when_units_are_mm(self):
+        request = valid_request(units="mm")
+        del request["blank_thickness"]
+        request["blank_thickness_inches"] = 20
+        with pytest.raises(TrussRodChannelError, match="inches"):
+            build_channel_strategy(request, CAM_ASSIST_VERSION)
+
+    def test_unicode_strategy_id_rejected(self):
+        with pytest.raises(TrussRodChannelError, match="strategy_id"):
+            build_channel_strategy(valid_request(strategy_id="truss-rod-ß"), CAM_ASSIST_VERSION)
+
+    def test_extra_strategy_phase_rejected(self):
+        strategy = build_channel_strategy(valid_request(), CAM_ASSIST_VERSION)
+        strategy["strategy_phases"].append({"phase_id": "extra", "order": 2})
+        result = validate_strategy_package(strategy)
+        assert not result.valid
+        assert any("exactly one" in error for error in result.errors)
+
+    def test_wrong_phase_order_rejected(self):
+        strategy = build_channel_strategy(valid_request(), CAM_ASSIST_VERSION)
+        strategy["strategy_phases"][0]["order"] = 2
+        result = validate_strategy_package(strategy)
+        assert not result.valid
+        assert any("order" in error for error in result.errors)
+
+    def test_sequence_must_match_tool_fit(self):
+        strategy = build_channel_strategy(valid_request(), CAM_ASSIST_VERSION)
+        strategy["operation"]["sequence"] = "width_clearing_required"
+        result = validate_strategy_package(strategy)
+        assert not result.valid
+        assert any("sequence" in error for error in result.errors)
+
+    def test_parameter_depth_must_match_channel(self):
+        strategy = build_channel_strategy(valid_request(), CAM_ASSIST_VERSION)
+        strategy["operation"]["parameters"]["depth"] = 0.1
+        result = validate_strategy_package(strategy)
+        assert not result.valid
+        assert any("parameters.depth" in error for error in result.errors)
+
+    def test_geometry_filename_is_contract_not_generated_file(self):
+        strategy = build_channel_strategy(valid_request(), CAM_ASSIST_VERSION)
+        assert strategy["geometry"]["dxf_file"] == "geometry.dxf"
+        assert strategy["geometry"]["generated"] is False
+        result = validate_strategy_package(strategy)
+        assert result.valid, result.errors
+
+    def test_missing_geometry_generated_flag_rejected(self):
+        strategy = build_channel_strategy(valid_request(), CAM_ASSIST_VERSION)
+        del strategy["geometry"]["generated"]
+        result = validate_strategy_package(strategy)
+        assert not result.valid
+        assert any("generated" in error for error in result.errors)
+
 
 def _load_schema(name: str) -> dict:
     path = Path(__file__).parent.parent / "schemas" / name
@@ -369,6 +464,23 @@ class TestSchemaParity:
         del strategy["tool_compatibility"]["width_clearing_required"]
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.Draft202012Validator(schema).validate(strategy)
+
+    def test_strategy_schema_requires_generated_false_for_truss_rod(self):
+        jsonschema = pytest.importorskip("jsonschema")
+        schema = _load_schema("strategy.schema.json")
+        strategy = build_channel_strategy(valid_request(), CAM_ASSIST_VERSION)
+        jsonschema.Draft202012Validator(schema).validate(strategy)
+        strategy["geometry"]["generated"] = True
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.Draft202012Validator(schema).validate(strategy)
+
+    def test_operation_schema_rejects_z_on_truss_rod_centerline(self):
+        jsonschema = pytest.importorskip("jsonschema")
+        schema = _load_schema("operation.schema.json")
+        request = _operation_request()
+        request["parameters"]["start"]["z"] = 0
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.Draft202012Validator(schema).validate(request)
 
     def test_fret_slot_strategy_unaffected_by_truss_rod_allof(self):
         jsonschema = pytest.importorskip("jsonschema")

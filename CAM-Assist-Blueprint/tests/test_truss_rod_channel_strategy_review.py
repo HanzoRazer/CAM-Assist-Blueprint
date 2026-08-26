@@ -33,6 +33,7 @@ def test_truss_rod_review_contains_channel_evidence(tmp_path):
     assert "Residual material" in content
     assert "centerline_cut" in content
     assert "Width Clearing Required" in content
+    assert "does not generate or include a DXF" in content
     assert "does not generate G-code" in content
     assert "advisory only" in content
 

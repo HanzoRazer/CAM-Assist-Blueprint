@@ -158,9 +158,10 @@ machine-ready, or safe-to-execute.
 
 ### DXF
 
-Keep required `geometry.dxf_file` in the strategy contract. Do not generate
-a physical DXF. Assembled `source_geometry_files` remains empty, matching
-the fret-slot example package.
+Keep required `geometry.dxf_file` in the strategy contract. Emit
+`geometry.generated = false` so consumers do not treat the filename as a
+packaged file. Do not generate a physical DXF. Assembled
+`source_geometry_files` remains empty, matching the fret-slot example package.
 
 ### Feeds and speeds
 
@@ -171,10 +172,12 @@ A30 does not derive or emit material-based feeds/speeds.
 `blank_thickness` is required. Residual material is
 `blank_thickness − final_depth` (channel depth) and must be greater than
 zero. Missing, non-positive, or non-exceeding-depth values are validation
-failures. Schema (`blank_thickness_inches` on the operation request;
-`review_requirements.evidence.blank_thickness` / `residual_material` on the
-strategy) and the Python model/validator enforce the same rule. Do not invent
-truss-rod physical dimensions from brand or rod type.
+failures. The live creator field is unit-agnostic `blank_thickness`.
+`blank_thickness_inches` is accepted as an alias only when `units` are
+`inches`. Schema (`blank_thickness_inches` on the unused operation-request
+schema; `review_requirements.evidence.blank_thickness` / `residual_material`
+on the strategy) and the Python model/validator enforce the same residual
+rule. Do not invent truss-rod physical dimensions from brand or rod type.
 
 ### Access-end allowance
 

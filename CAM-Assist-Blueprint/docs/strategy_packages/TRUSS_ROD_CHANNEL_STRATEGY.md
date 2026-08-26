@@ -55,7 +55,9 @@ Required:
 * `channel.start` / `channel.end` (`x`, `y`)
 * `channel.width` (positive)
 * `channel.depth` (positive)
-* `blank_thickness` (positive; must exceed channel depth)
+* `blank_thickness` (positive; must exceed channel depth).
+  `blank_thickness_inches` is accepted as an alias only when `units` are
+  `inches`. If both are present they must agree.
 * `tool.diameter` (positive, must not exceed width)
 * `maximum_pass_depth` (positive)
 * `material_context.material_class`
@@ -76,12 +78,16 @@ type.
 
 ## Geometry Intent
 
-The line from `start` to `end` is centerline intent. Width and depth define the
-material-removal envelope. The operation is an open path, not a closed pocket
-polygon.
+The line from `start` to `end` is centerline intent in XY. Width and depth
+define the material-removal envelope. The operation is an open path, not a
+closed pocket polygon. Start and end are XY points; Z is rejected because
+depth is `channel.depth`.
 
 `geometry.dxf_file` remains in the strategy contract (`geometry.dxf`, layer
-`TRUSS_ROD_CHANNEL`). A30 does not generate a physical DXF.
+`TRUSS_ROD_CHANNEL`). `geometry.generated` is `false`: the filename is a
+contract slot, not a claim that a DXF file was generated or packaged. A30
+does not generate a physical DXF. Assembled `source_geometry_files` remains
+empty.
 
 Coordinates are design intent relative to the strategy coordinate frame. They
 are not fixture zero, G54/G55, stock origin, or machine home.
@@ -167,6 +173,10 @@ review_packet.md
 * Tool diameter must not exceed channel width
 * Residual material must equal `blank_thickness − channel depth` and be `> 0`
 * `width_clearing_required` must match tool/channel fit
+* Exactly one `channel_cut` phase with `order` 1
+* Duplicated width/depth/pass/tool fields must agree
+* `geometry.dxf_file` is the contract filename `geometry.dxf` with
+  `geometry.generated = false`
 * Depth-pass sequence must match the shared helper
 * `geometry_type` = `2.5D`, `strategy_complexity` = `simple`
 * Non-execution declarations remain required

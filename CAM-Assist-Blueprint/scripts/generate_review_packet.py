@@ -133,6 +133,12 @@ def _render_truss_rod_channel_summary(data: dict, units: str) -> list[str]:
     lines.append(f"| Start | ({start.get('x', 'N/A')}, {start.get('y', 'N/A')}) |")
     lines.append(f"| End | ({end.get('x', 'N/A')}, {end.get('y', 'N/A')}) |")
     lines.append("")
+    geometry = data.get("geometry") or {}
+    lines.append(
+        f"*`geometry.dxf_file` is `{geometry.get('dxf_file', 'geometry.dxf')}` "
+        "as a contract filename. This package does not generate or include a DXF file.*"
+    )
+    lines.append("")
 
     lines.append("### Depth Strategy")
     lines.append("")
