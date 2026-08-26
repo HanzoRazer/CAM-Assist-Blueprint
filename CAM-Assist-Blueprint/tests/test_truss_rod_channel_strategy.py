@@ -488,3 +488,66 @@ class TestSchemaParity:
         path = Path(__file__).parent.parent / "examples" / "valid" / "fret_slot_strategy.json"
         package = json.loads(path.read_text(encoding="utf-8"))
         jsonschema.Draft202012Validator(schema).validate(package)
+
+
+class TestGeometryContractHandshake:
+    """Creator, Python validator, JSON Schema, and assembled package must agree.
+
+    dxf_file is a required filename slot. generated=false means the package
+    does not contain that file.
+    """
+
+    EXAMPLE_STRATEGY = Path(__file__).parent.parent / "examples" / "valid" / "truss_rod_channel_strategy.json"
+    EXAMPLE_PACKAGE = (
+        Path(__file__).parent.parent
+        / "examples"
+        / "packages"
+        / "truss_rod_channel_strategy_example"
+    )
+
+    def _example_strategy(self) -> dict:
+        return json.loads(self.EXAMPLE_STRATEGY.read_text(encoding="utf-8"))
+
+    def test_committed_example_satisfies_schema_validator_and_package(self):
+        jsonschema = pytest.importorskip("jsonschema")
+        strategy = self._example_strategy()
+        geometry = strategy["geometry"]
+        assert geometry["dxf_file"] == "geometry.dxf"
+        assert geometry["generated"] is False
+        jsonschema.Draft202012Validator(_load_schema("strategy.schema.json")).validate(strategy)
+        result = validate_strategy_package(strategy)
+        assert result.valid, result.errors
+        manifest = json.loads((self.EXAMPLE_PACKAGE / "manifest.json").read_text(encoding="utf-8"))
+        assert manifest["source_geometry_files"] == []
+        assert not (self.EXAMPLE_PACKAGE / "geometry.dxf").exists()
+        assert strategy["safety_boundary"]["execution_authority_claim"] is False
+        assert strategy["operation_intent"]["non_execution_declaration"] is True
+
+    def test_generated_true_fails_schema_and_python(self):
+        jsonschema = pytest.importorskip("jsonschema")
+        strategy = self._example_strategy()
+        strategy["geometry"]["generated"] = True
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.Draft202012Validator(_load_schema("strategy.schema.json")).validate(strategy)
+        result = validate_strategy_package(strategy)
+        assert not result.valid
+        assert any("generated" in error for error in result.errors)
+
+    def test_wrong_dxf_filename_fails_schema_and_python(self):
+        jsonschema = pytest.importorskip("jsonschema")
+        strategy = self._example_strategy()
+        strategy["geometry"]["dxf_file"] = "channel.dxf"
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.Draft202012Validator(_load_schema("strategy.schema.json")).validate(strategy)
+        result = validate_strategy_package(strategy)
+        assert not result.valid
+        assert any("dxf_file" in error for error in result.errors)
+
+    def test_fret_slot_example_does_not_require_generated_flag(self):
+        jsonschema = pytest.importorskip("jsonschema")
+        path = Path(__file__).parent.parent / "examples" / "valid" / "fret_slot_strategy.json"
+        package = json.loads(path.read_text(encoding="utf-8"))
+        assert "generated" not in package.get("geometry", {})
+        jsonschema.Draft202012Validator(_load_schema("strategy.schema.json")).validate(package)
+        result = validate_strategy_package(package)
+        assert result.valid, result.errors
