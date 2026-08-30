@@ -101,6 +101,7 @@ simple truss rod channel. Merged PR #38 → `31e9c68`.
 ```text
 branch    cursor/cam-a31-pickup-route-strategy-fc97
 dev order docs/dev_orders/CAM-A31.md
+PR        #39
 ```
 
 First compound manufacturing-strategy operation: 2.5D closed-region
