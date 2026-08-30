@@ -1,0 +1,51 @@
+{
+  "operation_type": "pickup_route",
+  "strategy_id": "pickup-route-flat-sample",
+  "units": "inches",
+  "coordinate_frame": {
+    "origin": "body_center",
+    "x_axis": "along_body_toward_bridge",
+    "y_axis": "across_body_treble_positive",
+    "z_axis": "into_body_blank",
+    "datum_point": { "x": 0, "y": 0, "z": 0 }
+  },
+  "cavity": {
+    "reference_point": { "x": 0, "y": 0 },
+    "length": 3.0,
+    "width": 1.5,
+    "corner_radius": 0.125,
+    "final_depth": 0.75,
+    "mounting_tabs": [
+      {
+        "x": 1.5,
+        "y": 0,
+        "length": 0.5,
+        "width": 0.375,
+        "corner_radius": 0.0625
+      }
+    ]
+  },
+  "roughing": {
+    "tool_diameter": 0.25,
+    "maximum_pass_depth": 0.25,
+    "finish_allowance": 0.02,
+    "tool_type": "end_mill",
+    "description": "End mill for cavity roughing"
+  },
+  "finishing": {
+    "tool_diameter": 0.25,
+    "tool_type": "end_mill",
+    "description": "End mill for cavity finishing"
+  },
+  "material_context": {
+    "material_class": "hardwood",
+    "species": "Alder",
+    "hardness_janka": 590,
+    "grain_direction": "along_body_length"
+  },
+  "provenance": {
+    "source_spec_id": "sample-body-pickup-route",
+    "created_at": "2026-08-30T00:00:00Z",
+    "created_by": "cam-assist-blueprint"
+  }
+}

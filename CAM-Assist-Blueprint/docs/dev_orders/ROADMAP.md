@@ -94,7 +94,17 @@ PR        #38
 ```
 
 First post-fret-slot manufacturing-strategy operation: 2.5D open-path
-simple truss rod channel. A31+ remains unassigned.
+simple truss rod channel. Merged PR #38 → `31e9c68`.
+
+### CAM-A31 — Pickup Route Strategy Support — **capability**
+
+```text
+branch    cursor/cam-a31-pickup-route-strategy-fc97
+dev order docs/dev_orders/CAM-A31.md
+```
+
+First compound manufacturing-strategy operation: 2.5D closed-region
+pickup cavity with rough → finish. A32+ remains unassigned.
 
 ---
 
@@ -119,7 +129,7 @@ alongside the number.
 
 ## Unassigned
 
-### A31+ — **not yet authorized**
+### A32+ — **not yet authorized**
 
 ```text
 branch      none
@@ -130,7 +140,7 @@ test        none
 PR          none
 ```
 
-There is **no repository evidence of any kind** for A31 or beyond. The number is
+There is **no repository evidence of any kind** for A32 or beyond. The number is
 not reserved, the scope is not defined, and nothing in this repository implies
 what it should be.
 

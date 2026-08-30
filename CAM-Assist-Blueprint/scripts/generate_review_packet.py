@@ -176,6 +176,171 @@ def _render_truss_rod_channel_summary(data: dict, units: str) -> list[str]:
     return lines
 
 
+def _render_pickup_route_summary(data: dict, units: str) -> list[str]:
+    lines: list[str] = []
+    lines.append("## 7. Pickup Route Summary")
+    lines.append("")
+    cavity = data.get("cavity") or {}
+    depth_strategy = data.get("depth_strategy") or {}
+    compatibility = data.get("tool_compatibility") or {}
+    intent = data.get("operation_intent") or {}
+    center = cavity.get("reference_point") or {}
+    evidence = (data.get("review_requirements") or {}).get("evidence") or {}
+    roughing = compatibility.get("roughing") or {}
+    finishing = compatibility.get("finishing") or {}
+    phases = data.get("strategy_phases") or []
+    finish_phase = phases[1] if len(phases) > 1 and isinstance(phases[1], dict) else {}
+    finish_depth = finish_phase.get("depth_strategy") or {}
+
+    lines.append("### Overview")
+    lines.append("")
+    lines.append("| Property | Value |")
+    lines.append("|----------|-------|")
+    lines.append(f"| Operation Type | {intent.get('operation_type', 'N/A')} |")
+    lines.append(f"| Geometry Type | {intent.get('geometry_type', 'N/A')} |")
+    lines.append(f"| Strategy Complexity | {intent.get('strategy_complexity', 'N/A')} |")
+    lines.append(f"| Cut Intent | {intent.get('cut_intent', 'N/A')} |")
+    lines.append(f"| Cavity Center | ({center.get('x', 'N/A')}, {center.get('y', 'N/A')}) |")
+    lines.append(f"| Cavity Length | {cavity.get('length', 'N/A')} {units} |")
+    lines.append(f"| Cavity Width | {cavity.get('width', 'N/A')} {units} |")
+    lines.append(f"| Corner Radius | {cavity.get('corner_radius', 'N/A')} {units} |")
+    lines.append(f"| Final Depth | {cavity.get('final_depth', 'N/A')} {units} |")
+    lines.append(f"| Bottom Profile | {cavity.get('bottom_profile', 'N/A')} |")
+    lines.append(f"| Finish Allowance | {compatibility.get('finish_allowance', evidence.get('finish_allowance', 'N/A'))} {units} |")
+    lines.append(f"| Mounting Tabs | {len(cavity.get('mounting_tabs') or [])} |")
+    lines.append("")
+    geometry = data.get("geometry") or {}
+    lines.append(
+        f"*`geometry.dxf_file` is `{geometry.get('dxf_file', 'geometry.dxf')}` "
+        "as a contract filename. This package does not generate or include a DXF file.*"
+    )
+    lines.append("")
+
+    tabs = cavity.get("mounting_tabs") or []
+    if tabs:
+        lines.append("### Mounting Tabs")
+        lines.append("")
+        lines.append("| # | Center X | Center Y | Length | Width | Corner Radius |")
+        lines.append("|---|----------|----------|--------|-------|---------------|")
+        for index, tab in enumerate(tabs, start=1):
+            lines.append(
+                f"| {index} | {tab.get('x', 'N/A')} | {tab.get('y', 'N/A')} | "
+                f"{tab.get('length', 'N/A')} {units} | {tab.get('width', 'N/A')} {units} | "
+                f"{tab.get('corner_radius', 'N/A')} {units} |"
+            )
+        lines.append("")
+
+    lines.append("### Roughing Depth Strategy")
+    lines.append("")
+    lines.append("| Property | Value |")
+    lines.append("|----------|-------|")
+    lines.append(f"| Final Depth | {depth_strategy.get('final_depth', 'N/A')} {units} |")
+    lines.append(f"| Maximum Pass Depth | {depth_strategy.get('maximum_pass_depth', 'N/A')} {units} |")
+    lines.append(f"| Pass Count | {depth_strategy.get('pass_count', 'N/A')} |")
+    passes = depth_strategy.get("passes") or []
+    lines.append(f"| Passes | {', '.join(str(p) for p in passes) if passes else 'N/A'} |")
+    lines.append("")
+    lines.append("*Depth passes are a manufacturing-strategy sequence. They are not G-code or cutter-center motion.*")
+    lines.append("")
+
+    lines.append("### Finishing Depth Strategy")
+    lines.append("")
+    lines.append("| Property | Value |")
+    lines.append("|----------|-------|")
+    lines.append(f"| Final Depth | {finish_depth.get('final_depth', 'N/A')} {units} |")
+    lines.append("")
+    lines.append("*Finishing expresses completion at the already-established target depth. It does not repeat the roughing pass list.*")
+    lines.append("")
+
+    lines.append("### Tool Compatibility")
+    lines.append("")
+    lines.append("| Property | Value |")
+    lines.append("|----------|-------|")
+    lines.append(f"| Status | {compatibility.get('status', 'N/A')} |")
+    lines.append(f"| Recommendation | {compatibility.get('recommendation', 'N/A')} |")
+    lines.append(f"| Roughing Diameter | {roughing.get('tool_diameter', 'N/A')} {units} |")
+    lines.append(f"| Roughing Claims Final Walls | {roughing.get('claims_final_walls', 'N/A')} |")
+    lines.append(f"| Finishing Diameter | {finishing.get('tool_diameter', 'N/A')} {units} |")
+    lines.append(f"| Finishing Tool Radius | {finishing.get('tool_radius', evidence.get('finishing_tool_radius', 'N/A'))} {units} |")
+    lines.append(f"| Finishing Claims Final Walls | {finishing.get('claims_final_walls', 'N/A')} |")
+    lines.append(f"| Tool-Limited Sharp | {compatibility.get('tool_limited_sharp', evidence.get('tool_limited_sharp', 'N/A'))} |")
+    lines.append("")
+    if evidence.get("tool_limited_sharp"):
+        lines.append(
+            "*Design corner radius is 0. The cavity is tool-limited sharp; "
+            "the finishing tool radius is surfaced for review and design radius 0 is preserved.*"
+        )
+        lines.append("")
+
+    if evidence.get("residual_material") is not None:
+        lines.append(f"**Residual material beneath cavity:** {evidence.get('residual_material')} {units}")
+        lines.append("")
+    unresolved = (data.get("review_requirements") or {}).get("unresolved_assumptions") or []
+    if unresolved:
+        lines.append("**Unresolved assumptions:**")
+        for item in unresolved:
+            lines.append(f"- {item}")
+        lines.append("")
+    return lines
+
+
+def _render_pickup_route_review_items(data: dict, units: str) -> list[str]:
+    lines: list[str] = []
+    evidence = (data.get("review_requirements") or {}).get("evidence") or {}
+    items = (data.get("review_requirements") or {}).get("items") or []
+    if items:
+        for item in items:
+            lines.append(f"- [ ] {item}")
+    else:
+        lines.append("- [ ] Cavity center, length, and width match the intended pickup location")
+        lines.append("- [ ] Corner radius matches the intended cavity corners")
+        lines.append("- [ ] Final depth matches the intended cavity and blank")
+        lines.append("- [ ] Mounting tabs contact the main cavity envelope")
+        lines.append("- [ ] Recommended tools geometrically fit the cavity")
+        lines.append("- [ ] Depth-pass sequence does not overcut")
+        lines.append("- [ ] Finish allowance is understood as wall stock only")
+        lines.append("- [ ] This package does not authorize machine execution")
+    lines.append("")
+    if evidence:
+        lines.append("### Review Evidence")
+        lines.append("")
+        lines.append("| Item | Value |")
+        lines.append("|------|-------|")
+        for key in (
+            "cavity_length",
+            "cavity_width",
+            "corner_radius",
+            "final_depth",
+            "roughing_tool_diameter",
+            "finishing_tool_diameter",
+            "finishing_tool_radius",
+            "finish_allowance",
+            "roughing_claims_final_walls",
+            "tool_limited_sharp",
+            "tool_compatibility",
+            "blank_thickness",
+            "residual_material",
+            "mounting_tab_count",
+            "pass_count",
+        ):
+            if key in evidence:
+                value = evidence[key]
+                unit_suffix = f" {units}" if key in {
+                    "cavity_length", "cavity_width", "corner_radius",
+                    "final_depth", "roughing_tool_diameter",
+                    "finishing_tool_diameter", "finishing_tool_radius",
+                    "finish_allowance", "blank_thickness", "residual_material",
+                } else ""
+                lines.append(f"| {key} | {value}{unit_suffix} |")
+        center = evidence.get("cavity_center")
+        if center:
+            lines.append(f"| cavity_center | ({center.get('x')}, {center.get('y')}) |")
+        if evidence.get("passes"):
+            lines.append(f"| passes | {evidence.get('passes')} |")
+        lines.append("")
+    return lines
+
+
 def _render_truss_rod_review_items(data: dict, units: str) -> list[str]:
     lines: list[str] = []
     evidence = (data.get("review_requirements") or {}).get("evidence") or {}
@@ -369,7 +534,9 @@ def generate_review_packet(data: dict, manifest_data: dict | None = None) -> str
     # Section 7: Operation summary (dispatched)
     lines.append("---")
     lines.append("")
-    if op_type == "truss_rod_channel":
+    if op_type == "pickup_route":
+        lines.extend(_render_pickup_route_summary(data, units))
+    elif op_type == "truss_rod_channel":
         lines.extend(_render_truss_rod_channel_summary(data, units))
     else:
         lines.extend(_render_fret_slot_summary(data, tool, params, units))
@@ -403,7 +570,22 @@ def generate_review_packet(data: dict, manifest_data: dict | None = None) -> str
             lines.append("")
 
         compatibility = data.get("tool_compatibility") or {}
-        if op_type == "truss_rod_channel" and compatibility:
+        if op_type == "pickup_route" and compatibility:
+            roughing = compatibility.get("roughing") or {}
+            finishing = compatibility.get("finishing") or {}
+            lines.append("| Compatibility | Value |")
+            lines.append("|---------------|-------|")
+            lines.append(f"| Status | {compatibility.get('status', 'N/A')} |")
+            lines.append(f"| Recommendation | {compatibility.get('recommendation', 'N/A')} |")
+            lines.append(f"| Roughing Diameter | {roughing.get('tool_diameter', 'N/A')} {units} |")
+            lines.append(f"| Roughing Claims Final Walls | {roughing.get('claims_final_walls', 'N/A')} |")
+            lines.append(f"| Finishing Diameter | {finishing.get('tool_diameter', 'N/A')} {units} |")
+            lines.append(f"| Finishing Claims Final Walls | {finishing.get('claims_final_walls', 'N/A')} |")
+            lines.append(f"| Tool-Limited Sharp | {compatibility.get('tool_limited_sharp', 'N/A')} |")
+            lines.append("")
+            lines.append("*Tool fit is geometric compatibility only. It is not execution approval.*")
+            lines.append("")
+        elif op_type == "truss_rod_channel" and compatibility:
             lines.append("| Compatibility | Value |")
             lines.append("|---------------|-------|")
             lines.append(f"| Status | {compatibility.get('status', 'N/A')} |")
@@ -422,7 +604,21 @@ def generate_review_packet(data: dict, manifest_data: dict | None = None) -> str
     lines.append("")
     lines.append("## 9. Workholding Assumptions")
     lines.append("")
-    if op_type == "truss_rod_channel":
+    if op_type == "pickup_route":
+        setup = data.get("setup_assumptions") or {}
+        workholding = setup.get("workholding")
+        if workholding:
+            lines.append(workholding)
+            lines.append("")
+        else:
+            lines.append("*Not specified in strategy package.*")
+            lines.append("")
+        lines.append("> **Operator Note:** Verify adequate workholding before machining.")
+        lines.append("> Body blank must be secured against movement during cavity routing.")
+        lines.append("")
+        lines.append("*Workholding notes are advisory manufacturing assumptions. They are not fixture programs or work-offset assignments.*")
+        lines.append("")
+    elif op_type == "truss_rod_channel":
         setup = data.get("setup_assumptions") or {}
         workholding = setup.get("workholding")
         if workholding:
@@ -471,7 +667,9 @@ def generate_review_packet(data: dict, manifest_data: dict | None = None) -> str
     lines.append("")
     lines.append("Before proceeding to CAM or machining, the operator must verify:")
     lines.append("")
-    if op_type == "truss_rod_channel":
+    if op_type == "pickup_route":
+        lines.extend(_render_pickup_route_review_items(data, units))
+    elif op_type == "truss_rod_channel":
         lines.extend(_render_truss_rod_review_items(data, units))
     else:
         lines.append("- [ ] Fret positions match instrument specification")
@@ -506,7 +704,15 @@ def generate_review_packet(data: dict, manifest_data: dict | None = None) -> str
 
     lines.append("### Potential Failure Modes")
     lines.append("")
-    if op_type == "truss_rod_channel":
+    if op_type == "pickup_route":
+        lines.append("- **Cavity too shallow:** Pickup may sit proud of the body face")
+        lines.append("- **Cavity too deep:** Residual material under the cavity may be insufficient")
+        lines.append("- **Corner too tight:** A cutter that claims final walls must fit the positive corner radius")
+        lines.append("- **Oversized cutter:** Tool diameter larger than cavity length or width is rejected, not accommodated")
+        lines.append("- **Floating mounting tab:** Tabs that do not touch the main cavity envelope are rejected")
+        lines.append("- **Overcut depth:** Pass calculation must never exceed requested final depth")
+        lines.append("")
+    elif op_type == "truss_rod_channel":
         lines.append("- **Channel too shallow:** Truss rod may not seat or may sit proud of the glue surface")
         lines.append("- **Channel too deep:** Residual material under the channel may be insufficient")
         lines.append("- **Channel too narrow:** Rod will not fit; do not enlarge corners or width silently")

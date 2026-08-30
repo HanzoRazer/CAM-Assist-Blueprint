@@ -626,6 +626,30 @@ See [docs/strategy_packages/TRUSS_ROD_CHANNEL_STRATEGY.md](docs/strategy_package
 
 ---
 
+### CAM-A31 — Pickup Route Strategy Support
+
+Adds the first compound manufacturing-strategy operation:
+
+```text
+pickup_route
+```
+
+Axis-aligned flat-bottom cavity with optional mounting tabs. Classification is
+2.5D / compound (rough → finish). CAM Assist computes cavity geometry intent,
+tab contact, two-cutter fit, and a deterministic roughing depth-pass sequence.
+Finishing states completion at the same final depth. It does not generate
+G-code, DXF files, or execution authority.
+
+```bash
+python scripts/create_pickup_route_strategy.py \
+    examples/operations/pickup_route_example.json \
+    --out examples/valid/pickup_route_strategy.json --force
+```
+
+See [docs/strategy_packages/PICKUP_ROUTE_STRATEGY.md](docs/strategy_packages/PICKUP_ROUTE_STRATEGY.md).
+
+---
+
 ### Maintenance and governance work (not A-series capabilities)
 
 Some merged work hardens or maintains existing capabilities rather than adding a
@@ -678,6 +702,7 @@ contracts/              # CAM-Assist-owned non-example policy artifacts
 
 scripts/                # CLI tools
   create_truss_rod_channel_strategy.py
+  create_pickup_route_strategy.py
   validate_strategy_package.py
   generate_review_packet.py
   validate_manifest.py
@@ -775,6 +800,17 @@ python scripts/create_truss_rod_channel_strategy.py \
 python scripts/create_truss_rod_channel_strategy.py \
     --input examples/operations/truss_rod_channel_example.json \
     --out examples/valid/truss_rod_channel_strategy.json
+```
+
+### Create Pickup Route Strategy
+
+```bash
+python scripts/create_pickup_route_strategy.py \
+    examples/operations/pickup_route_example.json \
+    --out examples/valid/pickup_route_strategy.json
+python scripts/create_pickup_route_strategy.py \
+    --input examples/operations/pickup_route_example.json \
+    --out examples/valid/pickup_route_strategy.json
 ```
 
 ### Validate Strategy

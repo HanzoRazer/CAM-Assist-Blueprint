@@ -64,7 +64,8 @@ error: `38e0665` was recorded as `Local Only` and "never published" when it is o
 | A27 | Capability Map Runtime Hardening | **Merged** | PR #35 → `7f20320` | `CAM-A27.md` | n/a | **Maintenance-class, not a capability** — numbered by explicit authorization. Shared map module, controlled errors, blank-identifier rejection. No mapping-policy change. Merged 2026-08-23. |
 | **A28** | **Package Coherence Audit** | **Merged** | PR #36 → `65e9f4c` | `CAM-A28.md` | yes | Capability. Read-only identity/reference audit. Advisory by default. Merged 2026-08-24. Declaring-file-relative references only; no project-root fallback. |
 | A29 | Traceability Reference Path Canonicalization | **Merged** | PR #37 → `0cfa5e9` | `CAM-A29.md` | compact | **Maintenance-class, not a capability** — numbered by explicit authorization. One declaring-file-relative rule shared by creators, completeness validators, and CAM-A28. Fixture path strings corrected; manufacturing semantics unchanged. Merged 2026-08-25. |
-| **A30** | **Truss Rod Channel Strategy Support** | **PR Open** | PR #38 `cursor/cam-a30-truss-rod-channel-strategy-fc97` | `CAM-A30.md` | yes | Capability. First post-fret-slot operation: 2.5D open-path simple strategy. Creator + shared depth-pass helper + dispatched review packet. No G-code. A31 not assigned. Opened 2026-08-25. **Not merged.** |
+| **A30** | **Truss Rod Channel Strategy Support** | **Merged** | PR #38 → `31e9c68` | `CAM-A30.md` | yes | Capability. First post-fret-slot operation: 2.5D open-path simple strategy. Creator + shared depth-pass helper + dispatched review packet. No G-code. Merged 2026-08-26. |
+| **A31** | **Pickup Route Strategy Support** | **Local Only** | `cursor/cam-a31-pickup-route-strategy-fc97` | `CAM-A31.md` | yes | Capability. First compound operation: 2.5D closed-region pickup cavity, rough → finish. Optional blank_thickness. No G-code. A32 not assigned. |
 
 ---
 

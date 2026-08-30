@@ -282,6 +282,40 @@
       }
     },
 
+    "cavity": {
+      "type": "object",
+      "description": "Closed-region cavity geometry intent for pickup_route strategies. reference_point is the cavity center; mounting-tab x,y are tab centers in the same frame.",
+      "properties": {
+        "reference_point": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" }
+          }
+        },
+        "length": { "type": "number" },
+        "width": { "type": "number" },
+        "corner_radius": { "type": "number" },
+        "final_depth": { "type": "number" },
+        "mounting_tabs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "length": { "type": "number" },
+              "width": { "type": "number" },
+              "corner_radius": { "type": "number" },
+              "envelope": { "type": "object" }
+            }
+          }
+        },
+        "bottom_profile": { "type": "string" },
+        "envelope": { "type": "object" }
+      }
+    },
+
     "channel": {
       "type": "object",
       "description": "Open-path channel geometry intent for truss_rod_channel strategies",
@@ -486,6 +520,131 @@
                   "residual_material": {
                     "type": "number",
                     "description": "Must equal blank_thickness minus final channel depth and must be greater than zero."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["operation_intent"],
+        "properties": {
+          "operation_intent": {
+            "type": "object",
+            "required": ["operation_type"],
+            "properties": {
+              "operation_type": { "const": "pickup_route" }
+            }
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "cavity",
+          "depth_strategy",
+          "strategy_phases",
+          "tool_compatibility",
+          "review_requirements"
+        ],
+        "properties": {
+          "geometry": {
+            "type": "object",
+            "required": ["dxf_file", "primary_layer", "generated"],
+            "properties": {
+              "dxf_file": { "const": "geometry.dxf" },
+              "primary_layer": { "const": "PICKUP_ROUTE" },
+              "generated": { "const": false }
+            }
+          },
+          "cavity": {
+            "type": "object",
+            "required": [
+              "reference_point",
+              "length",
+              "width",
+              "corner_radius",
+              "final_depth",
+              "mounting_tabs",
+              "bottom_profile"
+            ]
+          },
+          "strategy_phases": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "prefixItems": [
+              {
+                "type": "object",
+                "required": ["phase_id", "order", "depth_strategy"],
+                "properties": {
+                  "phase_id": { "const": "rough" },
+                  "order": { "const": 1 }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["phase_id", "order", "depth_strategy"],
+                "properties": {
+                  "phase_id": { "const": "finish" },
+                  "order": { "const": 2 },
+                  "depth_strategy": {
+                    "type": "object",
+                    "required": ["final_depth"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "final_depth": { "type": "number" }
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "tool_compatibility": {
+            "type": "object",
+            "required": ["roughing", "finishing", "finish_allowance", "tool_limited_sharp"],
+            "properties": {
+              "roughing": {
+                "type": "object",
+                "required": ["tool_diameter", "claims_final_walls"]
+              },
+              "finishing": {
+                "type": "object",
+                "required": ["tool_diameter", "claims_final_walls", "tool_radius"]
+              },
+              "finish_allowance": { "type": "number" },
+              "tool_limited_sharp": { "type": "boolean" }
+            }
+          },
+          "review_requirements": {
+            "type": "object",
+            "required": ["evidence"],
+            "properties": {
+              "evidence": {
+                "type": "object",
+                "required": [
+                  "cavity_center",
+                  "cavity_length",
+                  "cavity_width",
+                  "corner_radius",
+                  "final_depth",
+                  "roughing_tool_diameter",
+                  "finishing_tool_diameter",
+                  "finishing_tool_radius",
+                  "finish_allowance",
+                  "tool_limited_sharp",
+                  "passes"
+                ],
+                "properties": {
+                  "blank_thickness": {
+                    "type": "number",
+                    "description": "Optional. When supplied, must exceed final_depth. Residual material is blank_thickness minus final_depth."
+                  },
+                  "residual_material": {
+                    "type": "number",
+                    "description": "Optional. Present only when blank_thickness is supplied. Must equal blank_thickness minus final_depth and must be greater than zero."
                   }
                 }
               }

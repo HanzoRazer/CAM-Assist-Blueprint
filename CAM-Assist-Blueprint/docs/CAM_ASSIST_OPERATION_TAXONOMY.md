@@ -132,7 +132,11 @@ Fret slots are a "simple" strategy:
 
 **Type:** 2.5D closed polygon  
 **Complexity:** Compound (rough + finish)  
+**Implementation:** CAM-A31 strategy support  
 **Key parameters:** Pickup dimensions, mounting tab positions, depth steps
+
+v1 strategy support is a flat-bottom, constant-depth cavity. The taxonomy
+family classification is unchanged.
 
 ### Neck Pocket
 
