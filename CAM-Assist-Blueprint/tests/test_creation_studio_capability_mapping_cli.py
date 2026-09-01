@@ -27,10 +27,16 @@ EXIT_INPUT_ERROR = 2
 
 
 def run(*args: str) -> subprocess.CompletedProcess:
+    # encoding is explicit, not left to the locale. `text=True` alone decodes
+    # with locale.getpreferredencoding(), which is cp1252 on Windows -- so the
+    # report's U+2192 arrow would come back as the mojibake 'a-dagger-quote'
+    # even once the CLI writes it correctly. Both ends of the pipe have to
+    # agree, and only the reading end is set here.
     return subprocess.run(
         [sys.executable, str(SCRIPT), *args],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         cwd=REPO_ROOT,
     )
 
@@ -194,6 +200,44 @@ def test_human_report_distinguishes_mapped_matches(workspace: Path, tmp_path: Pa
     assert "Capability map:" in result.stdout
     assert "Map version:" in result.stdout
     assert "explicit compatibility declarations" in result.stdout
+    # The arrow itself, not just the ASCII around it. Every other assertion in
+    # this test is ASCII, so the test would pass over a mangled arrow -- which
+    # is exactly what happens if only the writing end of the pipe is fixed.
+    assert "→ simulation_support" in result.stdout
+
+
+def test_report_arrow_survives_the_process_boundary(workspace: Path, tmp_path: Path):
+    """The encoding round-trip, pinned on its own.
+
+    This is the test the cp1252 defect was born from. The CLI writes U+2192,
+    which has no cp1252 mapping: before the fix the child died with
+    UnicodeEncodeError on Windows, and a fix applied only to the writing end
+    would return the arrow as three mis-decoded cp1252 characters.
+
+    Asserting the codepoint directly is what separates a real fix from a green
+    test over corrupted output.
+    """
+    mapping = write_map(
+        tmp_path / "map.json",
+        [
+            {
+                "request_capability": "simulation_request",
+                "satisfied_by": ["simulation_support"],
+                "rationale": "Explicit simulation correspondence.",
+            }
+        ],
+    )
+    result = run("--package", str(workspace), "--capability-map", str(mapping))
+
+    assert result.returncode == EXIT_OK, result.stderr
+    assert "UnicodeEncodeError" not in result.stderr
+
+    arrow_lines = [line for line in result.stdout.splitlines() if "→" in line]
+    assert arrow_lines, "the report emitted no U+2192 arrow at all"
+    assert arrow_lines[0].strip() == "→ simulation_support"
+
+    # The mojibake U+2192 becomes when its UTF-8 bytes are read back as cp1252.
+    assert "â†’" not in result.stdout
 
 
 def test_map_versions_do_not_change_matching(workspace: Path, tmp_path: Path):
