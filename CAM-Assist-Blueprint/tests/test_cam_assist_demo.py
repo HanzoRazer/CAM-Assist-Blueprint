@@ -43,8 +43,15 @@ EXPECTED_STEPS = [
 
 
 def run_demo(*args) -> subprocess.CompletedProcess:
+    # encoding is explicit, not left to the locale. `text=True` alone decodes
+    # with locale.getpreferredencoding(), which is cp1252 on Windows -- and the
+    # progress banner carries an em-dash. Both ends of the pipe have to agree
+    # on UTF-8; the demo sets the writing end, this sets the reading end.
     return subprocess.run(
-        [sys.executable, str(DEMO), *args], capture_output=True, text=True
+        [sys.executable, str(DEMO), *args],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
     )
 
 
@@ -162,3 +169,25 @@ def test_json_emits_machine_readable_summary(tmp_path):
     summary = json.loads(proc.stdout)
     assert summary["record_type"] == "cam_assist_demo_summary"
     assert summary["status"] == "passed"
+
+
+def test_progress_banner_survives_the_process_boundary(tmp_path):
+    """The demo's non-ASCII output round-trips as UTF-8.
+
+    This entry point never crashed the way the capability report did, because
+    cp1252 happens to encode an em-dash at 0x97 while it has no mapping for
+    U+2192 at all. That was luck rather than safety: written under cp1252, the
+    banner's 0x97 is not valid UTF-8, so a reader decoding UTF-8 gets a
+    UnicodeDecodeError instead of the character.
+
+    Pinning the round-trip here means the next unmappable codepoint someone
+    adds to this banner fails in a test rather than in a user's terminal.
+    """
+    proc = run_demo("--workspace", str(tmp_path / "ws"), "--keep")
+
+    assert proc.returncode == 0, proc.stderr
+    assert "UnicodeEncodeError" not in proc.stderr
+
+    banner = [line for line in proc.stdout.splitlines() if "workspace:" in line]
+    assert banner, "the demo emitted no progress banner"
+    assert "\u2014" in banner[0], "the em-dash did not survive the pipe"

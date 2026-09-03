@@ -54,6 +54,7 @@ import textwrap
 from pathlib import Path
 from typing import NamedTuple
 
+from _shared.cli_output import force_utf8_output
 from _shared.creation_studio_capability_map import (
     CapabilityMapContractError,
     CapabilityMapInputError,
@@ -729,38 +730,9 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def force_utf8_output() -> None:
-    """Emit UTF-8 regardless of the host console or pipe codepage.
-
-    The human report draws a U+2192 arrow under each mapped match. On Windows a
-    piped stdout defaults to the locale codepage, cp1252, which has no mapping
-    for U+2192 -- so writing the report raised UnicodeEncodeError and the
-    process died with a traceback instead of printing.
-
-    This is an encoding fix, not a character ban. The arrow stays; what changes
-    is that the stream can carry it. Note that cp1252 *can* encode an em-dash
-    (0x97) and a right single quote (0x92), which is why other non-ASCII output
-    in this repository never failed -- the defect was never "non-ASCII", it was
-    this specific unmappable codepoint.
-
-    Guarded three ways: `reconfigure` exists only on TextIOWrapper, stdout may
-    already be wrapped or replaced by a caller, and stderr may be redirected
-    independently. A failure here must never take down a CLI whose real work is
-    fine, so it degrades to the previous behaviour rather than raising.
-    """
-    for stream in (sys.stdout, sys.stderr):
-        reconfigure = getattr(stream, "reconfigure", None)
-        if reconfigure is None:
-            continue
-        try:
-            reconfigure(encoding="utf-8")
-        except (ValueError, OSError):
-            # Already-detached or non-reconfigurable stream. Leave it alone.
-            pass
-
-
 def main(argv: list[str] | None = None) -> int:
     # Before any output, so no line can be written under the old encoding.
+    # The report draws a U+2192 arrow, which cp1252 cannot encode at all.
     force_utf8_output()
 
     args = build_parser().parse_args(argv)

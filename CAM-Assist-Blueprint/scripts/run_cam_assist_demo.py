@@ -43,6 +43,9 @@ import tempfile
 from pathlib import Path
 from typing import NamedTuple
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _shared.cli_output import force_utf8_output  # noqa: E402
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = REPO_ROOT / "scripts"
 DEFAULT_INPUT = REPO_ROOT / "examples" / "ltb_import" / "synthetic_vcarve_ltb_output.json"
@@ -186,6 +189,14 @@ def build_summary(input_path: Path, results: list[StepResult], ok: bool, ws: Pat
 
 
 def main() -> int:
+    # Before any output, so no line can be written under the old encoding. The
+    # progress banner carries an em-dash, which cp1252 happens to encode at
+    # 0x97 -- so this entry point never crashed the way the capability report
+    # did. That is luck, not safety: the byte a locale-decoding reader gets
+    # back is not UTF-8, and the first unmappable character added here would
+    # fail exactly as U+2192 did.
+    force_utf8_output()
+
     parser = argparse.ArgumentParser(
         description="Run the CAM Assist end-to-end demonstration (non-execution).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
