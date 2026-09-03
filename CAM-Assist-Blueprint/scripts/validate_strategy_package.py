@@ -239,7 +239,11 @@ def validate_strategy_package(data: dict) -> ValidationResult:
     operation_type = None
     if isinstance(data.get("operation_intent"), dict):
         operation_type = data["operation_intent"].get("operation_type")
-    if operation_type == "truss_rod_channel":
+    if operation_type == "pickup_route":
+        from _shared.pickup_route import validate_pickup_route_strategy_data
+
+        errors.extend(validate_pickup_route_strategy_data(data))
+    elif operation_type == "truss_rod_channel":
         from _shared.truss_rod_channel import validate_truss_rod_channel_strategy_data
 
         errors.extend(validate_truss_rod_channel_strategy_data(data))

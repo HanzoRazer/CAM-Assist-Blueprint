@@ -121,6 +121,27 @@
         "blank_thickness_inches": {
           "type": "number",
           "description": "Blank thickness in inches. Residual material is blank thickness minus channel depth and must be greater than zero. The live creator request uses unit-agnostic blank_thickness; blank_thickness_inches is accepted as an alias only when units are inches."
+        },
+        "length_inches": {
+          "type": "number",
+          "description": "Cavity length in inches along X. Live creator request uses unit-agnostic cavity.length."
+        },
+        "corner_radius_inches": {
+          "type": "number",
+          "description": "Cavity corner radius in inches. Live creator request uses unit-agnostic cavity.corner_radius."
+        },
+        "finish_allowance_inches": {
+          "type": "number",
+          "description": "Wall-stock finish allowance in inches. Live creator request uses unit-agnostic roughing.finish_allowance."
+        },
+        "reference_point": {
+          "type": "object",
+          "description": "Cavity geometric center in the operation coordinate frame. For pickup_route this is an XY point; depth is parameters.depth_inches, not Z.",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "z": { "type": "number" }
+          }
         }
       }
     },
@@ -196,6 +217,38 @@
                 }
               },
               "end": {
+                "type": "object",
+                "required": ["x", "y"],
+                "additionalProperties": false,
+                "properties": {
+                  "x": { "type": "number" },
+                  "y": { "type": "number" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation_type": { "const": "pickup_route" } }
+      },
+      "then": {
+        "properties": {
+          "geometry_type": { "const": "2.5D" },
+          "strategy_complexity": { "const": "compound" },
+          "parameters": {
+            "required": [
+              "depth_inches",
+              "width_inches",
+              "length_inches",
+              "corner_radius_inches",
+              "finish_allowance_inches",
+              "reference_point"
+            ],
+            "properties": {
+              "reference_point": {
                 "type": "object",
                 "required": ["x", "y"],
                 "additionalProperties": false,

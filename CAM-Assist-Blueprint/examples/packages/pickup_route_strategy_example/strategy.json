@@ -1,0 +1,242 @@
+{
+  "strategy_version": "1.2",
+  "strategy_id": "pickup-route-flat-sample",
+  "units": "inches",
+  "coordinate_frame": {
+    "origin": "body_center",
+    "x_axis": "along_body_toward_bridge",
+    "y_axis": "across_body_treble_positive",
+    "z_axis": "into_body_blank",
+    "datum_point": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "provenance": {
+    "source_spec_id": "sample-body-pickup-route",
+    "cam_assist_version": "0.5.0",
+    "created_at": "2026-08-30T00:00:00Z",
+    "created_by": "cam-assist-blueprint"
+  },
+  "operation_intent": {
+    "operation_type": "pickup_route",
+    "target_feature": "body",
+    "cut_intent": "pocket",
+    "geometry_type": "2.5D",
+    "strategy_complexity": "compound",
+    "non_execution_declaration": true
+  },
+  "material_context": {
+    "material_class": "hardwood",
+    "species": "Alder",
+    "hardness_janka": 590,
+    "grain_direction": "along_body_length"
+  },
+  "safety_boundary": {
+    "non_execution_declaration": true,
+    "human_review_required": true,
+    "max_depth_inches": 0.75,
+    "tool_diameter_inches": 0.25,
+    "execution_authority_claim": false
+  },
+  "geometry": {
+    "dxf_file": "geometry.dxf",
+    "primary_layer": "PICKUP_ROUTE",
+    "reference_layers": [
+      "BODY_OUTLINE"
+    ],
+    "generated": false
+  },
+  "operation": {
+    "type": "pocket_cut",
+    "tool": {
+      "reference_type": "dimension_spec",
+      "tool_type": "end_mill",
+      "diameter": 0.25,
+      "description": "End mill for cavity finishing"
+    },
+    "parameters": {
+      "length": 3,
+      "width": 1.5,
+      "depth": 0.75,
+      "corner_radius": 0.125,
+      "finish_allowance": 0.02,
+      "depth_per_pass": 0.25,
+      "notes": "Depth-pass sequence is advisory manufacturing strategy, not machine motion. No feeds or speeds are derived from material."
+    },
+    "sequence": "rough_then_finish"
+  },
+  "cavity": {
+    "reference_point": {
+      "x": 0,
+      "y": 0
+    },
+    "length": 3,
+    "width": 1.5,
+    "corner_radius": 0.125,
+    "final_depth": 0.75,
+    "mounting_tabs": [
+      {
+        "x": 1.5,
+        "y": 0,
+        "length": 0.5,
+        "width": 0.375,
+        "corner_radius": 0.0625,
+        "envelope": {
+          "xmin": 1.25,
+          "xmax": 1.75,
+          "ymin": -0.1875,
+          "ymax": 0.1875
+        }
+      }
+    ],
+    "bottom_profile": "flat",
+    "envelope": {
+      "xmin": -1.5,
+      "xmax": 1.5,
+      "ymin": -0.75,
+      "ymax": 0.75
+    }
+  },
+  "depth_strategy": {
+    "final_depth": 0.75,
+    "maximum_pass_depth": 0.25,
+    "pass_count": 3,
+    "passes": [
+      0.25,
+      0.5,
+      0.75
+    ]
+  },
+  "strategy_phases": [
+    {
+      "phase_id": "rough",
+      "order": 1,
+      "intent": "Rough the pickup cavity to final depth while leaving the declared finish allowance as wall stock. This is a manufacturing-strategy statement; no cutter-center offsets or machine motion are generated.",
+      "recommended_tool": {
+        "status": "recommended",
+        "compatibility": "compatible",
+        "reference_type": "dimension_spec",
+        "tool_type": "end_mill",
+        "diameter": 0.25,
+        "description": "End mill for cavity roughing",
+        "claims_final_walls": false,
+        "corner_fit_applicable": false,
+        "corner_fit": true
+      },
+      "depth_strategy": {
+        "final_depth": 0.75,
+        "maximum_pass_depth": 0.25,
+        "pass_count": 3,
+        "passes": [
+          0.25,
+          0.5,
+          0.75
+        ]
+      }
+    },
+    {
+      "phase_id": "finish",
+      "order": 2,
+      "intent": "Finish the pickup cavity walls at the already-established final depth. Roughing owns the plunge and depth progression. This is a manufacturing-strategy statement; no cutter-center offsets or machine motion are generated.",
+      "recommended_tool": {
+        "status": "recommended",
+        "compatibility": "compatible",
+        "reference_type": "dimension_spec",
+        "tool_type": "end_mill",
+        "diameter": 0.25,
+        "description": "End mill for cavity finishing",
+        "claims_final_walls": true,
+        "corner_fit_applicable": true,
+        "corner_fit": true
+      },
+      "depth_strategy": {
+        "final_depth": 0.75
+      }
+    }
+  ],
+  "tool_compatibility": {
+    "status": "compatible",
+    "recommendation": "recommended",
+    "finish_allowance": 0.02,
+    "corner_radius": 0.125,
+    "tool_limited_sharp": false,
+    "roughing": {
+      "tool_diameter": 0.25,
+      "tool_radius": 0.125,
+      "envelope_fit": true,
+      "corner_fit_applicable": false,
+      "corner_fit": true,
+      "claims_final_walls": false
+    },
+    "finishing": {
+      "tool_diameter": 0.25,
+      "tool_radius": 0.125,
+      "envelope_fit": true,
+      "corner_fit_applicable": true,
+      "corner_fit": true,
+      "claims_final_walls": true
+    }
+  },
+  "setup_assumptions": {
+    "workholding": "Body blank must be secured against movement during cavity routing. This is an advisory manufacturing assumption, not a fixture program or work-offset assignment.",
+    "cross_operation_scheduling": "not_specified",
+    "placement_authority": "Cavity coordinates are design intent relative to the strategy coordinate frame. They are not fixture zero, a work offset, or machine home."
+  },
+  "review_requirements": {
+    "items": [
+      "Cavity center, length, and width match the intended pickup location.",
+      "Corner radius matches the intended cavity corners, including tool-limited-sharp when radius is 0.",
+      "Final depth matches the intended cavity and does not overcut the blank.",
+      "Mounting tabs, when present, contact the main cavity envelope.",
+      "Roughing and finishing cutters both fit the cavity envelope.",
+      "Cutters that claim final wall geometry satisfy a positive corner-radius constraint.",
+      "Finish allowance is wall stock only and is understood by the operator.",
+      "Depth-pass sequence reaches final depth without overcutting.",
+      "This package is advisory only and does not authorize machine execution."
+    ],
+    "evidence": {
+      "cavity_center": {
+        "x": 0,
+        "y": 0
+      },
+      "cavity_length": 3,
+      "cavity_width": 1.5,
+      "corner_radius": 0.125,
+      "final_depth": 0.75,
+      "mounting_tab_count": 1,
+      "mounting_tabs": [
+        {
+          "x": 1.5,
+          "y": 0,
+          "length": 0.5,
+          "width": 0.375,
+          "corner_radius": 0.0625,
+          "envelope": {
+            "xmin": 1.25,
+            "xmax": 1.75,
+            "ymin": -0.1875,
+            "ymax": 0.1875
+          }
+        }
+      ],
+      "roughing_tool_diameter": 0.25,
+      "finishing_tool_diameter": 0.25,
+      "finishing_tool_radius": 0.125,
+      "finish_allowance": 0.02,
+      "roughing_claims_final_walls": false,
+      "tool_limited_sharp": false,
+      "tool_compatibility": "compatible",
+      "pass_count": 3,
+      "passes": [
+        0.25,
+        0.5,
+        0.75
+      ]
+    },
+    "unresolved_assumptions": []
+  },
+  "warnings": [],
+  "approval_state": "pending"
+}
