@@ -277,3 +277,119 @@ strategy-package path already on `main`.
 Contract publication is not manufacturing authorization. This increment
 adds no G-code, machine execution, material removal, production-policy
 activation, or CAM-A32 reconstruction.
+
+## R1-GOV-001 decision disposition
+
+Added Tuesday, October 27, 2026, 7:31 PM CT. Witness clock
+`2026-10-28T00:31:14Z`. This section is later than the R1 proposal above.
+It does not replace that proposal, appoint a decision owner, or approve
+any architectural choice.
+
+```text
+decision_id: PEP-CAM-CONTRACT-002
+status: proposed
+decision_owner: null
+effective_date: null
+
+canonical_repository:
+  identity: unresolved
+  authority: unapproved
+
+interchange:
+  artifact_choice: proposed_frozen_snapshot
+  schema_id: unresolved
+  schema_version: unresolved
+  canonicalization: unresolved
+
+evidence:
+  resolution_owner: proposed_luthiers_toolbox
+  digest_integrity_protocol: unresolved
+
+authority:
+  execution_authority_claim: false
+  non_execution_declaration: true
+  requires_human_review: true
+
+r2_authorized: false
+```
+
+`status: proposed` stays proposed after a documentation merge. Merging this
+file does not set `status` to accepted, does not fill `decision_owner`, and
+does not set `r2_authorized` to true. A later change may record approval
+only by citing an attributable owner decision, the exact text approved, and
+the repository revision that decision names.
+
+### PR #43 is merged, and that merge is not acceptance
+
+Verified against GitHub on this witness:
+
+| Fact | Value |
+| --- | --- |
+| State | `MERGED` |
+| Draft at merge | no; `isDraft` is false |
+| Head | `5f736e567dab31439df9b2b66fc5de43bec032f2`, unchanged |
+| Merge commit | `77716972169827e12ce99f6e2aeda5b1f9532586` |
+| Merged at | `2026-10-27T18:21:11Z` (Tuesday, October 27, 2026, 1:21 PM CT) |
+| Parents | `ccad852d26bc6dd1a3eb03933b7a0a8e89b9928f`, `5f736e567dab31439df9b2b66fc5de43bec032f2` |
+| Closed by | `HanzoRazer` |
+| Approving reviews | none |
+
+`HanzoRazer` commented at `2026-10-27T18:20:50Z` (1:20 PM CT) that a local
+ADR edit existed only on a machine branch named `pr43-review`, was not
+committed or pushed, and that merging the proposed ADR is safe only if the
+merge is not treated as design approval or as the start of R2. That
+comment is evidence of intent about the merge. It is not an approval of
+GOV-D01 through GOV-D05, and the local edit is not in `5f736e5`.
+
+### Five-decision R2 entry checklist
+
+Every row is open. A checkmark in this file would not be approval.
+
+| ID | Decision | Recorded result | R2 entry |
+| --- | --- | --- | --- |
+| GOV-D01 | Canonical repository and owner | Unresolved. Probed `HanzoRazer/physical-engineering-mesh`, `physical_engineering_mesh`, `Physical-Engineering-Mesh`, and `physical-engineering`. Each returned HTTP 404 to this credential. The accessible `HanzoRazer` repository list has no matching name. A 404 does not prove a private repository outside this token is absent | Blocked |
+| GOV-D02 | Schema identifier, version, and publication location | Unresolved. No version was allocated | Blocked |
+| GOV-D03 | Frozen snapshot versus raw proposal | Still the R1 recommendation only | Blocked |
+| GOV-D04 | Who resolves evidence and who checks the portable digest | Proposed: Toolbox resolves before publication; CAM-Assist would check declared integrity without rescreening. Protocol text is not approved | Blocked |
+| GOV-D05 | Serialized authority and result vocabulary | Proposed retention of `advisory_allowed`, `evidence_required`, and `rejected`, plus the three non-execution declarations. Field names are not approved | Blocked |
+| GOV-D06 | Advisory screening grants no execution authority | Order invariant. Already true of the inspected Toolbox gate and of CAM-Assist. Not a published interchange clause | Blocked with the rest |
+| GOV-D07 | Unknown versions and missing required evidence fail closed | Order invariant. True inside the Toolbox gate for its own `physical_engineering_proposal` / `1.0`. No interchange validator exists | Blocked with the rest |
+| GOV-D08 | ADR acceptance and R2 authorization are separate | This section records that separation. R2 is not authorized | Blocked |
+
+`r2_authorized` is false. Outcome B of R1-GOV-001: governance still blocked.
+
+### Mesh hold
+
+This order cites a prior Mesh hold that waits on a documented, processed
+real tonewood artifact. This run did not find that sentence in
+CAM-Assist-Blueprint. On Luthiers Toolbox `main`
+`cc8e13ae2b82065ade95b3a92ec5c6ed2d79d22d` (Tuesday, October 27, 2026,
+12:31 AM CT), `docs/tonewood/` is a species reference library and
+`MESH-MAT-001` remains the research-only material-evidence sidecar. A
+filename search of that tree for a mesh/tonewood hold document did not
+return the cited hold. GitHub code search for the phrase was attempted and
+returned HTTP 429, so that search is not a negative witness.
+
+The hold is therefore not cleared. This increment does not publish a Mesh
+schema in CAM-Assist in its place. Toolbox `main` has moved since the R1
+baseline `02032884` for shop-operation records. The compare from
+`02032884` to `cc8e13ae` does not change `physical_engineering/`,
+`contracts/schema_registry.json`, `PEP-V1-HARDEN-001.md`, or
+`material_evidence.schema.json`. Spot checks: `proposal_v1.py` is still
+`a35c5ccbf753b28e37f1c9a8164a879fe1a5a77b`, the registry is still
+`0131b114a22f868c61aba1706a04834c613512c6`, and the harden note is still
+`b6730b30dabcea2f1db4817c1e3928da00d000fc`. Tap Tone Pi `main` is still
+`52b8f3c9607cb61d384f30278cef04b8135c2c04`.
+
+### Files this governance increment does not add
+
+No approval record, because no owner decision exists to attribute.
+`docs/decisions/PEP-CAM-CONTRACT-002-APPROVAL.md` is intentionally absent.
+`docs/integration/PEP-CAM-SEAM-001.md` has no adoption note, because
+ownership is not decided. Phase B contract files are not created. No
+schema, fixture, registry, producer serializer, or CAM-Assist admission
+validator is added. `LEDGER.md`, `ROADMAP.md`, A28, and A29 are unchanged.
+
+`PEP-CAM-CONTRACT-002` is not Toolbox's deferred `PEP-V1-CONTRACT-002`.
+The relationship between those two names is one of the items an owner
+approval still has to settle. This section does not settle it.
