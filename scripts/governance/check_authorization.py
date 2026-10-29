@@ -17,9 +17,11 @@ from governance.kernel.evaluate import evaluate_authorization
 
 def _time(value: str | None) -> datetime | None:
     if value is None:
-        return None
+        return datetime.now(timezone.utc)
     text = value[:-1] + "+00:00" if value.endswith("Z") else value
     parsed = datetime.fromisoformat(text)
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError("--as-of must include a timezone")
     return parsed.astimezone(timezone.utc)
 
 
