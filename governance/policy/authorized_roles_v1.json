@@ -1,0 +1,20 @@
+{
+  "schema_version": "governance-roles-v1",
+  "policy_id": "authorized_roles_v1",
+  "synthetic": false,
+  "production_identities": [],
+  "roles": [
+    {
+      "role": "decision_approver",
+      "description": "May accept an architectural decision. This pilot enrolls no person.",
+      "required_review_state": "APPROVED",
+      "identities": []
+    },
+    {
+      "role": "implementation_authorizer",
+      "description": "May authorize a bounded implementation after a decision is accepted. This pilot enrolls no person.",
+      "required_review_state": "APPROVED",
+      "identities": []
+    }
+  ]
+}

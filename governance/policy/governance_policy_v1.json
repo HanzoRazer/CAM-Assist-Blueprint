@@ -1,0 +1,31 @@
+{
+  "schema_version": "governance-policy-v1",
+  "policy_id": "governance_policy_v1",
+  "canonicalization": "canonical-json-sha256-v1",
+  "lifecycle_states": [
+    "PROPOSED",
+    "UNDER_REVIEW",
+    "ACCEPTED",
+    "DEFERRED",
+    "REJECTED"
+  ],
+  "decision_status_authorizes_implementation": false,
+  "merged_pull_request_is_approval": false,
+  "pr_comment_is_approval": false,
+  "editable_approved_boolean_is_evidence": false,
+  "execution_authority_claim_allowed": false,
+  "production_authorization_operational": false,
+  "pilot_status": "non_authoritative",
+  "required_prohibited_capabilities": [
+    "gcode_generation",
+    "machine_execution",
+    "material_removal",
+    "production_policy_activation"
+  ],
+  "trusted_evidence_kind": "github_pull_request_review",
+  "untrusted_evidence_kinds": [
+    "editable_record_boolean",
+    "pull_request_comment",
+    "pull_request_merge"
+  ]
+}
