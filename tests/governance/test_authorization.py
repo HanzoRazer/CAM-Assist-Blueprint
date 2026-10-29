@@ -260,3 +260,30 @@ def test_production_flag_in_policy_cannot_enable_the_gate(policy, synthetic_bund
     assert verdict.code == 4
     assert verdict.verdict != "AUTHORIZED"
     assert "POLICY_CLAIMS_PRODUCTION_AUTHORITY" in verdict.reason_codes
+
+
+def test_expiry_is_exclusive_at_boundary(policy, synthetic_bundle):
+    from governance.kernel.evaluate import parse_time
+
+    authorization = copy.deepcopy(synthetic_bundle["authorization"])
+    boundary = parse_time(authorization["expires_at"])
+    verdict = _eval(policy, synthetic_bundle, authorization=authorization, when=boundary)
+    assert verdict.verdict == "BLOCKED"
+    assert "AUTHORIZATION_EXPIRED" in verdict.reason_codes
+
+
+def test_default_clock_checks_expiry(policy, synthetic_bundle):
+    authorization = copy.deepcopy(synthetic_bundle["authorization"])
+    authorization["effective_date"] = "2000-01-01T00:00:00Z"
+    authorization["expires_at"] = "2001-01-01T00:00:00Z"
+    verdict = _eval(policy, synthetic_bundle, authorization=authorization, when=None)
+    assert verdict.verdict == "BLOCKED"
+    assert "AUTHORIZATION_EXPIRED" in verdict.reason_codes
+
+
+def test_naive_as_of_fails_closed(policy, synthetic_bundle):
+    from datetime import datetime
+
+    verdict = _eval(policy, synthetic_bundle, when=datetime(2026, 1, 1))
+    assert verdict.code == 4
+    assert "INVALID_AS_OF_TIME" in verdict.reason_codes
