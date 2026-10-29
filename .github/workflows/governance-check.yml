@@ -36,7 +36,12 @@ jobs:
         run: python -m pytest tests/governance -q
 
       - name: PEP-CAM-CONTRACT-002 remains blocked
+        # actions/runner invokes this step as `bash -e`. The report exits 1
+        # when the interchange stays blocked, so errexit must be off only
+        # while that status is captured. This checkout is the candidate tree,
+        # not a protected trust root outside the pull request.
         run: |
+          set +e
           set -uo pipefail
           python scripts/governance/report_governance.py > "$RUNNER_TEMP/governance-report.json"
           code=$?
