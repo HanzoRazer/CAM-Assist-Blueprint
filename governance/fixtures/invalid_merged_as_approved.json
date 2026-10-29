@@ -1,0 +1,12 @@
+{
+  "approval_evidence": [],
+  "decision_id": "MERGED-IS-NOT-APPROVAL",
+  "decision_owner": null,
+  "effective_date": null,
+  "implementation_authorization_ref": null,
+  "pr_merged": true,
+  "schema_version": "governance-decision-v1",
+  "status": "PROPOSED",
+  "subject_repository": "HanzoRazer/CAM-Assist-Blueprint",
+  "subject_revision": "5f736e567dab31439df9b2b66fc5de43bec032f2"
+}

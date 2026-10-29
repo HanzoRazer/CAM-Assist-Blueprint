@@ -1,0 +1,33 @@
+{
+  "approvals": [
+    {
+      "evidence_ref": "missing-review",
+      "identity": "forged-approver",
+      "review_state": "APPROVED",
+      "role": "implementation_authorizer"
+    }
+  ],
+  "approved_decision_revision": "5f736e567dab31439df9b2b66fc5de43bec032f2",
+  "authorization_id": "invalid-execution",
+  "authorized_repository": "HanzoRazer/CAM-Assist-Blueprint",
+  "decision_id": "PEP-CAM-CONTRACT-002",
+  "effective_date": "2026-10-28T00:00:00Z",
+  "execution_authority_claim": true,
+  "expires_at": null,
+  "implementation_scope": [
+    "r2-contract-publication"
+  ],
+  "policy_digest": "3c0236cd2cb61682b835fd34210ae37a022f7d891d84106fa1ff060631020769",
+  "policy_id": "governance_policy_v1",
+  "production_eligible": false,
+  "prohibited_capabilities": [
+    "gcode_generation",
+    "machine_execution",
+    "material_removal",
+    "production_policy_activation"
+  ],
+  "revoked": false,
+  "schema_version": "governance-authorization-v1",
+  "superseded_by": null,
+  "synthetic": true
+}

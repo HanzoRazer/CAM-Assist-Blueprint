@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "governance-decision-v1.schema.json",
+  "title": "Governance decision record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "decision_id",
+    "status",
+    "decision_owner",
+    "effective_date",
+    "subject_repository",
+    "subject_revision",
+    "approval_evidence",
+    "implementation_authorization_ref"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "const": "governance-decision-v1"},
+    "decision_id": {"type": "string", "minLength": 1},
+    "status": {
+      "type": "string",
+      "enum": ["PROPOSED", "UNDER_REVIEW", "ACCEPTED", "DEFERRED", "REJECTED"]
+    },
+    "decision_owner": {"type": ["string", "null"]},
+    "effective_date": {"type": ["string", "null"]},
+    "subject_repository": {"type": "string", "minLength": 1},
+    "subject_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "approval_evidence": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/evidence_ref"}
+    },
+    "implementation_authorization_ref": {"type": ["string", "null"]},
+    "pr_merged": {"type": "boolean"}
+  },
+  "$defs": {
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_id", "kind", "source"],
+      "properties": {
+        "evidence_id": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "minLength": 1},
+        "source": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

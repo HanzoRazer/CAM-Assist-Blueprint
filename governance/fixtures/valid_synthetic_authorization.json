@@ -1,0 +1,103 @@
+{
+  "as_of": "2026-10-28T12:00:00Z",
+  "authority": {
+    "policy_id": "synthetic_authority_v1",
+    "production_identities": [],
+    "roles": [
+      {
+        "identities": [
+          "synthetic-approver"
+        ],
+        "required_review_state": "APPROVED",
+        "role": "decision_approver"
+      },
+      {
+        "identities": [
+          "synthetic-approver"
+        ],
+        "required_review_state": "APPROVED",
+        "role": "implementation_authorizer"
+      }
+    ],
+    "schema_version": "governance-roles-v1",
+    "synthetic": true
+  },
+  "authorization": {
+    "approvals": [
+      {
+        "evidence_ref": "synthetic-implementation-review",
+        "identity": "synthetic-approver",
+        "review_state": "APPROVED",
+        "role": "implementation_authorizer"
+      }
+    ],
+    "approved_decision_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "authorization_id": "synthetic-authorization-001",
+    "authorized_repository": "HanzoRazer/CAM-Assist-Blueprint",
+    "decision_id": "SYNTHETIC-DECISION-001",
+    "effective_date": "2026-10-28T00:00:00Z",
+    "execution_authority_claim": false,
+    "expires_at": "2027-10-28T00:00:00Z",
+    "implementation_scope": [
+      "governance-kernel-test"
+    ],
+    "policy_digest": "3c0236cd2cb61682b835fd34210ae37a022f7d891d84106fa1ff060631020769",
+    "policy_id": "governance_policy_v1",
+    "production_eligible": false,
+    "prohibited_capabilities": [
+      "gcode_generation",
+      "machine_execution",
+      "material_removal",
+      "production_policy_activation"
+    ],
+    "revoked": false,
+    "schema_version": "governance-authorization-v1",
+    "superseded_by": null,
+    "synthetic": true
+  },
+  "decision": {
+    "approval_evidence": [
+      {
+        "evidence_id": "synthetic-decision-review",
+        "kind": "github_pull_request_review",
+        "source": "synthetic-fixture"
+      }
+    ],
+    "decision_id": "SYNTHETIC-DECISION-001",
+    "decision_owner": "synthetic-owner",
+    "effective_date": "2026-10-28T00:00:00Z",
+    "implementation_authorization_ref": "synthetic-authorization-001",
+    "pr_merged": false,
+    "schema_version": "governance-decision-v1",
+    "status": "ACCEPTED",
+    "subject_repository": "HanzoRazer/CAM-Assist-Blueprint",
+    "subject_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "evidence": {
+    "synthetic-decision-review": {
+      "available": true,
+      "commit_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "identity": "synthetic-approver",
+      "kind": "github_pull_request_review",
+      "review_state": "APPROVED"
+    },
+    "synthetic-implementation-review": {
+      "available": true,
+      "commit_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "identity": "synthetic-approver",
+      "kind": "github_pull_request_review",
+      "review_state": "APPROVED"
+    }
+  },
+  "production_eligible": false,
+  "request": {
+    "decision_id": "SYNTHETIC-DECISION-001",
+    "repository": "HanzoRazer/CAM-Assist-Blueprint",
+    "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "scope": [
+      "governance-kernel-test"
+    ]
+  },
+  "schema_version": "governance-synthetic-bundle-v1",
+  "synthetic": true
+}

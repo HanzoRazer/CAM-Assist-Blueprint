@@ -1,0 +1,7 @@
+{
+  "canonicalization": "canonical-json-sha256-v1",
+  "records": [],
+  "registry_digest": "f92cae3d9dbf5ab1f1079e795a2e502d585e81acdae3251ffbdcad1cd0a552a3",
+  "registry_kind": "authorizations",
+  "schema_version": "governance-registry-v1"
+}

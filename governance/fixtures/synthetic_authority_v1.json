@@ -1,0 +1,22 @@
+{
+  "policy_id": "synthetic_authority_v1",
+  "production_identities": [],
+  "roles": [
+    {
+      "identities": [
+        "synthetic-approver"
+      ],
+      "required_review_state": "APPROVED",
+      "role": "decision_approver"
+    },
+    {
+      "identities": [
+        "synthetic-approver"
+      ],
+      "required_review_state": "APPROVED",
+      "role": "implementation_authorizer"
+    }
+  ],
+  "schema_version": "governance-roles-v1",
+  "synthetic": true
+}

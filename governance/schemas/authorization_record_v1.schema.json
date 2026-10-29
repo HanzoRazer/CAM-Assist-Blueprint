@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "governance-authorization-v1.schema.json",
+  "title": "Governance implementation authorization v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "authorization_id",
+    "decision_id",
+    "approved_decision_revision",
+    "authorized_repository",
+    "implementation_scope",
+    "approvals",
+    "policy_id",
+    "policy_digest",
+    "effective_date",
+    "expires_at",
+    "revoked",
+    "superseded_by",
+    "prohibited_capabilities",
+    "execution_authority_claim",
+    "synthetic",
+    "production_eligible"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "const": "governance-authorization-v1"},
+    "authorization_id": {"type": "string", "minLength": 1},
+    "decision_id": {"type": "string", "minLength": 1},
+    "approved_decision_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "authorized_repository": {"type": "string", "minLength": 1},
+    "implementation_scope": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "approvals": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/approval"}
+    },
+    "policy_id": {"type": "string", "minLength": 1},
+    "policy_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "effective_date": {"type": "string", "minLength": 1},
+    "expires_at": {"type": ["string", "null"]},
+    "revoked": {"type": "boolean"},
+    "superseded_by": {"type": ["string", "null"]},
+    "prohibited_capabilities": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "execution_authority_claim": {"type": "boolean", "const": false},
+    "synthetic": {"type": "boolean"},
+    "production_eligible": {"type": "boolean"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["synthetic"],
+        "properties": {"synthetic": {"const": true}}
+      },
+      "then": {
+        "properties": {"production_eligible": {"const": false}}
+      }
+    }
+  ],
+  "$defs": {
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity", "role", "evidence_ref", "review_state"],
+      "properties": {
+        "identity": {"type": "string", "minLength": 1},
+        "role": {"type": "string", "minLength": 1},
+        "evidence_ref": {"type": "string", "minLength": 1},
+        "review_state": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
