@@ -8,7 +8,7 @@ non-authoritative pilot, and a JSON flag cannot turn that off.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -189,6 +189,10 @@ def evaluate_authorization(
 ) -> Verdict:
     decision_id = _decision_id(decision)
     production = False
+    if as_of is None:
+        as_of = datetime.now(timezone.utc)
+    if as_of.tzinfo is None or as_of.utcoffset() is None:
+        return make_verdict(CODE_VERIFIER, VERIFIER_ERROR, ["INVALID_AS_OF_TIME"], decision_id=decision_id, production_operational=False)
     if mode not in {"production", "synthetic"}:
         return make_verdict(
             CODE_VERIFIER,
@@ -300,16 +304,15 @@ def evaluate_authorization(
         authorized_scope = set(authorization.get("implementation_scope") or [])
         if not isinstance(requested_scope, list) or not requested_scope or not set(requested_scope).issubset(authorized_scope):
             reasons.append("SCOPE_MISMATCH")
-        if as_of is not None:
-            try:
-                effective = parse_time(authorization["effective_date"])
-                if as_of < effective:
-                    reasons.append("AUTHORIZATION_NOT_YET_EFFECTIVE")
-                expires_at = authorization.get("expires_at")
-                if isinstance(expires_at, str) and as_of > parse_time(expires_at):
-                    reasons.append("AUTHORIZATION_EXPIRED")
-            except (KeyError, TypeError, ValueError):
-                reasons.append("SCHEMA_INVALID")
+        try:
+            effective = parse_time(authorization["effective_date"])
+            if as_of < effective:
+                reasons.append("AUTHORIZATION_NOT_YET_EFFECTIVE")
+            expires_at = authorization.get("expires_at")
+            if isinstance(expires_at, str) and as_of >= parse_time(expires_at):
+                reasons.append("AUTHORIZATION_EXPIRED")
+        except (KeyError, TypeError, ValueError):
+            reasons.append("SCHEMA_INVALID")
         if mode == "production":
             if authorization.get("synthetic") is True or authorization.get("production_eligible") is True:
                 reasons.append("SYNTHETIC_NOT_PRODUCTION")
