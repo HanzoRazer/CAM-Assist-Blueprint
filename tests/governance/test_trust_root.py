@@ -97,10 +97,12 @@ def test_wrong_policy_digest_is_a_verifier_error(tmp_path, root):
 
 
 def test_baseline_commit_is_not_this_verifier(root):
+    # A full clone is missing the new verifier blobs. A shallow CI checkout
+    # does not have the predecessor object at all. Both refuse the pin.
     try:
         load_git_trust_root(root, BASELINE)
     except TrustRootError as exc:
-        assert exc.code == "MISSING_TRUST_BLOB"
+        assert exc.code in {"MISSING_TRUST_BLOB", "UNKNOWN_TRUST_COMMIT"}
     else:
         raise AssertionError("predecessor commit was treated as this verifier")
 
@@ -127,7 +129,7 @@ def test_cli_refuses_baseline_commit_as_running_verifier(root):
         text=True,
     )
     assert completed.returncode == 4
-    assert "MISSING_TRUST_BLOB" in completed.stderr
+    assert "MISSING_TRUST_BLOB" in completed.stderr or "UNKNOWN_TRUST_COMMIT" in completed.stderr
 
 
 def test_matching_pin_still_does_not_activate_production(tmp_path, root):
