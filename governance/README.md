@@ -7,16 +7,21 @@ PEP-CAM-CONTRACT-002.
 
 ## Trust boundary
 
+Three states stay separate: the verifier is implemented in this tree, deployment is confirmed only by `scripts/governance/verify_deployment.py`, and production authorization stays off.
+
 | Source | How the verifier treats it |
 | --- | --- |
-| Trusted policy file passed by the caller | The only policy that can be evaluated |
-| Candidate policy with a different digest | Cannot authorize the change that carries it |
+| `GOVERNANCE_TRUST_COMMIT` or `--trust-commit` | Policy, roles, and verifier bytes are read with `git show` from that commit |
+| Candidate worktree, including this checkout | Not a trust root. `candidate_worktree_is_trust_root` stays false |
+| Checkout policy digest pin | Rejects drift in the pilot observation path. A pull request can still edit the pin and the verifier together, so the pin is not deployment |
 | Decision or authorization JSON | Untrusted claims |
 | `approved: true` inside a record | Not a field. Extra properties fail schema validation |
 | Pull request merge | Recorded as `pr_merged`. Never an approval |
 | Pull request comment | Untrusted evidence kind |
-| GitHub review | Trusted only when an injected resolver returns `github_pull_request_review` with state `APPROVED` for an identity enrolled in the authority file |
-| Production role file | Enrolls no people. Production mode cannot return authorized |
+| GitHub review | Used only when `GitHubEvidenceResolver` reads the API. Login is display text. Enrollment is the numeric user id. Dismissed, superseded, under-permissioned, and wrong-revision reviews block |
+| Production role file | Enrolls no people and no GitHub user ids. Production mode cannot return authorized |
+| `.github/workflows/governance-check.yml` | Pilot tests. Path-filtered. Checks out the pull request. Not a protected gate |
+| `.github/workflows/governance-trusted.yml` | Prepared `pull_request_target` job pinned to `base.sha`. It does not run until it is on the default branch, and it is not a required check until an administrator confirms that |
 | Synthetic bundle | Exit 0 only in explicit synthetic mode, and that result is not production authorization |
 
 `production_authorization_operational` is false in policy and in code. Setting
@@ -53,6 +58,20 @@ python3 scripts/governance/check_authorization.py \
 The PEP-CAM-CONTRACT-002 witness exits `1` with verdict `BLOCKED`. Exit `0`
 is reserved for `--allow-synthetic` with a synthetic authority file. The
 production registry does not load that result.
+
+```text
+python3 scripts/governance/verify_deployment.py
+python3 scripts/governance/check_authorization.py \
+  --trust-commit <40-hex-sha> \
+  --decision governance/fixtures/pep_cam_contract_002_proposed.json \
+  --repository HanzoRazer/CAM-Assist-Blueprint \
+  --revision 5f736e567dab31439df9b2b66fc5de43bec032f2 \
+  --scope r2-contract-publication
+```
+
+`--trust-commit` fails closed when that commit does not contain this verifier.
+`verify_deployment.py` exits `1` while the required check is unconfirmed.
+Neither command turns on production authorization.
 
 ## What this pilot is not
 

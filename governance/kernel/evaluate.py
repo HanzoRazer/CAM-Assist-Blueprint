@@ -109,6 +109,16 @@ def _schema_invalid(instance: Any, schema: dict) -> bool:
     return next(validator.iter_errors(instance), None) is not None
 
 
+_PERMISSION_RANK = {
+    "none": 0,
+    "read": 1,
+    "triage": 2,
+    "write": 3,
+    "maintain": 4,
+    "admin": 5,
+}
+
+
 def _identities_for(roles: Mapping[str, Any], role_name: str) -> set[str] | None:
     found = None
     for role in roles.get("roles", []):
@@ -121,6 +131,33 @@ def _identities_for(roles: Mapping[str, Any], role_name: str) -> set[str] | None
     if not isinstance(identities, list) or not all(isinstance(item, str) for item in identities):
         return None
     return set(identities)
+
+
+def _role(roles: Mapping[str, Any], role_name: str) -> Mapping[str, Any] | None:
+    for role in roles.get("roles", []):
+        if isinstance(role, Mapping) and role.get("role") == role_name:
+            return role
+    return None
+
+
+def _github_user_ids(roles: Mapping[str, Any], role_name: str) -> set[int]:
+    role = _role(roles, role_name)
+    if role is None:
+        return set()
+    values = role.get("github_user_ids", [])
+    if not isinstance(values, list):
+        return set()
+    return {item for item in values if isinstance(item, int) and not isinstance(item, bool)}
+
+
+def _required_permission(roles: Mapping[str, Any], role_name: str) -> str:
+    role = _role(roles, role_name)
+    if role is None:
+        return "write"
+    required = role.get("required_permission", "write")
+    if not isinstance(required, str):
+        return "write"
+    return required
 
 
 def _resolve(resolver: EvidenceResolver | None, evidence_ref: str) -> tuple[Mapping[str, Any] | None, str | None]:
@@ -421,7 +458,14 @@ def _check_decision_evidence(
         if problem is not None or payload is None:
             evidence_reasons.append(problem or "MISSING_EVIDENCE")
             continue
-        _match_evidence(payload, identities, expected_revision, reasons)
+        _match_evidence(
+            payload,
+            identities,
+            expected_revision,
+            reasons,
+            roles=roles,
+            role_name="decision_approver",
+        )
 
 
 def _check_approvals(
@@ -456,7 +500,14 @@ def _check_approvals(
             continue
         if payload.get("identity") != claimed:
             reasons.append("UNRECOGNIZED_IDENTITY")
-        _match_evidence(payload, identities, expected_revision, reasons)
+        _match_evidence(
+            payload,
+            identities,
+            expected_revision,
+            reasons,
+            roles=roles,
+            role_name=role_name,
+        )
 
 
 def _match_evidence(
@@ -464,14 +515,31 @@ def _match_evidence(
     identities: set[str],
     expected_revision: str,
     reasons: list[str],
+    *,
+    roles: Mapping[str, Any],
+    role_name: str,
 ) -> None:
     if payload.get("kind") != TRUSTED_EVIDENCE_KIND:
         reasons.append("UNTRUSTED_EVIDENCE_KIND")
         return
+    if payload.get("review_state") == "DISMISSED":
+        reasons.append("REVIEW_DISMISSED")
     if payload.get("review_state") != "APPROVED":
         reasons.append("REVIEW_NOT_APPROVED")
+    if payload.get("superseded") is True:
+        reasons.append("REVIEW_SUPERSEDED")
     identity = payload.get("identity")
     if not isinstance(identity, str) or identity not in identities:
         reasons.append("UNRECOGNIZED_IDENTITY")
+    if "github_user_id" in payload:
+        user_id = payload.get("github_user_id")
+        if isinstance(user_id, bool) or not isinstance(user_id, int) or user_id not in _github_user_ids(roles, role_name):
+            reasons.append("UNRECOGNIZED_IDENTITY")
+        actual = payload.get("permission")
+        required = _required_permission(roles, role_name)
+        actual_rank = _PERMISSION_RANK.get(actual) if isinstance(actual, str) else None
+        required_rank = _PERMISSION_RANK.get(required)
+        if actual_rank is None or required_rank is None or actual_rank < required_rank:
+            reasons.append("INSUFFICIENT_PERMISSION")
     if payload.get("commit_id") != expected_revision:
         reasons.append("REVISION_MISMATCH")

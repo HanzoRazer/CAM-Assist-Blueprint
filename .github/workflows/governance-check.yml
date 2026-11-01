@@ -1,8 +1,9 @@
 name: Governance check
 
 # Pilot verifier. A green run is not branch protection and not an
-# implementation authorization. Required-check status is reported outside
-# this file because this workflow cannot see repository rules.
+# implementation authorization. This workflow checks out the pull request
+# and is not the protected production gate. That gate is
+# governance-trusted.yml, and only after an administrator deploys it.
 
 on:
   pull_request:
@@ -11,6 +12,7 @@ on:
       - "scripts/governance/**"
       - "tests/governance/**"
       - ".github/workflows/governance-check.yml"
+      - ".github/workflows/governance-trusted.yml"
   push:
     branches: [main]
     paths:
@@ -18,6 +20,7 @@ on:
       - "scripts/governance/**"
       - "tests/governance/**"
       - ".github/workflows/governance-check.yml"
+      - ".github/workflows/governance-trusted.yml"
 
 jobs:
   governance:
@@ -57,4 +60,7 @@ jobs:
           assert body["production_authorization_operational"] is False
           assert body["interchange_r2"]["verdict"] == "BLOCKED"
           assert body["interchange_r2"]["code"] == 1
+          assert body["trust_root"]["established"] is False
+          assert body["trust_root"]["candidate_worktree_is_trust_root"] is False
+          assert body["evidence_verification"]["live_github"] is False
           PY
