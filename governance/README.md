@@ -18,7 +18,7 @@ Three states stay separate: the verifier is implemented in this tree, deployment
 | `approved: true` inside a record | Not a field. Extra properties fail schema validation |
 | Pull request merge | Recorded as `pr_merged`. Never an approval |
 | Pull request comment | Untrusted evidence kind |
-| GitHub review | Used only when `GitHubEvidenceResolver` reads the API. Login is display text. Enrollment is the numeric user id. Dismissed, superseded, under-permissioned, and wrong-revision reviews block |
+| GitHub review | Used only when `GitHubEvidenceResolver` reads every review page. Login is display text. Enrollment is the numeric user id. A later comment, change request, or dismissal supersedes an earlier approval. Pending and unread pages are evidence unavailable |
 | Production role file | Enrolls no people and no GitHub user ids. Production mode cannot return authorized |
 | `.github/workflows/governance-check.yml` | Pilot tests. Path-filtered. Checks out the pull request. Not a protected gate |
 | `.github/workflows/governance-trusted.yml` | Prepared `pull_request_target` job pinned to `base.sha`. It does not run until it is on the default branch, and it is not a required check until an administrator confirms that |
@@ -70,8 +70,10 @@ python3 scripts/governance/check_authorization.py \
 ```
 
 `--trust-commit` fails closed when that commit does not contain this verifier.
-`verify_deployment.py` exits `1` while the required check is unconfirmed.
-Neither command turns on production authorization.
+`verify_deployment.py` exits `1` unless the pin is on the default branch
+or is a byte-identical ancestor, the required check is confirmed, and a
+successful run of this trusted workflow is bound to a pull request, base
+SHA, workflow id, and run id. Neither command turns on production authorization.
 
 ## What this pilot is not
 

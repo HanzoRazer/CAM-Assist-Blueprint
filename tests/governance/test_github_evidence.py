@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import copy
+import json
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from governance.kernel.evaluate import evaluate_authorization
-from governance.kernel.github_evidence import GitHubApiError, GitHubEvidenceResolver
+from governance.kernel.evaluate import EvidenceUnavailable, evaluate_authorization
+from governance.kernel.github_evidence import GitHubApiError, GitHubEvidenceResolver, UrllibGitHubClient
 from tests.governance.conftest import as_of
 
 REPOSITORY = "HanzoRazer/CAM-Assist-Blueprint"
@@ -137,6 +140,171 @@ def test_api_outage_is_evidence_unavailable(policy, synthetic_bundle):
     verdict = _verdict(policy, synthetic_bundle, FakeGitHub([], boom=True))
     assert verdict.code == 3
     assert verdict.verdict == "EVIDENCE_UNAVAILABLE"
+
+
+def test_latest_approval_is_synthetic_only(policy, synthetic_bundle):
+    client = FakeGitHub([_review(80, 7, "APPROVED", REVISION, "2026-10-28T00:00:00Z")])
+    verdict = _verdict(policy, synthetic_bundle, client)
+    assert verdict.verdict == "AUTHORIZED"
+    assert verdict.synthetic_only is True
+    assert verdict.production_authorization_operational is False
+
+
+def test_later_comment_supersedes_across_pages(policy, synthetic_bundle):
+    reviews = [
+        _review(80, 7, "APPROVED", REVISION, "2026-10-28T00:00:00Z"),
+        _review(81, 7, "COMMENTED", REVISION, "2026-10-28T02:00:00Z"),
+    ]
+    verdict = _verdict(policy, synthetic_bundle, FakeGitHub(reviews))
+    assert verdict.verdict == "BLOCKED"
+    assert "REVIEW_SUPERSEDED" in verdict.reason_codes
+
+
+def test_later_dismissal_and_change_request_supersede(policy, synthetic_bundle):
+    for state in ("DISMISSED", "CHANGES_REQUESTED"):
+        reviews = [
+            _review(80, 7, "APPROVED", REVISION, "2026-10-28T00:00:00Z"),
+            _review(81, 7, state, REVISION, "2026-10-28T02:00:00Z"),
+        ]
+        verdict = _verdict(policy, synthetic_bundle, FakeGitHub(reviews))
+        assert verdict.verdict == "BLOCKED"
+        assert "REVIEW_SUPERSEDED" in verdict.reason_codes
+
+
+def test_timestamp_tie_uses_the_higher_review_id(policy, synthetic_bundle):
+    stamp = "2026-10-28T00:00:00Z"
+    reviews = [
+        _review(90, 7, "APPROVED", REVISION, stamp),
+        _review(80, 7, "CHANGES_REQUESTED", REVISION, stamp),
+    ]
+    blocked = _verdict(policy, synthetic_bundle, FakeGitHub(reviews))
+    assert blocked.verdict == "BLOCKED"
+    assert "REVIEW_SUPERSEDED" in blocked.reason_codes
+    decision, authorization, roles = _bundle_for(synthetic_bundle)
+    authorization["approvals"][0]["evidence_ref"] = "90"
+    decision["approval_evidence"][0]["evidence_id"] = "90"
+    verdict = evaluate_authorization(
+        decision=decision,
+        authorization=authorization,
+        request=synthetic_bundle["request"],
+        trusted_policy=policy,
+        candidate_policy=policy,
+        trusted_roles=roles,
+        evidence_resolver=GitHubEvidenceResolver(FakeGitHub(reviews), repository=REPOSITORY, pull_number=45),
+        mode="synthetic",
+        as_of=as_of(synthetic_bundle),
+    )
+    assert verdict.verdict == "AUTHORIZED"
+    assert verdict.production_authorization_operational is False
+
+
+def test_pending_review_fails_closed(policy, synthetic_bundle):
+    reviews = [
+        _review(80, 7, "APPROVED", REVISION, "2026-10-28T00:00:00Z"),
+        _review(81, 7, "PENDING", REVISION, "2026-10-28T03:00:00Z"),
+    ]
+    verdict = _verdict(policy, synthetic_bundle, FakeGitHub(reviews))
+    assert verdict.code == 3
+    assert verdict.verdict == "EVIDENCE_UNAVAILABLE"
+
+
+def test_missing_timestamp_fails_closed(policy, synthetic_bundle):
+    review = _review(80, 7, "APPROVED", REVISION, "2026-10-28T00:00:00Z")
+    del review["submitted_at"]
+    verdict = _verdict(policy, synthetic_bundle, FakeGitHub([review]))
+    assert verdict.code == 3
+    assert verdict.verdict == "EVIDENCE_UNAVAILABLE"
+
+
+def _pages(factory):
+    holder = {}
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path.endswith("/permission"):
+                status, body, link = 200, {"permission": "write"}, None
+            else:
+                status, body, link = holder["pages"].get(self.path, (404, {"missing": True}, None))
+            raw = json.dumps(body).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(raw)))
+            if link:
+                self.send_header("Link", link)
+            self.end_headers()
+            self.wfile.write(raw)
+
+        def log_message(self, _format, *_args):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+    holder["pages"] = factory(base)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    return server, base
+
+
+def test_review_pages_follow_link_and_stop_on_failure(policy, synthetic_bundle):
+    first = "/repos/HanzoRazer/CAM-Assist-Blueprint/pulls/45/reviews?per_page=100"
+    older = _review(80, 7, "APPROVED", REVISION, "2026-10-28T00:00:00Z")
+    later = _review(81, 7, "COMMENTED", REVISION, "2026-10-28T04:00:00Z")
+
+    def factory(base):
+        second = "/repos/HanzoRazer/CAM-Assist-Blueprint/pulls/45/reviews?page=2"
+        return {
+            first: (200, [older], f'<{base}{second}>; rel="next"'),
+            second: (200, [later], None),
+        }
+
+    server, base = _pages(factory)
+    try:
+        client = UrllibGitHubClient("governance-test-token", api_base=base)
+        verdict = _verdict(policy, synthetic_bundle, client)
+    finally:
+        server.shutdown()
+    assert verdict.verdict == "BLOCKED"
+    assert "REVIEW_SUPERSEDED" in verdict.reason_codes
+
+    def failing(base):
+        second = "/repos/HanzoRazer/CAM-Assist-Blueprint/pulls/45/reviews?page=2"
+        return {first: (200, [older], f'<{base}{second}>; rel="next"'), second: (503, {"error": True}, None)}
+
+    server, base = _pages(failing)
+    try:
+        client = UrllibGitHubClient("governance-test-token", api_base=base)
+        try:
+            client.list_reviews(REPOSITORY, 45)
+        except EvidenceUnavailable:
+            failed = True
+        else:
+            failed = False
+        verdict = _verdict(policy, synthetic_bundle, client)
+    finally:
+        server.shutdown()
+    assert failed is True
+    assert verdict.code == 3
+    assert verdict.verdict == "EVIDENCE_UNAVAILABLE"
+
+
+def test_review_page_link_cannot_leave_the_api_host():
+    first = "/repos/HanzoRazer/CAM-Assist-Blueprint/pulls/45/reviews?per_page=100"
+
+    def factory(base):
+        return {first: (200, [], '<http://evil.example/reviews?page=2>; rel="next"')}
+
+    server, base = _pages(factory)
+    try:
+        client = UrllibGitHubClient("governance-test-token", api_base=base)
+        try:
+            client.list_reviews(REPOSITORY, 45)
+        except EvidenceUnavailable:
+            refused = True
+        else:
+            refused = False
+    finally:
+        server.shutdown()
+    assert refused is True
 
 
 def test_live_approval_does_not_enable_production(policy, production_roles, synthetic_bundle):

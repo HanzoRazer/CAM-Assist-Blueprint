@@ -13,7 +13,7 @@ protection write API.
 | --- | --- | --- |
 | Published | `.github/workflows/governance-trusted.yml` is on `main` and a later pull request shows the check | Step 2 merge, then the disposable test pull request |
 | Enforced | Live protection requires the check context `governance-trusted` | Step 5, only after the test pull request shows a completed check |
-| Attested | `verify_deployment.py` reports the pin, the workflow, and that required check | Step 6 |
+| Attested | The pin is the default branch or a byte-identical ancestor, protection requires the check, and one successful run is bound to this workflow file | Step 6 |
 | Operational | Enrolled reviewers can authorize a scope | Out of scope. Remains disabled |
 
 `production_authorization_operational` stays false. `activation_permitted`
@@ -28,7 +28,7 @@ copy on the default branch. Requiring the check before that file is on
 
 1. Finish the security review of pull request #46 and confirm its tests pass.
 2. The repository owner authorizes the merge. Merge #46 with production authorization disabled. Record the merge commit. That commit is the verifier pin. Do not use a branch name or a tag.
-3. Open a disposable test pull request against `main`. The trusted workflow must publish check context `governance-trusted` and complete successfully. Include one pull request that only edits the workflow file, so the run is the base copy and not a path-filtered pilot job.
+3. Open a disposable test pull request against `main`. Use a change that does not match the pilot path filter, so the only governance job that can run is the trusted workflow. Record the pull request number, its base SHA, and the Actions run id. The run must be workflow file `.github/workflows/governance-trusted.yml` with event `pull_request_target`, and its check must complete successfully. A check that only reuses the name `governance-trusted` does not count. The disposable pull request proves the check publishes and executes. It does not activate production authorization.
 4. Stop if the check does not appear or does not complete. Do not enable the requirement. Follow the publication recovery section.
 5. The administrator, with an account that can administer `main`, requires the check context `governance-trusted` on a branch protection rule or an active ruleset that applies to `refs/heads/main`. Restrict bypass actors to the smallest set the owner accepts. Do not grant the workflow write, workflow, or administration scopes.
 6. From a checkout of the merge commit, rerun the attestation with that authorized credential and keep the JSON:
@@ -38,11 +38,24 @@ git rev-parse HEAD
 python3 scripts/governance/verify_deployment.py --trust-commit <merge-sha>
 ```
 
-Expect `deployment_status` `DEPLOYED_NOT_ACTIVATED`, `authority_established`
-true, `required_check_confirmed` true, `workflow_source` `pinned-commit`,
-`running_verifier_matches_pin` true, and `production_authorization_operational`
-false. A commit SHA alone does not establish authority. Exit 0 is deployment
-verification, not production authorization.
+Exit 0 requires every item below. If any GitHub API read is unavailable or
+the payloads disagree, `authority_established` stays false and the command
+exits 1.
+
+- `running_verifier_matches_pin` is true and `workflow_contract_ok` is true. The contract is the parsed workflow, not a comment that contains the expected words.
+- `required_check_confirmed` is true.
+- `deployment_evidence.pin_relationship` is `exact`, or it is `ancestor` and `bytes_match.verifier`, `bytes_match.policy`, `bytes_match.roles`, and `bytes_match.workflow` are all true. Matching the workflow file alone does not attest an ancestor.
+- `deployment_evidence.trusted_check_bound` is true. The successful run is bound to `pull_number`, `base_sha`, `workflow_path`, `workflow_id`, and `run_id`. `base_sha` is the pin or the current default-branch tip. The check does not have to be attached to the pin SHA itself, because `pull_request_target` reports it on the pull request head.
+- `deployment_status` is `DEPLOYED_NOT_ACTIVATED`.
+- `production_authorization_operational` and `activation_permitted` are false.
+
+A commit SHA alone does not establish authority. Exit 0 is deployment
+verification, not production authorization. The administrator installs the
+reviewed lock before running the probe:
+
+```text
+python3 -m pip install --require-hashes -r requirements/governance-check.txt
+```
 
 If enabling the requirement blocks legitimate merges, restore the previous
 protection configuration before further investigation.
@@ -56,7 +69,11 @@ protection configuration before further investigation.
 | Trusted workflow | `.github/workflows/governance-trusted.yml` |
 | Check context and job name | `governance-trusted` |
 | Event | `pull_request_target` only |
-| Checkout | `github.event.pull_request.base.sha` |
+| Checkout action | `actions/checkout@11d5960a326750d5838078e36cf38b85af677262` (v4.4.0) |
+| Python setup action | `actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065` (v5.6.0) |
+| Checkout ref | `github.event.pull_request.base.sha` |
+| Verifier lock | `requirements/governance-trusted.txt` |
+| Test lock | `requirements/governance-check.txt` |
 | Job permissions | `contents: read`, `pull-requests: read`, `persist-credentials: false` |
 | Policy file | `governance/policy/governance_policy_v1.json` |
 | Policy version | `governance-policy-v1` |
@@ -80,7 +97,7 @@ unverified. Do not treat HTTP 403 as evidence that the branch is unprotected.
 Record these with the date and the account that performed the change:
 
 - Pull request #46 review conclusion and the merge commit SHA.
-- The disposable test pull request URL, the check URL, and the success conclusion for `governance-trusted`.
+- The disposable test pull request number and URL, its base SHA, the workflow id, the successful run id, and the check URL. The workflow path must be `.github/workflows/governance-trusted.yml`.
 - The protection or ruleset change: rule name, include ref `refs/heads/main`, required context `governance-trusted`, and bypass actors.
 - The `verify_deployment.py` JSON after that change.
 - The previous protection settings, so they can be restored.

@@ -45,6 +45,71 @@ def test_candidate_workflow_edit_fails_the_contract(root):
     assert assess_workflow_text(skipped).ok is False
 
 
+def test_workflow_comment_cannot_satisfy_the_contract():
+    forged = """
+# pull_request_target:
+# contents: read
+# pull-requests: read
+# github.event.pull_request.base.sha
+# persist-credentials: false
+# governance-trusted
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  governance-trusted:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
+"""
+    assert "pull_request_target:" in forged
+    assert "github.event.pull_request.base.sha" in forged
+    assert "persist-credentials: false" in forged
+    contract = assess_workflow_text(forged)
+    assert contract.ok is False
+    assert "MISSING_PULL_REQUEST_TARGET" in contract.reasons
+
+
+def test_mutable_action_and_head_checkout_fail_closed(root):
+    original = (root / TRUSTED).read_text(encoding="utf-8")
+    mutable = original.replace(
+        "actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+        "actions/checkout@v4",
+    )
+    assert assess_workflow_text(mutable).ok is False
+    assert "MUTABLE_ACTION" in assess_workflow_text(mutable).reasons
+    head = original.replace(
+        "github.event.pull_request.base.sha",
+        "github.event.pull_request.head.sha",
+    )
+    refused = assess_workflow_text(head)
+    assert refused.ok is False
+    assert "CANDIDATE_SHA_CHECKOUT" in refused.reasons or "BASE_SHA_NOT_PINNED" in refused.reasons
+
+
+def test_governance_workflows_pin_actions_and_hashes(root):
+    trusted = (root / TRUSTED).read_text(encoding="utf-8")
+    pilot = (root / PILOT).read_text(encoding="utf-8")
+    checkout = "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
+    setup = "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065"
+    for text in (trusted, pilot):
+        assert checkout in text
+        assert setup in text
+        assert "@v4" not in text
+        assert "@v5" not in text
+        assert "--require-hashes" in text
+    assert "requirements/governance-trusted.txt" in trusted
+    assert "requirements/governance-check.txt" in pilot
+    for name in ("requirements/governance-trusted.txt", "requirements/governance-check.txt"):
+        lock = (root / name).read_text(encoding="utf-8")
+        assert "--hash=sha256:" in lock
+        assert "jsonschema==4.26.0" in lock
+    assert "PyYAML==6.0.1" in (root / "requirements/governance-trusted.txt").read_text(encoding="utf-8")
+    assert "pytest==9.1.1" in (root / "requirements/governance-check.txt").read_text(encoding="utf-8")
+
+
 def test_unverified_protection_is_not_deployment(root):
     protection = ProtectionAssessment("unverified", (), ("branch_protection_http_403",))
     report = assess_deployment(repo=root, trust_commit=None, protection=protection)
