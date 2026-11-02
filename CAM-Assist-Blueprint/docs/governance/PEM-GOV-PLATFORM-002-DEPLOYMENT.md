@@ -37,12 +37,16 @@ Record the deployed commit:
 
 ```text
 git rev-parse HEAD
-python3 scripts/governance/verify_deployment.py --trust-commit <that-sha> --probe-github
+python3 scripts/governance/verify_deployment.py --trust-commit <that-sha>
 ```
 
-`verify_deployment.py` exits 0 only when the running tree matches that commit,
-the workflow contract passes, and the protection API lists `governance-trusted`
-as a required check. Exit 0 still reports `production_authorization_operational`
+The command always reads live branch protection and the full document for
+every listed ruleset. It reads `.github/workflows/governance-trusted.yml`
+from `<that-sha>`, not from the worktree. A ruleset id whose document was
+not read leaves the result unverified. Exit 0 requires the running tree to
+match that commit, the committed workflow contract to pass, and the live
+API to require `governance-trusted`. A commit SHA alone does not establish
+authority. Exit 0 still reports `production_authorization_operational`
 false and `activation_permitted` false.
 
 ## Required GitHub permissions
@@ -62,7 +66,7 @@ After the trusted workflow file is on the default branch:
 1. Confirm a pull request runs `governance-trusted` from the base SHA, including a pull request that only edits the workflow file.
 2. Add a branch protection rule or ruleset on `main` that requires the check context `governance-trusted`.
 3. Require a review from people the owner has enrolled. This packet does not name those people.
-4. Run `verify_deployment.py --trust-commit <deployed-sha> --probe-github`.
+4. Run `verify_deployment.py --trust-commit <deployed-sha>`.
 5. Expect `deployment_status` `DEPLOYED_NOT_ACTIVATED` and `required_check_confirmed` true.
 
 Do not mark the path-filtered pilot workflow `governance` as the production gate. A pull request that avoids those paths would not report that job.

@@ -10,7 +10,9 @@ from governance.kernel.canonical import digest_of
 from governance.kernel.trust_root import (
     POLICY_PATH,
     ROLES_PATH,
+    TRUSTED_WORKFLOW_PATH,
     VERIFIER_PATHS,
+    ProtectionAssessment,
     TrustRootError,
     assess_deployment,
     load_git_trust_root,
@@ -31,7 +33,7 @@ def _pin_repo(tmp_path, root):
     _git(repo, "init")
     _git(repo, "config", "user.email", "governance-test@example.com")
     _git(repo, "config", "user.name", "Governance Test")
-    for path in (*VERIFIER_PATHS, POLICY_PATH, ROLES_PATH):
+    for path in (*VERIFIER_PATHS, POLICY_PATH, ROLES_PATH, TRUSTED_WORKFLOW_PATH):
         target = repo / path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes((root / path).read_bytes())
@@ -134,24 +136,40 @@ def test_cli_refuses_baseline_commit_as_running_verifier(root):
 
 def test_matching_pin_still_does_not_activate_production(tmp_path, root):
     repo, sha = _pin_repo(tmp_path, root)
-    workflow = (root / ".github/workflows/governance-trusted.yml").read_text(encoding="utf-8")
-    report = assess_deployment(
-        repo=repo,
-        trust_commit=sha,
-        workflow_text=workflow,
-        required_checks=["governance-trusted"],
-    )
+    required = ProtectionAssessment("required", ("governance-trusted",), ("branch_protection_read",))
+    report = assess_deployment(repo=repo, trust_commit=sha, protection=required)
     assert report["deployment_status"] == "DEPLOYED_NOT_ACTIVATED"
+    assert report["authority_established"] is True
+    assert report["workflow_source"] == "pinned-commit"
     assert report["running_verifier_matches_pin"] is True
     assert report["production_authorization_operational"] is False
     assert report["activation_permitted"] is False
     source = repo / "governance/kernel/evaluate.py"
     source.write_text(source.read_text(encoding="utf-8") + "\n# edited\n", encoding="utf-8")
-    drifted = assess_deployment(
-        repo=repo,
-        trust_commit=sha,
-        workflow_text=workflow,
-        required_checks=["governance-trusted"],
-    )
+    drifted = assess_deployment(repo=repo, trust_commit=sha, protection=required)
     assert drifted["deployment_status"] == "NOT_DEPLOYED"
+    assert drifted["authority_established"] is False
     assert drifted["trust_reason"] == "VERIFIER_PIN_MISMATCH"
+
+
+def test_sha_without_a_required_check_is_not_authority(tmp_path, root):
+    repo, sha = _pin_repo(tmp_path, root)
+    absent = ProtectionAssessment("not_required", (), ("branch_protection_absent",))
+    report = assess_deployment(repo=repo, trust_commit=sha, protection=absent)
+    assert report["running_verifier_matches_pin"] is True
+    assert report["workflow_contract_ok"] is True
+    assert report["authority_established"] is False
+    assert report["deployment_status"] == "NOT_DEPLOYED"
+    assert report["production_authorization_operational"] is False
+
+
+def test_worktree_workflow_edit_does_not_supply_the_contract(tmp_path, root):
+    repo, sha = _pin_repo(tmp_path, root)
+    workflow = repo / TRUSTED_WORKFLOW_PATH
+    workflow.write_text("pull_request:\njobs: {}\n", encoding="utf-8")
+    required = ProtectionAssessment("required", ("governance-trusted",), ("branch_protection_read",))
+    report = assess_deployment(repo=repo, trust_commit=sha, protection=required)
+    assert report["workflow_source"] == "pinned-commit"
+    assert report["workflow_contract_ok"] is True
+    assert report["authority_established"] is True
+    assert report["production_authorization_operational"] is False

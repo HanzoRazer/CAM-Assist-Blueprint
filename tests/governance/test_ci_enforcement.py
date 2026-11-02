@@ -6,7 +6,14 @@ import json
 import subprocess
 import sys
 
-from governance.kernel.trust_root import assess_deployment, assess_workflow_text
+from governance.kernel.trust_root import (
+    ProtectionAssessment,
+    ProtectionProbe,
+    RulesetFetch,
+    assess_deployment,
+    assess_workflow_text,
+    interpret_protection,
+)
 
 PILOT = ".github/workflows/governance-check.yml"
 TRUSTED = ".github/workflows/governance-trusted.yml"
@@ -39,14 +46,10 @@ def test_candidate_workflow_edit_fails_the_contract(root):
 
 
 def test_unverified_protection_is_not_deployment(root):
-    report = assess_deployment(
-        repo=root,
-        trust_commit=None,
-        workflow_text=(root / TRUSTED).read_text(encoding="utf-8"),
-        required_checks=None,
-        protection_error="protection_unverified",
-    )
+    protection = ProtectionAssessment("unverified", (), ("branch_protection_http_403",))
+    report = assess_deployment(repo=root, trust_commit=None, protection=protection)
     assert report["deployment_status"] == "NOT_DEPLOYED"
+    assert report["authority_established"] is False
     assert report["required_check_confirmed"] is False
     assert report["production_authorization_operational"] is False
     assert report["protection_state"] == "unverified"
@@ -64,4 +67,103 @@ def test_deployment_cli_stays_inactive(root):
     body = json.loads(completed.stdout)
     assert body["deployment_status"] == "NOT_DEPLOYED"
     assert body["activation_permitted"] is False
+    assert body["authority_established"] is False
     assert body["production_authorization_operational"] is False
+    assert body["protection_state"] == "unverified"
+
+
+def _ruleset(ruleset_id, include, context, enforcement="active"):
+    return {
+        "conditions": {"ref_name": {"exclude": [], "include": include}},
+        "enforcement": enforcement,
+        "id": ruleset_id,
+        "rules": [
+            {
+                "parameters": {"required_status_checks": [{"context": context}]},
+                "type": "required_status_checks",
+            }
+        ],
+        "target": "branch",
+    }
+
+
+def test_forbidden_protection_is_not_an_absent_check():
+    probe = ProtectionProbe(
+        branch_protection_status=403,
+        branch_protection_body=None,
+        ruleset_list_status=200,
+        ruleset_details=(),
+    )
+    result = interpret_protection(probe)
+    assert result.state == "unverified"
+    assert result.state != "not_required"
+
+
+def test_missing_ruleset_document_does_not_prove_absence():
+    probe = ProtectionProbe(
+        branch_protection_status=404,
+        branch_protection_body=None,
+        ruleset_list_status=200,
+        ruleset_details=(RulesetFetch(9, None, "ruleset_http_404"),),
+    )
+    result = interpret_protection(probe)
+    assert result.state == "unverified"
+    assert "ruleset_detail_unread" in result.evidence
+
+
+def test_check_is_absent_only_after_complete_reads():
+    probe = ProtectionProbe(
+        branch_protection_status=404,
+        branch_protection_body=None,
+        ruleset_list_status=200,
+        ruleset_details=(
+            RulesetFetch(4, _ruleset(4, ["refs/heads/other"], "governance-trusted")),
+        ),
+    )
+    result = interpret_protection(probe)
+    assert result.state == "not_required"
+    assert "governance-trusted" not in result.required_checks
+
+
+def test_applicable_ruleset_requires_the_check():
+    probe = ProtectionProbe(
+        branch_protection_status=404,
+        branch_protection_body=None,
+        ruleset_list_status=200,
+        ruleset_details=(
+            RulesetFetch(4, _ruleset(4, ["~DEFAULT_BRANCH"], "governance-trusted")),
+        ),
+    )
+    result = interpret_protection(probe)
+    assert result.state == "required"
+    assert "governance-trusted" in result.required_checks
+
+
+def test_disabled_ruleset_does_not_require_the_check():
+    probe = ProtectionProbe(
+        branch_protection_status=404,
+        branch_protection_body=None,
+        ruleset_list_status=200,
+        ruleset_details=(
+            RulesetFetch(
+                4,
+                _ruleset(4, ["refs/heads/main"], "governance-trusted", enforcement="disabled"),
+            ),
+        ),
+    )
+    result = interpret_protection(probe)
+    assert result.state == "not_required"
+
+
+def test_branch_protection_context_requires_the_check():
+    probe = ProtectionProbe(
+        branch_protection_status=200,
+        branch_protection_body={
+            "required_status_checks": {"checks": [{"context": "governance-trusted"}], "contexts": []}
+        },
+        ruleset_list_status=200,
+        ruleset_details=(),
+    )
+    result = interpret_protection(probe)
+    assert result.state == "required"
+    assert result.required_checks == ("governance-trusted",)

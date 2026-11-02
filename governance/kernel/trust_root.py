@@ -8,6 +8,7 @@ activate production authorization and does not prove a required check.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import fnmatch
 import hashlib
 import json
 import os
@@ -182,30 +183,158 @@ def assess_workflow_text(text: str) -> WorkflowContract:
     return WorkflowContract(ok=not reasons, reasons=tuple(sorted(set(reasons))))
 
 
+@dataclass(frozen=True)
+class RulesetFetch:
+    """One ruleset list entry and the detail read that must follow it."""
+
+    ruleset_id: int
+    detail: Mapping[str, Any] | None
+    error: str | None = None
+
+
+@dataclass(frozen=True)
+class ProtectionProbe:
+    """Raw GitHub responses. An unread source cannot prove a check is absent."""
+
+    branch_protection_status: int | None
+    branch_protection_body: Mapping[str, Any] | None
+    ruleset_list_status: int | None
+    ruleset_details: tuple[RulesetFetch, ...]
+
+
+@dataclass(frozen=True)
+class ProtectionAssessment:
+    state: str
+    required_checks: tuple[str, ...]
+    evidence: tuple[str, ...]
+
+
+def _ref_matches(pattern: str, branch: str, default_branch: str) -> bool:
+    if pattern == "~ALL":
+        return True
+    if pattern == "~DEFAULT_BRANCH":
+        return branch == default_branch
+    full = f"refs/heads/{branch}"
+    if pattern in {full, branch}:
+        return True
+    if "*" in pattern:
+        return fnmatch.fnmatch(full, pattern)
+    return False
+
+
+def ruleset_applies_to_branch(ruleset: Mapping[str, Any], branch: str, default_branch: str) -> bool:
+    """Active branch rulesets whose ref rules include ``branch``."""
+    if ruleset.get("target") not in {None, "branch"}:
+        return False
+    if ruleset.get("enforcement") != "active":
+        return False
+    conditions = ruleset.get("conditions")
+    ref_name = conditions.get("ref_name") if isinstance(conditions, Mapping) else None
+    if not isinstance(ref_name, Mapping):
+        return False
+    include = ref_name.get("include")
+    exclude = ref_name.get("exclude")
+    included = [item for item in include if isinstance(item, str)] if isinstance(include, list) else []
+    excluded = [item for item in exclude if isinstance(item, str)] if isinstance(exclude, list) else []
+    if not any(_ref_matches(item, branch, default_branch) for item in included):
+        return False
+    if any(_ref_matches(item, branch, default_branch) for item in excluded):
+        return False
+    return True
+
+
+def _check_names(values: Any) -> list[str]:
+    names: list[str] = []
+    if not isinstance(values, list):
+        return names
+    for item in values:
+        if isinstance(item, str):
+            names.append(item)
+        elif isinstance(item, Mapping) and isinstance(item.get("context"), str):
+            names.append(item["context"])
+    return names
+
+
+def contexts_from_branch_protection(body: Mapping[str, Any]) -> list[str]:
+    block = body.get("required_status_checks")
+    if not isinstance(block, Mapping):
+        return []
+    return _check_names(block.get("checks")) + _check_names(block.get("contexts"))
+
+
+def contexts_from_ruleset(ruleset: Mapping[str, Any]) -> list[str]:
+    names: list[str] = []
+    rules = ruleset.get("rules")
+    if not isinstance(rules, list):
+        return names
+    for rule in rules:
+        if not isinstance(rule, Mapping) or rule.get("type") != "required_status_checks":
+            continue
+        parameters = rule.get("parameters")
+        if not isinstance(parameters, Mapping):
+            continue
+        names.extend(_check_names(parameters.get("required_status_checks")))
+    return names
+
+
+def interpret_protection(
+    probe: ProtectionProbe,
+    *,
+    branch: str = "main",
+    default_branch: str = "main",
+) -> ProtectionAssessment:
+    """Combine classic protection and full ruleset documents.
+
+    ``not_required`` is returned only after both sources were read completely.
+    A list of ruleset ids without their documents stays ``unverified``.
+    """
+    if probe.branch_protection_status not in {200, 404} or probe.ruleset_list_status != 200:
+        status = probe.branch_protection_status
+        rules = probe.ruleset_list_status
+        return ProtectionAssessment(
+            "unverified",
+            (),
+            (f"branch_protection_http_{status}", f"ruleset_list_http_{rules}"),
+        )
+    checks: list[str] = []
+    evidence: list[str] = []
+    if probe.branch_protection_status == 404:
+        evidence.append("branch_protection_absent")
+    else:
+        if not isinstance(probe.branch_protection_body, Mapping):
+            return ProtectionAssessment("unverified", (), ("branch_protection_body_unreadable",))
+        checks.extend(contexts_from_branch_protection(probe.branch_protection_body))
+        evidence.append("branch_protection_read")
+    for fetch in probe.ruleset_details:
+        if fetch.detail is None:
+            return ProtectionAssessment("unverified", (), ("ruleset_detail_unread",))
+        if ruleset_applies_to_branch(fetch.detail, branch, default_branch):
+            checks.extend(contexts_from_ruleset(fetch.detail))
+            evidence.append(f"ruleset_{fetch.ruleset_id}_applied")
+        else:
+            evidence.append(f"ruleset_{fetch.ruleset_id}_not_applicable")
+    unique = tuple(sorted(set(checks)))
+    if TRUSTED_JOB_NAME in unique:
+        return ProtectionAssessment("required", unique, tuple(evidence))
+    return ProtectionAssessment("not_required", unique, tuple(evidence))
+
+
 def assess_deployment(
     *,
     repo: Path,
     trust_commit: str | None,
-    workflow_text: str,
-    required_checks: list[str] | None,
-    protection_error: str | None = None,
+    protection: ProtectionAssessment,
 ) -> dict[str, Any]:
-    """Describe deployment. This function never sets production authorization."""
-    contract = assess_workflow_text(workflow_text)
-    protection_state = "unverified"
-    required = False
-    if protection_error:
-        protection_state = "unverified"
-    elif required_checks is None:
-        protection_state = "unverified"
-    elif TRUSTED_JOB_NAME in required_checks:
-        protection_state = "required"
-        required = True
-    else:
-        protection_state = "not_required"
+    """Describe deployment. The workflow bytes come from ``trust_commit``.
+
+    A commit SHA does not establish authority. Authority also requires the
+    live protection assessment to be ``required``. Production authorization
+    stays disabled in every result.
+    """
     matches = False
     policy_digest = None
-    commit = trust_commit
+    contract_ok = False
+    workflow_reasons: list[str] = []
     reason = "TRUST_ROOT_NOT_ESTABLISHED"
     if trust_commit:
         try:
@@ -213,20 +342,28 @@ def assess_deployment(
             policy_digest = loaded.policy_digest
             matches = running_verifier_digest(repo) == loaded.verifier_digest
             reason = "PIN_MATCHES_RUNNING_CODE" if matches else "VERIFIER_PIN_MISMATCH"
+            text = git_blob(repo, trust_commit, TRUSTED_WORKFLOW_PATH).decode("utf-8")
+            contract = assess_workflow_text(text)
+            contract_ok = contract.ok
+            workflow_reasons = list(contract.reasons)
         except TrustRootError as exc:
             reason = exc.code
-    deployed = bool(matches and contract.ok and required and protection_error is None)
-    status = "DEPLOYED_NOT_ACTIVATED" if deployed else "NOT_DEPLOYED"
+    required = protection.state == "required"
+    authority = bool(matches and contract_ok and required and reason == "PIN_MATCHES_RUNNING_CODE")
+    status = "DEPLOYED_NOT_ACTIVATED" if authority else "NOT_DEPLOYED"
     return {
         "activation_permitted": False,
+        "authority_established": authority,
         "deployment_status": status,
         "policy_digest": policy_digest,
         "production_authorization_operational": False,
-        "protection_state": protection_state,
-        "required_check_confirmed": required and protection_error is None,
+        "protection_evidence": list(protection.evidence),
+        "protection_state": protection.state,
+        "required_check_confirmed": required,
         "running_verifier_matches_pin": matches,
-        "trust_commit": commit,
+        "trust_commit": trust_commit,
         "trust_reason": reason,
-        "workflow_contract_ok": contract.ok,
-        "workflow_reasons": list(contract.reasons),
+        "workflow_contract_ok": contract_ok,
+        "workflow_reasons": workflow_reasons,
+        "workflow_source": "pinned-commit" if trust_commit else "unspecified",
     }
