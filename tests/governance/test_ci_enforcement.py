@@ -8,6 +8,7 @@ import subprocess
 import sys
 
 from governance.kernel.trust_root import (
+    EVALUATOR_RUN,
     GITHUB_ACTIONS_APP_ID,
     ProtectionAssessment,
     ProtectionProbe,
@@ -15,6 +16,7 @@ from governance.kernel.trust_root import (
     assess_deployment,
     assess_workflow_text,
     interpret_protection,
+    provenance_from_annotations,
 )
 
 PILOT = ".github/workflows/governance-check.yml"
@@ -89,6 +91,60 @@ def test_mutable_action_and_head_checkout_fail_closed(root):
     refused = assess_workflow_text(head)
     assert refused.ok is False
     assert "CANDIDATE_SHA_CHECKOUT" in refused.reasons or "BASE_SHA_NOT_PINNED" in refused.reasons
+
+
+def test_echo_or_ignored_verdict_does_not_execute_the_evaluator(root):
+    original = (root / TRUSTED).read_text(encoding="utf-8")
+    assert "python scripts/governance/report_governance.py" in EVALUATOR_RUN
+    comment = original.replace(
+        "          python scripts/governance/report_governance.py >",
+        "          # python scripts/governance/report_governance.py\n          exit 0 >",
+        1,
+    )
+    assert comment != original
+    refused = assess_workflow_text(comment)
+    assert refused.ok is False
+    assert "EVALUATOR_NOT_ENFORCED" in refused.reasons
+    ignored = original.replace('if [ "$code" -ne 1 ]; then', "if false; then", 1)
+    assert ignored != original
+    ignored_contract = assess_workflow_text(ignored)
+    assert ignored_contract.ok is False
+    assert "EVALUATOR_NOT_ENFORCED" in ignored_contract.reasons
+    other_program = original.replace(
+        "python scripts/governance/report_governance.py",
+        "python scripts/governance/check_authorization.py",
+        1,
+    )
+    assert assess_workflow_text(other_program).ok is False
+
+
+def test_annotation_sha_is_the_only_executed_revision():
+    pin = "a" * 40
+    other = "b" * 40
+    assert provenance_from_annotations([]) == (None, None, True)
+    assert provenance_from_annotations(
+        [
+            {"message": pin, "title": "executed-trust-commit"},
+            {"message": "48", "title": "executed-pull-number"},
+        ]
+    ) == (pin, 48, True)
+    assert provenance_from_annotations(
+        [
+            {"message": pin, "title": "executed-trust-commit"},
+            {"message": other, "title": "executed-trust-commit"},
+            {"message": "48", "title": "executed-pull-number"},
+        ]
+    ) == (None, None, False)
+    assert provenance_from_annotations(
+        [{"message": pin, "title": "executed-trust-commit"}]
+    ) == (None, None, False)
+    assert provenance_from_annotations(
+        [
+            {"message": pin, "title": "executed-trust-commit"},
+            {"message": pin, "title": "executed-trust-commit"},
+            {"message": "48", "title": "executed-pull-number"},
+        ]
+    ) == (None, None, False)
 
 
 def test_run_step_cannot_fetch_the_candidate_head(root):

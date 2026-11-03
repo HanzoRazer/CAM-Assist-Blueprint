@@ -72,8 +72,9 @@ python3 scripts/governance/check_authorization.py \
 `--trust-commit` fails closed when that commit does not contain this verifier.
 `verify_deployment.py` exits `1` unless the pin is on the default branch
 or is a byte-identical ancestor, the required check is confirmed, and a
-successful run of this trusted workflow is bound to a pull request, base
-SHA, workflow id, and run id. Neither command turns on production authorization.
+successful run recorded the pin as the checkout it evaluated. A pull
+request's current base SHA does not supply that record. Neither command
+turns on production authorization.
 
 ## What this pilot is not
 

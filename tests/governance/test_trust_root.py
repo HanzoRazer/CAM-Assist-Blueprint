@@ -154,6 +154,7 @@ def _witness(sha, **overrides):
         "workflow_id": 123,
         "run_id": 456,
         "conclusion": "success",
+        "executed_sha": sha,
         "consistent": True,
     }
     payload.update(overrides)
@@ -243,7 +244,7 @@ def test_ancestor_pin_requires_verifier_policy_roles_and_workflow(tmp_path, root
         "roles_bytes_match",
         "workflow_bytes_match",
     ):
-        witness = _witness(sha, relationship="ancestor", default_branch_sha=tip, base_sha=tip, **{flag: False})
+        witness = _witness(sha, relationship="ancestor", default_branch_sha=tip, **{flag: False})
         report = assess_deployment(repo=repo, trust_commit=sha, protection=required, witness=witness)
         assert report["authority_established"] is False
         assert report["deployment_evidence"]["trusted_check_bound"] is False
@@ -251,13 +252,28 @@ def test_ancestor_pin_requires_verifier_policy_roles_and_workflow(tmp_path, root
         repo=repo,
         trust_commit=sha,
         protection=required,
-        witness=_witness(sha, relationship="ancestor", default_branch_sha=tip, base_sha=tip),
+        witness=_witness(sha, relationship="ancestor", default_branch_sha=tip),
     )
     assert accepted["authority_established"] is True
     assert accepted["deployment_status"] == "DEPLOYED_NOT_ACTIVATED"
     assert accepted["production_authorization_operational"] is False
     assert accepted["deployment_evidence"]["pull_number"] == 46
     assert accepted["deployment_evidence"]["run_id"] == 456
+    assert accepted["deployment_evidence"]["executed_sha"] == sha
+    tip_checkout = assess_deployment(
+        repo=repo,
+        trust_commit=sha,
+        protection=required,
+        witness=_witness(
+            sha,
+            relationship="ancestor",
+            default_branch_sha=tip,
+            base_sha=tip,
+            executed_sha=tip,
+        ),
+    )
+    assert tip_checkout["authority_established"] is False
+    assert tip_checkout["deployment_evidence"]["trusted_check_bound"] is False
 
 
 def test_check_name_without_workflow_identity_does_not_bind():
@@ -267,18 +283,20 @@ def test_check_name_without_workflow_identity_does_not_bind():
     spoof = {
         "conclusion": "success",
         "event": "pull_request_target",
+        "executed_sha": pin,
         "head_sha": head,
         "id": 9,
         "path": ".github/workflows/other.yml",
+        "pull_number": 7,
         "workflow_id": 999,
+        "workflow_source_matches": True,
+        "workflow_source_sha": pin,
     }
-    pulls = {head: [{"base_sha": pin, "head_sha": head, "number": 7}]}
     bound, consistent = choose_bound_run(
         trust_commit=pin,
         default_branch_sha=tip,
         workflow_id=123,
         runs=[spoof],
-        pulls_for_head=pulls,
     )
     assert bound is None
     assert consistent is True
@@ -287,39 +305,75 @@ def test_check_name_without_workflow_identity_does_not_bind():
         default_branch_sha=tip,
         workflow_id=123,
         runs=[{**spoof, "path": TRUSTED_WORKFLOW_PATH, "workflow_id": 999}],
-        pulls_for_head=pulls,
     )
     assert contradicted is None
     assert ok is False
 
 
-def test_bound_run_records_pull_request_base_and_workflow():
+def test_current_pull_request_base_is_not_the_executed_revision():
     pin = "a" * 40
-    head = "c" * 40
+    other = "d" * 40
+    source = "b" * 40
+    live_base = {
+        "conclusion": "success",
+        "event": "pull_request_target",
+        "executed_sha": other,
+        "id": 77,
+        "path": TRUSTED_WORKFLOW_PATH,
+        "pull_number": 48,
+        "workflow_id": 123,
+        "workflow_source_matches": True,
+        "workflow_source_sha": source,
+    }
+    missed, consistent = choose_bound_run(
+        trust_commit=pin,
+        default_branch_sha=pin,
+        workflow_id=123,
+        runs=[live_base],
+    )
+    assert missed is None
+    assert consistent is True
+    different_file = {**live_base, "executed_sha": pin, "workflow_source_matches": False}
+    unbound, consistent = choose_bound_run(
+        trust_commit=pin,
+        default_branch_sha=pin,
+        workflow_id=123,
+        runs=[different_file],
+    )
+    assert unbound is None
+    assert consistent is True
+
+
+def test_bound_run_records_the_executed_revision():
+    pin = "a" * 40
+    source = "b" * 40
     run = {
         "conclusion": "success",
         "event": "pull_request_target",
-        "head_sha": head,
+        "executed_sha": pin,
         "id": 77,
         "path": TRUSTED_WORKFLOW_PATH,
+        "pull_number": 48,
         "workflow_id": 123,
+        "workflow_source_matches": True,
+        "workflow_source_sha": source,
     }
-    pulls = {head: [{"base_sha": pin, "head_sha": head, "number": 48}]}
     bound, consistent = choose_bound_run(
         trust_commit=pin,
         default_branch_sha=pin,
         workflow_id=123,
         runs=[run],
-        pulls_for_head=pulls,
     )
     assert consistent is True
     assert bound == {
         "base_sha": pin,
         "conclusion": "success",
+        "executed_sha": pin,
         "pull_number": 48,
         "run_id": 77,
         "workflow_id": 123,
         "workflow_path": TRUSTED_WORKFLOW_PATH,
+        "workflow_source_sha": source,
     }
     assert relationship_from_compare(pin, pin, "identical", readable=True) == "exact"
     assert relationship_from_compare(pin, "b" * 40, "ahead", readable=True) == "ancestor"

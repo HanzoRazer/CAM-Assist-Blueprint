@@ -49,6 +49,55 @@ TRUSTED_LOCK_PATH = "requirements/governance-trusted.txt"
 # any commit status that reuses the job name.
 GITHUB_ACTIONS_APP_ID = 15368
 BASE_SHA_EXPRESSION = "${{ github.event.pull_request.base.sha }}"
+PULL_NUMBER_EXPRESSION = "${{ github.event.pull_request.number }}"
+INSTALL_RUN = "python -m pip install --require-hashes -r requirements/governance-trusted.txt"
+# The trusted job must run this program. A comment that mentions it, or a
+# script that ignores the evaluator's exit status, is not this program.
+EVALUATOR_RUN = """\
+set -euo pipefail
+executed="$(git rev-parse HEAD)"
+if [ "$executed" != "$GOVERNANCE_TRUST_COMMIT" ]; then
+  echo "checkout is not the trusted revision"
+  exit 1
+fi
+case "$GOVERNANCE_PULL_NUMBER" in
+  *[!0-9]*|"") echo "pull number is not decimal"; exit 1 ;;
+  0*) echo "pull number is not decimal"; exit 1 ;;
+esac
+set +e
+python scripts/governance/report_governance.py > "$RUNNER_TEMP/governance-report.json"
+code=$?
+set -e
+python - << 'PY'
+import json, os, sys
+body = json.load(open(os.environ["RUNNER_TEMP"] + "/governance-report.json"))
+if body.get("production_authorization_operational") is not False:
+    sys.exit("production authorization must stay disabled")
+interchange = body.get("interchange_r2") or {}
+if interchange.get("verdict") != "BLOCKED" or interchange.get("code") != 1:
+    sys.exit("interchange R2 must stay blocked")
+trust = body.get("trust_root") or {}
+if trust.get("candidate_worktree_is_trust_root") is not False:
+    sys.exit("candidate checkout cannot be the trust root")
+if trust.get("established") is not False:
+    sys.exit("this job must not claim an established production trust root")
+if trust.get("commit") != os.environ.get("GOVERNANCE_TRUST_COMMIT"):
+    sys.exit("report is not bound to the checkout revision")
+if trust.get("running_verifier_matches_pin") is not True:
+    sys.exit("running verifier is not the pinned evaluator")
+PY
+if [ "$code" -ne 1 ]; then
+  echo "expected blocked exit 1, got $code"
+  cat "$RUNNER_TEMP/governance-report.json"
+  exit 1
+fi
+echo "::notice title=executed-trust-commit::${executed}"
+echo "::notice title=executed-pull-number::${GOVERNANCE_PULL_NUMBER}"
+"""
+EVALUATOR_ENV = {
+    "GOVERNANCE_PULL_NUMBER": PULL_NUMBER_EXPRESSION,
+    "GOVERNANCE_TRUST_COMMIT": BASE_SHA_EXPRESSION,
+}
 PINNED_ACTION = re.compile(r"^([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@([0-9a-f]{40})$")
 TRUST_BYTE_PATHS = (
     *VERIFIER_PATHS,
@@ -269,7 +318,7 @@ def _review_step(step: Any, reasons: list[str]) -> None:
     if set(step) - {"name", "uses", "with", "run", "env"}:
         _reason(reasons, "WORKFLOW_STEP_INVALID")
     environment = step.get("env")
-    if environment is not None and environment != {"GOVERNANCE_TRUST_COMMIT": BASE_SHA_EXPRESSION}:
+    if environment is not None and environment != EVALUATOR_ENV:
         _reason(reasons, "WORKFLOW_STEP_INVALID")
     uses = step.get("uses")
     run = step.get("run")
@@ -357,9 +406,38 @@ def assess_workflow_text(text: str) -> WorkflowContract:
             ]
             if not installs:
                 _reason(reasons, "UNPINNED_DEPENDENCY")
+            _require_evaluator(steps, reasons)
     elif job is not None:
         _reason(reasons, "UNSTABLE_JOB_NAME")
     return WorkflowContract(ok=not reasons, reasons=tuple(sorted(set(reasons))))
+
+
+def _require_evaluator(steps: list[Any], reasons: list[str]) -> None:
+    """The job is the trusted evaluator only when these four steps are exact.
+
+    Checkout, the pinned interpreter, the hash-locked install, then the
+    program that runs ``report_governance.py`` and fails unless that program
+    exits 1 with production authorization off and R2 blocked.
+    """
+    if len(steps) != 4 or any(not isinstance(step, Mapping) for step in steps):
+        _reason(reasons, "EVALUATOR_NOT_ENFORCED")
+        return
+    checkout, setup, install, evaluate = steps
+    checkout_uses = checkout.get("uses")
+    setup_uses = setup.get("uses")
+    if (
+        not isinstance(checkout_uses, str)
+        or not checkout_uses.startswith("actions/checkout@")
+        or checkout.get("env") is not None
+        or not isinstance(setup_uses, str)
+        or not setup_uses.startswith("actions/setup-python@")
+        or setup.get("env") is not None
+    ):
+        _reason(reasons, "EVALUATOR_NOT_ENFORCED")
+    if install.get("run") != INSTALL_RUN or install.get("env") is not None:
+        _reason(reasons, "EVALUATOR_NOT_ENFORCED")
+    if evaluate.get("run") != EVALUATOR_RUN or evaluate.get("env") != EVALUATOR_ENV:
+        _reason(reasons, "EVALUATOR_NOT_ENFORCED")
 
 
 @dataclass(frozen=True)
@@ -529,6 +607,7 @@ class DeploymentWitness:
     workflow_id: int | None
     run_id: int | None
     conclusion: str | None
+    executed_sha: str | None
     consistent: bool
 
 
@@ -540,6 +619,7 @@ def unverified_witness() -> DeploymentWitness:
         False,
         False,
         False,
+        None,
         None,
         None,
         None,
@@ -597,20 +677,62 @@ def _positive_int(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and value > 0
 
 
+def provenance_from_annotations(annotations: Any) -> tuple[str | None, int | None, bool]:
+    """Read the checkout SHA and pull number the trusted job recorded.
+
+    No such notices is a consistent absence. A repeated notice, two different
+    values, or one notice without the other, is inconsistent. The pull
+    request's current base SHA is not this record.
+    """
+    if not isinstance(annotations, list):
+        return None, None, False
+    shas: list[str] = []
+    numbers: list[int] = []
+    for item in annotations:
+        if not isinstance(item, Mapping):
+            return None, None, False
+        title = item.get("title")
+        message = item.get("message")
+        if title not in {"executed-trust-commit", "executed-pull-number"}:
+            continue
+        if not isinstance(message, str):
+            return None, None, False
+        text = message.strip()
+        if title == "executed-trust-commit":
+            if _COMMIT.fullmatch(text) is None:
+                return None, None, False
+            shas.append(text)
+            continue
+        if not text.isdigit() or text.startswith("0"):
+            return None, None, False
+        number = int(text)
+        if number <= 0:
+            return None, None, False
+        numbers.append(number)
+    if len(shas) == 0 and len(numbers) == 0:
+        return None, None, True
+    if len(shas) != 1 or len(numbers) != 1:
+        return None, None, False
+    return shas[0], numbers[0], True
+
+
 def choose_bound_run(
     *,
     trust_commit: str,
     default_branch_sha: str,
     workflow_id: int,
     runs: list[Mapping[str, Any]],
-    pulls_for_head: Mapping[str, list[Mapping[str, Any]]],
 ) -> tuple[dict[str, Any] | None, bool]:
     """Return one bound successful run, and whether the payload was consistent.
 
-    A check that only reuses the job name is not this workflow. A mismatched
-    path or pull-request head is inconsistent and cannot be ignored.
+    A check that only reuses the job name is not this workflow. Binding
+    requires the job's recorded checkout SHA to be ``trust_commit`` and the
+    workflow file at the run's source SHA to be the pinned workflow. The
+    pull request's current base SHA cannot substitute for that checkout.
     """
     if not _positive_int(workflow_id):
+        return None, False
+    if _COMMIT.fullmatch(trust_commit) is None or _COMMIT.fullmatch(default_branch_sha) is None:
         return None, False
     bound = None
     for run in runs:
@@ -626,42 +748,31 @@ def choose_bound_run(
             return None, False
         if run.get("event") != "pull_request_target" or run.get("conclusion") != "success":
             continue
-        head = run.get("head_sha")
+        executed = run.get("executed_sha")
+        source = run.get("workflow_source_sha")
+        if executed is not None and (not isinstance(executed, str) or _COMMIT.fullmatch(executed) is None):
+            return None, False
+        if source is not None and (not isinstance(source, str) or _COMMIT.fullmatch(source) is None):
+            return None, False
+        if executed != trust_commit or run.get("workflow_source_matches") is not True:
+            continue
+        if not isinstance(source, str):
+            return None, False
+        pull_number = run.get("pull_number")
         run_id = run.get("id")
-        if not isinstance(head, str) or _COMMIT.fullmatch(head) is None or not _positive_int(run_id):
+        if not _positive_int(pull_number) or not _positive_int(run_id):
             return None, False
-        pulls = pulls_for_head.get(head, [])
-        if not isinstance(pulls, list):
-            return None, False
-        for pull in pulls:
-            if not isinstance(pull, Mapping):
-                return None, False
-            number = pull.get("number")
-            base_sha = pull.get("base_sha")
-            pull_head = pull.get("head_sha")
-            if (
-                not _positive_int(number)
-                or not isinstance(base_sha, str)
-                or not isinstance(pull_head, str)
-                or _COMMIT.fullmatch(base_sha) is None
-                or _COMMIT.fullmatch(pull_head) is None
-            ):
-                return None, False
-            if pull_head != head:
-                continue
-            if base_sha not in {trust_commit, default_branch_sha}:
-                continue
-            bound = {
-                "base_sha": base_sha,
-                "conclusion": "success",
-                "pull_number": number,
-                "run_id": run_id,
-                "workflow_id": workflow_id,
-                "workflow_path": TRUSTED_WORKFLOW_PATH,
-            }
-            break
-        if bound is not None:
-            break
+        bound = {
+            "base_sha": executed,
+            "conclusion": "success",
+            "executed_sha": executed,
+            "pull_number": pull_number,
+            "run_id": run_id,
+            "workflow_id": workflow_id,
+            "workflow_path": TRUSTED_WORKFLOW_PATH,
+            "workflow_source_sha": source,
+        }
+        break
     return bound, True
 
 
@@ -691,9 +802,11 @@ def witness_binds_pin(trust_commit: str, witness: DeploymentWitness) -> bool:
         return False
     if not all(_positive_int(value) for value in (witness.workflow_id, witness.run_id, witness.pull_number)):
         return False
-    if not isinstance(witness.base_sha, str) or _COMMIT.fullmatch(witness.base_sha) is None:
+    if witness.executed_sha != trust_commit:
         return False
-    return witness.base_sha in {trust_commit, tip}
+    if not isinstance(witness.base_sha, str) or witness.base_sha != trust_commit:
+        return False
+    return True
 
 
 def assess_deployment(
@@ -707,9 +820,9 @@ def assess_deployment(
 
     A commit SHA does not establish authority. Authority requires the live
     protection assessment to be ``required``, the pin to be the default
-    branch or a byte-identical ancestor, and a successful run of this
-    trusted workflow bound to a pull request, base SHA, workflow id, and
-    run id. Production authorization stays disabled in every result.
+    branch or a byte-identical ancestor, and a successful run whose recorded
+    checkout SHA is the pin. The pull request's current base SHA is not
+    that record. Production authorization stays disabled in every result.
     """
     matches = False
     policy_digest = None
@@ -749,6 +862,7 @@ def assess_deployment(
             },
             "consistent": witness.consistent,
             "default_branch_sha": witness.default_branch_sha,
+            "executed_sha": witness.executed_sha,
             "pin_relationship": witness.relationship,
             "pull_number": witness.pull_number,
             "run_conclusion": witness.conclusion,

@@ -31,6 +31,7 @@ from governance.kernel.trust_root import (
     assess_deployment,
     choose_bound_run,
     interpret_protection,
+    provenance_from_annotations,
     relationship_from_compare,
     trust_bytes_match,
     unverified_witness,
@@ -154,38 +155,77 @@ def _blob(repository: str, path: str, ref: str) -> bytes | None:
         return None
 
 
-def _pulls_for_run(repository: str, run: dict) -> list[dict] | None:
-    embedded = run.get("pull_requests")
-    if isinstance(embedded, list) and embedded:
-        return [_flat_pull(item) for item in embedded]
-    head = run.get("head_sha")
-    if not isinstance(head, str):
+def _check_run_annotations(url: object) -> list | None:
+    """Every annotation page. A missing page cannot prove the recorded checkout."""
+    if not isinstance(url, str) or not url.startswith("https://api.github.com/"):
         return None
-    status, _headers, body = _gh(f"repos/{repository}/commits/{head}/pulls")
+    path = url.removeprefix("https://api.github.com/")
+    if not path.startswith("repos/") or "/check-runs/" not in path or "?" in path:
+        return None
+    next_path: str | None = path + "/annotations?per_page=100"
+    collected: list = []
+    seen: set[str] = set()
+    while next_path:
+        if next_path in seen or len(seen) >= 10:
+            return None
+        seen.add(next_path)
+        status, headers, body = _gh(next_path)
+        if status != 200:
+            return None
+        try:
+            payload = json.loads(body)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(payload, list):
+            return None
+        collected.extend(payload)
+        try:
+            next_path = _next_link(headers.get("link", ""))
+        except RuntimeError:
+            return None
+    return collected
+
+
+def _run_provenance(repository: str, run: dict, trust_commit: str) -> dict | None:
+    """Checkout SHA recorded by the job, plus whether the workflow source matches the pin."""
+    status, _headers, body = _gh(f"repos/{repository}/actions/runs/{run.get('id')}/jobs")
     if status != 200:
         return None
-    try:
-        payload = json.loads(body)
-    except json.JSONDecodeError:
+    document = _json_object(body)
+    jobs = document.get("jobs") if document else None
+    if not isinstance(jobs, list):
         return None
-    if not isinstance(payload, list):
+    check_url = None
+    for job in jobs:
+        if not isinstance(job, dict):
+            return None
+        if job.get("name") != TRUSTED_JOB_NAME:
+            continue
+        if job.get("conclusion") != "success":
+            return None
+        check_url = job.get("check_run_url")
+        break
+    if not isinstance(check_url, str):
         return None
-    return [_flat_pull(item) for item in payload]
-
-
-def _flat_pull(item: object) -> dict:
-    if not isinstance(item, dict):
-        raise RuntimeError("pull request payload is unreadable")
-    base = item.get("base")
-    head = item.get("head")
-    number = item.get("number")
-    base_sha = base.get("sha") if isinstance(base, dict) else None
-    head_sha = head.get("sha") if isinstance(head, dict) else None
-    if isinstance(number, bool) or not isinstance(number, int) or number <= 0:
-        raise RuntimeError("pull request number is unreadable")
-    if not isinstance(base_sha, str) or not isinstance(head_sha, str):
-        raise RuntimeError("pull request sha is unreadable")
-    return {"base_sha": base_sha, "head_sha": head_sha, "number": number}
+    annotations = _check_run_annotations(check_url)
+    if annotations is None:
+        return None
+    executed, pull_number, consistent = provenance_from_annotations(annotations)
+    if not consistent:
+        raise RuntimeError("run annotations disagree")
+    source = run.get("head_sha")
+    if not isinstance(source, str):
+        return None
+    pin_workflow = _blob(repository, TRUSTED_WORKFLOW_PATH, trust_commit)
+    source_workflow = _blob(repository, TRUSTED_WORKFLOW_PATH, source)
+    if pin_workflow is None or source_workflow is None:
+        return None
+    return {
+        "executed_sha": executed,
+        "pull_number": pull_number,
+        "workflow_source_matches": pin_workflow == source_workflow,
+        "workflow_source_sha": source,
+    }
 
 
 def _workflow_runs(repository: str, workflow_id: int) -> list[dict] | None:
@@ -284,35 +324,31 @@ def _collect_witness(repository: str, trust_commit: str) -> DeploymentWitness:
     if runs is None:
         return _witness(relationship, tip, matches, None, False)
     normalized_runs = []
-    pulls_for_head: dict[str, list[dict]] = {}
     for run in runs:
-        normalized_runs.append(
-            {
-                "conclusion": run.get("conclusion"),
-                "event": run.get("event"),
-                "head_sha": run.get("head_sha"),
-                "id": run.get("id"),
-                "path": run.get("path"),
-                "workflow_id": run.get("workflow_id"),
-            }
-        )
-        if run.get("workflow_id") != workflow_id or run.get("path") != TRUSTED_WORKFLOW_PATH:
-            continue
-        if run.get("event") != "pull_request_target" or run.get("conclusion") != "success":
-            continue
-        head = run.get("head_sha")
-        if not isinstance(head, str):
-            return _witness(relationship, tip, matches, None, False)
-        pulls = _pulls_for_run(repository, run)
-        if pulls is None or any(item is None for item in pulls):
-            return _witness(relationship, tip, matches, None, False)
-        pulls_for_head[head] = [item for item in pulls if item is not None]
+        record = {
+            "conclusion": run.get("conclusion"),
+            "event": run.get("event"),
+            "head_sha": run.get("head_sha"),
+            "id": run.get("id"),
+            "path": run.get("path"),
+            "workflow_id": run.get("workflow_id"),
+        }
+        if (
+            run.get("workflow_id") == workflow_id
+            and run.get("path") == TRUSTED_WORKFLOW_PATH
+            and run.get("event") == "pull_request_target"
+            and run.get("conclusion") == "success"
+        ):
+            provenance = _run_provenance(repository, run, trust_commit)
+            if provenance is None:
+                return _witness(relationship, tip, matches, None, False)
+            record.update(provenance)
+        normalized_runs.append(record)
     bound, consistent = choose_bound_run(
         trust_commit=trust_commit,
         default_branch_sha=tip,
         workflow_id=workflow_id,
         runs=normalized_runs,
-        pulls_for_head=pulls_for_head,
     )
     return _witness(relationship, tip, matches, bound, consistent)
 
@@ -331,6 +367,7 @@ def _witness(relationship: str, tip: str, matches: dict[str, bool], bound: dict 
         None if bound is None else bound.get("workflow_id"),
         None if bound is None else bound.get("run_id"),
         None if bound is None else bound.get("conclusion"),
+        None if bound is None else bound.get("executed_sha"),
         consistent,
     )
 

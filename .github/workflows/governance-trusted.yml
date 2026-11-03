@@ -2,10 +2,10 @@ name: Governance trusted evaluation
 
 # This file becomes executable only after it is on the default branch.
 # pull_request_target loads the workflow from that base branch. The job
-# checks out the same base SHA and does not run candidate scripts.
-# A green run means the fail-closed report was produced. It does not
-# authorize implementation, and it is not a required check until an
-# administrator confirms deployment.
+# checks out the same base SHA, runs scripts/governance/report_governance.py,
+# and fails unless that program exits 1 with production authorization off.
+# A green run is not implementation authorization, and it is not a required
+# check until an administrator confirms deployment.
 
 on:
   pull_request_target:
@@ -33,8 +33,19 @@ jobs:
 
       - name: Evaluate from the base commit
         env:
+          GOVERNANCE_PULL_NUMBER: ${{ github.event.pull_request.number }}
           GOVERNANCE_TRUST_COMMIT: ${{ github.event.pull_request.base.sha }}
         run: |
+          set -euo pipefail
+          executed="$(git rev-parse HEAD)"
+          if [ "$executed" != "$GOVERNANCE_TRUST_COMMIT" ]; then
+            echo "checkout is not the trusted revision"
+            exit 1
+          fi
+          case "$GOVERNANCE_PULL_NUMBER" in
+            *[!0-9]*|"") echo "pull number is not decimal"; exit 1 ;;
+            0*) echo "pull number is not decimal"; exit 1 ;;
+          esac
           set +e
           python scripts/governance/report_governance.py > "$RUNNER_TEMP/governance-report.json"
           code=$?
@@ -45,20 +56,22 @@ jobs:
           if body.get("production_authorization_operational") is not False:
               sys.exit("production authorization must stay disabled")
           interchange = body.get("interchange_r2") or {}
-          if interchange.get("verdict") != "BLOCKED":
+          if interchange.get("verdict") != "BLOCKED" or interchange.get("code") != 1:
               sys.exit("interchange R2 must stay blocked")
           trust = body.get("trust_root") or {}
           if trust.get("candidate_worktree_is_trust_root") is not False:
               sys.exit("candidate checkout cannot be the trust root")
           if trust.get("established") is not False:
               sys.exit("this job must not claim an established production trust root")
+          if trust.get("commit") != os.environ.get("GOVERNANCE_TRUST_COMMIT"):
+              sys.exit("report is not bound to the checkout revision")
+          if trust.get("running_verifier_matches_pin") is not True:
+              sys.exit("running verifier is not the pinned evaluator")
           PY
-          if [ "$code" -eq 4 ]; then
-            echo "verifier error"
+          if [ "$code" -ne 1 ]; then
+            echo "expected blocked exit 1, got $code"
             cat "$RUNNER_TEMP/governance-report.json"
             exit 1
           fi
-          if [ "$code" -eq 0 ]; then
-            echo "authorized verdict is not valid for this pilot"
-            exit 1
-          fi
+          echo "::notice title=executed-trust-commit::${executed}"
+          echo "::notice title=executed-pull-number::${GOVERNANCE_PULL_NUMBER}"

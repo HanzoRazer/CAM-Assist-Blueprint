@@ -42,10 +42,10 @@ Exit 0 requires every item below. If any GitHub API read is unavailable or
 the payloads disagree, `authority_established` stays false and the command
 exits 1.
 
-- `running_verifier_matches_pin` is true and `workflow_contract_ok` is true. The contract is the parsed workflow, not a comment that contains the expected words.
+- `running_verifier_matches_pin` is true and `workflow_contract_ok` is true. The contract is the parsed workflow, not a comment that contains the expected words. The evaluate step must be the exact program that runs `scripts/governance/report_governance.py` and fails the job unless that program exits 1, production authorization is off, interchange R2 is blocked, and the report says the running verifier matches the pin.
 - `required_check_confirmed` is true. `protection_state` is `required`, which means the required `governance-trusted` entry is bound to GitHub Actions. Protection is read for the live default branch. A `--branch` other than the default branch reports `unverified`.
 - `deployment_evidence.pin_relationship` is `exact`, or it is `ancestor` and `bytes_match.verifier`, `bytes_match.policy`, `bytes_match.roles`, and `bytes_match.workflow` are all true. Matching the workflow file alone does not attest an ancestor. `verifier` covers the kernel, the package initializers, the JSON schemas, and the `scripts/governance` entry points the trusted job runs. `workflow` covers the workflow file and `requirements/governance-trusted.txt`.
-- `deployment_evidence.trusted_check_bound` is true. The successful run is bound to `pull_number`, `base_sha`, `workflow_path`, `workflow_id`, and `run_id`. `base_sha` is the pin or the current default-branch tip. The check does not have to be attached to the pin SHA itself, because `pull_request_target` reports it on the pull request head.
+- `deployment_evidence.trusted_check_bound` is true. The job records `executed_sha` from `git rev-parse HEAD` after checking out the base SHA, and that value equals the pin. The workflow file at the run's source SHA is byte-identical to the pinned workflow. `pull_number`, `workflow_path`, `workflow_id`, and `run_id` are recorded with it. The pull request's current base SHA is not that proof: a later push to the base branch does not rewrite the revision the job executed.
 - `deployment_status` is `DEPLOYED_NOT_ACTIVATED`.
 - `production_authorization_operational` and `activation_permitted` are false.
 
