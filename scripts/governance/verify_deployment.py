@@ -102,9 +102,16 @@ def _json_object(body: str) -> dict | None:
     return None
 
 
-def probe_repository(repository: str) -> ProtectionProbe:
+def default_branch(repository: str) -> str | None:
+    status, _headers, body = _gh(f"repos/{repository}")
+    document = _json_object(body) if status == 200 else None
+    branch = document.get("default_branch") if document else None
+    return branch if isinstance(branch, str) and branch else None
+
+
+def probe_repository(repository: str, branch: str) -> ProtectionProbe:
     """Read classic branch protection and the full document for every ruleset."""
-    status, _headers, body = _gh(f"repos/{repository}/branches/main/protection")
+    status, _headers, body = _gh(f"repos/{repository}/branches/{quote(branch, safe='')}/protection")
     protection_body = _json_object(body) if status == 200 else None
     list_status, _headers, list_body = _gh(f"repos/{repository}/rulesets")
     details: list[RulesetFetch] = []
@@ -335,8 +342,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--branch", default="main")
     args = parser.parse_args(argv)
     try:
-        probe = probe_repository(args.repository)
-        protection = interpret_protection(probe, branch=args.branch, default_branch=args.branch)
+        # The witness reads the live default branch. Protection must be read
+        # for that same branch, or the two halves describe different refs.
+        live_default = default_branch(args.repository)
+        if live_default is None:
+            protection = ProtectionAssessment("unverified", (), ("default_branch_unread",))
+        elif live_default != args.branch:
+            protection = ProtectionAssessment("unverified", (), ("branch_is_not_default",))
+        else:
+            probe = probe_repository(args.repository, live_default)
+            protection = interpret_protection(probe, branch=live_default, default_branch=live_default)
     except Exception:
         protection = ProtectionAssessment("unverified", (), ("protection_probe_failed",))
     witness = collect_witness(args.repository, args.trust_commit)

@@ -10,6 +10,8 @@ from governance.kernel.canonical import digest_of
 from governance.kernel.trust_root import (
     POLICY_PATH,
     ROLES_PATH,
+    TRUST_BYTE_PATHS,
+    TRUSTED_LOCK_PATH,
     TRUSTED_WORKFLOW_PATH,
     VERIFIER_PATHS,
     DeploymentWitness,
@@ -323,10 +325,41 @@ def test_bound_run_records_pull_request_base_and_workflow():
     assert relationship_from_compare(pin, "b" * 40, "ahead", readable=True) == "ancestor"
     assert relationship_from_compare(pin, "b" * 40, "diverged", readable=True) == "unrelated"
     assert relationship_from_compare(pin, "b" * 40, None, readable=False) == "unverified"
-    pin_blobs = {path: b"same" for path in (*VERIFIER_PATHS, POLICY_PATH, ROLES_PATH, TRUSTED_WORKFLOW_PATH)}
+    pin_blobs = {path: b"same" for path in TRUST_BYTE_PATHS}
     tip_blobs = dict(pin_blobs)
     tip_blobs[VERIFIER_PATHS[0]] = b"different"
     compared = trust_bytes_match(pin_blobs, tip_blobs)
     assert compared["workflow"] is True
     assert compared["verifier"] is False
     assert compared["policy"] is True
+
+
+def test_entry_scripts_schemas_and_lock_are_trust_bytes():
+    # The trusted job runs report_governance.py, the evaluator reads the
+    # schemas, and pip reads the lock. Each one changes the verdict.
+    for path in (
+        "scripts/governance/report_governance.py",
+        "scripts/governance/_runtime.py",
+        "governance/schemas/decision_record_v1.schema.json",
+        "governance/__init__.py",
+    ):
+        assert path in VERIFIER_PATHS
+    assert TRUSTED_LOCK_PATH in TRUST_BYTE_PATHS
+    pin_blobs = {path: b"same" for path in TRUST_BYTE_PATHS}
+    for path, group in (
+        ("scripts/governance/report_governance.py", "verifier"),
+        (TRUSTED_LOCK_PATH, "workflow"),
+    ):
+        tip_blobs = dict(pin_blobs)
+        tip_blobs[path] = b"different"
+        compared = trust_bytes_match(pin_blobs, tip_blobs)
+        assert compared[group] is False
+        assert all(value for key, value in compared.items() if key != group)
+
+
+def test_entry_script_edit_is_a_verifier_mismatch(tmp_path, root):
+    repo, sha = _pin_repo(tmp_path, root)
+    trusted = load_git_trust_root(repo, sha)
+    script = repo / "scripts/governance/report_governance.py"
+    script.write_text(script.read_text(encoding="utf-8") + "\n# candidate\n", encoding="utf-8")
+    assert running_verifier_digest(repo) != trusted.verifier_digest

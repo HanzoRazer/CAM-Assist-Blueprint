@@ -24,16 +24,30 @@ _BLOB_PATH = re.compile(r"^[A-Za-z0-9_./-]+$")
 
 POLICY_PATH = "governance/policy/governance_policy_v1.json"
 ROLES_PATH = "governance/policy/authorized_roles_v1.json"
+# Everything the trusted job imports, loads, or executes. Package initializers,
+# the JSON schemas the evaluator reads, and the script entry points change a
+# verdict as surely as the kernel modules do.
 VERIFIER_PATHS = (
+    "governance/__init__.py",
+    "governance/kernel/__init__.py",
     "governance/kernel/canonical.py",
     "governance/kernel/evaluate.py",
     "governance/kernel/github_evidence.py",
     "governance/kernel/trust_root.py",
     "governance/kernel/verdict.py",
+    "governance/schemas/authorization_record_v1.schema.json",
+    "governance/schemas/decision_record_v1.schema.json",
+    "scripts/governance/_runtime.py",
+    "scripts/governance/check_authorization.py",
+    "scripts/governance/check_decision.py",
+    "scripts/governance/report_governance.py",
 )
 TRUSTED_WORKFLOW_PATH = ".github/workflows/governance-trusted.yml"
 TRUSTED_JOB_NAME = "governance-trusted"
 TRUSTED_LOCK_PATH = "requirements/governance-trusted.txt"
+# GitHub Actions. A required check without this source can be satisfied by
+# any commit status that reuses the job name.
+GITHUB_ACTIONS_APP_ID = 15368
 BASE_SHA_EXPRESSION = "${{ github.event.pull_request.base.sha }}"
 PINNED_ACTION = re.compile(r"^([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@([0-9a-f]{40})$")
 TRUST_BYTE_PATHS = (
@@ -41,6 +55,7 @@ TRUST_BYTE_PATHS = (
     POLICY_PATH,
     ROLES_PATH,
     TRUSTED_WORKFLOW_PATH,
+    TRUSTED_LOCK_PATH,
 )
 
 
@@ -232,8 +247,18 @@ def _trigger_is_exact(trigger: Any, reasons: list[str]) -> None:
     _reason(reasons, "PATH_FILTER")
 
 
+_CANDIDATE_REFERENCES = (
+    "github.event.pull_request.head",
+    "github.event.pull_request.merge_commit_sha",
+    "github.head_ref",
+    "github.sha",
+    "github.ref",
+    "refs/pull/",
+)
+
+
 def _reject_candidate_checkout(text: str, reasons: list[str]) -> None:
-    if "github.event.pull_request.head" in text or "github.sha" in text or "github.ref" in text:
+    if any(reference in text for reference in _CANDIDATE_REFERENCES):
         _reason(reasons, "CANDIDATE_SHA_CHECKOUT")
 
 
@@ -397,27 +422,31 @@ def ruleset_applies_to_branch(ruleset: Mapping[str, Any], branch: str, default_b
     return True
 
 
-def _check_names(values: Any) -> list[str]:
-    names: list[str] = []
+def _check_names(values: Any, source_key: str) -> list[tuple[str, Any]]:
+    """Required check names with the app that must publish each one.
+
+    A bare string, or an entry without a source, accepts any publisher.
+    """
+    names: list[tuple[str, Any]] = []
     if not isinstance(values, list):
         return names
     for item in values:
         if isinstance(item, str):
-            names.append(item)
+            names.append((item, None))
         elif isinstance(item, Mapping) and isinstance(item.get("context"), str):
-            names.append(item["context"])
+            names.append((item["context"], item.get(source_key)))
     return names
 
 
-def contexts_from_branch_protection(body: Mapping[str, Any]) -> list[str]:
+def contexts_from_branch_protection(body: Mapping[str, Any]) -> list[tuple[str, Any]]:
     block = body.get("required_status_checks")
     if not isinstance(block, Mapping):
         return []
-    return _check_names(block.get("checks")) + _check_names(block.get("contexts"))
+    return _check_names(block.get("checks"), "app_id") + _check_names(block.get("contexts"), "app_id")
 
 
-def contexts_from_ruleset(ruleset: Mapping[str, Any]) -> list[str]:
-    names: list[str] = []
+def contexts_from_ruleset(ruleset: Mapping[str, Any]) -> list[tuple[str, Any]]:
+    names: list[tuple[str, Any]] = []
     rules = ruleset.get("rules")
     if not isinstance(rules, list):
         return names
@@ -427,8 +456,12 @@ def contexts_from_ruleset(ruleset: Mapping[str, Any]) -> list[str]:
         parameters = rule.get("parameters")
         if not isinstance(parameters, Mapping):
             continue
-        names.extend(_check_names(parameters.get("required_status_checks")))
+        names.extend(_check_names(parameters.get("required_status_checks"), "integration_id"))
     return names
+
+
+def _bound_to_actions(source: Any) -> bool:
+    return isinstance(source, int) and not isinstance(source, bool) and source == GITHUB_ACTIONS_APP_ID
 
 
 def interpret_protection(
@@ -441,6 +474,8 @@ def interpret_protection(
 
     ``not_required`` is returned only after both sources were read completely.
     A list of ruleset ids without their documents stays ``unverified``.
+    ``required`` also needs the check bound to the GitHub Actions app. A
+    name that any publisher may satisfy is ``required_any_source``.
     """
     if probe.branch_protection_status not in {200, 404} or probe.ruleset_list_status != 200:
         status = probe.branch_protection_status
@@ -450,7 +485,7 @@ def interpret_protection(
             (),
             (f"branch_protection_http_{status}", f"ruleset_list_http_{rules}"),
         )
-    checks: list[str] = []
+    checks: list[tuple[str, Any]] = []
     evidence: list[str] = []
     if probe.branch_protection_status == 404:
         evidence.append("branch_protection_absent")
@@ -467,9 +502,13 @@ def interpret_protection(
             evidence.append(f"ruleset_{fetch.ruleset_id}_applied")
         else:
             evidence.append(f"ruleset_{fetch.ruleset_id}_not_applicable")
-    unique = tuple(sorted(set(checks)))
-    if TRUSTED_JOB_NAME in unique:
+    unique = tuple(sorted({name for name, _source in checks}))
+    trusted = [source for name, source in checks if name == TRUSTED_JOB_NAME]
+    if any(_bound_to_actions(source) for source in trusted):
         return ProtectionAssessment("required", unique, tuple(evidence))
+    if trusted:
+        evidence.append("trusted_check_source_unpinned")
+        return ProtectionAssessment("required_any_source", unique, tuple(evidence))
     return ProtectionAssessment("not_required", unique, tuple(evidence))
 
 
@@ -515,7 +554,10 @@ def trust_bytes_match(
     pin_blobs: Mapping[str, bytes],
     tip_blobs: Mapping[str, bytes],
 ) -> dict[str, bool]:
-    """Compare verifier, policy, roles, and workflow bytes. Workflow alone is not enough."""
+    """Compare verifier, policy, roles, and workflow bytes. Workflow alone is not enough.
+
+    The workflow group includes the hash lock its install step reads.
+    """
 
     def same(paths: tuple[str, ...]) -> bool:
         return all(path in pin_blobs and pin_blobs.get(path) == tip_blobs.get(path) for path in paths)
@@ -524,7 +566,7 @@ def trust_bytes_match(
         "policy": same((POLICY_PATH,)),
         "roles": same((ROLES_PATH,)),
         "verifier": same(VERIFIER_PATHS),
-        "workflow": same((TRUSTED_WORKFLOW_PATH,)),
+        "workflow": same((TRUSTED_WORKFLOW_PATH, TRUSTED_LOCK_PATH)),
     }
 
 

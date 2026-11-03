@@ -30,7 +30,7 @@ copy on the default branch. Requiring the check before that file is on
 2. The repository owner authorizes the merge. Merge #46 with production authorization disabled. Record the merge commit. That commit is the verifier pin. Do not use a branch name or a tag.
 3. Open a disposable test pull request against `main`. Use a change that does not match the pilot path filter, so the only governance job that can run is the trusted workflow. Record the pull request number, its base SHA, and the Actions run id. The run must be workflow file `.github/workflows/governance-trusted.yml` with event `pull_request_target`, and its check must complete successfully. A check that only reuses the name `governance-trusted` does not count. The disposable pull request proves the check publishes and executes. It does not activate production authorization.
 4. Stop if the check does not appear or does not complete. Do not enable the requirement. Follow the publication recovery section.
-5. The administrator, with an account that can administer `main`, requires the check context `governance-trusted` on a branch protection rule or an active ruleset that applies to `refs/heads/main`. Restrict bypass actors to the smallest set the owner accepts. Do not grant the workflow write, workflow, or administration scopes.
+5. The administrator, with an account that can administer `main`, requires the check context `governance-trusted` on a branch protection rule or an active ruleset that applies to `refs/heads/main`. Set the check's expected source to GitHub Actions (app id `15368`). A required name with "any source" can be satisfied by any commit status that reuses the name, and the attestation reports it as `required_any_source`, not `required`. Restrict bypass actors to the smallest set the owner accepts. Do not grant the workflow write, workflow, or administration scopes.
 6. From a checkout of the merge commit, rerun the attestation with that authorized credential and keep the JSON:
 
 ```text
@@ -43,14 +43,16 @@ the payloads disagree, `authority_established` stays false and the command
 exits 1.
 
 - `running_verifier_matches_pin` is true and `workflow_contract_ok` is true. The contract is the parsed workflow, not a comment that contains the expected words.
-- `required_check_confirmed` is true.
-- `deployment_evidence.pin_relationship` is `exact`, or it is `ancestor` and `bytes_match.verifier`, `bytes_match.policy`, `bytes_match.roles`, and `bytes_match.workflow` are all true. Matching the workflow file alone does not attest an ancestor.
+- `required_check_confirmed` is true. `protection_state` is `required`, which means the required `governance-trusted` entry is bound to GitHub Actions. Protection is read for the live default branch. A `--branch` other than the default branch reports `unverified`.
+- `deployment_evidence.pin_relationship` is `exact`, or it is `ancestor` and `bytes_match.verifier`, `bytes_match.policy`, `bytes_match.roles`, and `bytes_match.workflow` are all true. Matching the workflow file alone does not attest an ancestor. `verifier` covers the kernel, the package initializers, the JSON schemas, and the `scripts/governance` entry points the trusted job runs. `workflow` covers the workflow file and `requirements/governance-trusted.txt`.
 - `deployment_evidence.trusted_check_bound` is true. The successful run is bound to `pull_number`, `base_sha`, `workflow_path`, `workflow_id`, and `run_id`. `base_sha` is the pin or the current default-branch tip. The check does not have to be attached to the pin SHA itself, because `pull_request_target` reports it on the pull request head.
 - `deployment_status` is `DEPLOYED_NOT_ACTIVATED`.
 - `production_authorization_operational` and `activation_permitted` are false.
 
 A commit SHA alone does not establish authority. Exit 0 is deployment
-verification, not production authorization. The administrator installs the
+verification, not production authorization. `.gitattributes` keeps the
+verifier paths LF, so a Windows checkout with `core.autocrlf=true` matches
+the pin. A checkout made before that file existed needs a fresh checkout. The administrator installs the
 reviewed lock before running the probe:
 
 ```text

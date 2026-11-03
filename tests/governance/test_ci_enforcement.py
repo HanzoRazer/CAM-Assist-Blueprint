@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 
 from governance.kernel.trust_root import (
+    GITHUB_ACTIONS_APP_ID,
     ProtectionAssessment,
     ProtectionProbe,
     RulesetFetch,
@@ -89,6 +91,21 @@ def test_mutable_action_and_head_checkout_fail_closed(root):
     assert "CANDIDATE_SHA_CHECKOUT" in refused.reasons or "BASE_SHA_NOT_PINNED" in refused.reasons
 
 
+def test_run_step_cannot_fetch_the_candidate_head(root):
+    original = (root / TRUSTED).read_text(encoding="utf-8")
+    anchor = "        run: python -m pip install"
+    for command in (
+        'git fetch origin "refs/pull/${{ github.event.number }}/head" && git checkout FETCH_HEAD',
+        'git checkout "${{ github.head_ref }}"',
+        'git checkout "${{ github.event.pull_request.merge_commit_sha }}"',
+    ):
+        mutated = original.replace(anchor, f"        run: {command} && python -m pip install", 1)
+        assert mutated != original
+        refused = assess_workflow_text(mutated)
+        assert refused.ok is False
+        assert "CANDIDATE_SHA_CHECKOUT" in refused.reasons
+
+
 def test_governance_workflows_pin_actions_and_hashes(root):
     trusted = (root / TRUSTED).read_text(encoding="utf-8")
     pilot = (root / PILOT).read_text(encoding="utf-8")
@@ -120,13 +137,17 @@ def test_unverified_protection_is_not_deployment(root):
     assert report["protection_state"] == "unverified"
 
 
-def test_deployment_cli_stays_inactive(root):
+def test_deployment_cli_stays_inactive(root, tmp_path):
+    # No GitHub credential: the result must not depend on who runs the suite.
+    env = {key: value for key, value in os.environ.items() if key not in {"GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN"}}
+    env["GH_CONFIG_DIR"] = str(tmp_path / "gh-config")
     completed = subprocess.run(
         [sys.executable, "scripts/governance/verify_deployment.py"],
         cwd=root,
         check=False,
         capture_output=True,
         text=True,
+        env=env,
     )
     assert completed.returncode == 1
     body = json.loads(completed.stdout)
@@ -137,14 +158,17 @@ def test_deployment_cli_stays_inactive(root):
     assert body["protection_state"] == "unverified"
 
 
-def _ruleset(ruleset_id, include, context, enforcement="active"):
+def _ruleset(ruleset_id, include, context, enforcement="active", integration_id=GITHUB_ACTIONS_APP_ID):
+    check = {"context": context}
+    if integration_id is not None:
+        check["integration_id"] = integration_id
     return {
         "conditions": {"ref_name": {"exclude": [], "include": include}},
         "enforcement": enforcement,
         "id": ruleset_id,
         "rules": [
             {
-                "parameters": {"required_status_checks": [{"context": context}]},
+                "parameters": {"required_status_checks": [check]},
                 "type": "required_status_checks",
             }
         ],
@@ -224,7 +248,10 @@ def test_branch_protection_context_requires_the_check():
     probe = ProtectionProbe(
         branch_protection_status=200,
         branch_protection_body={
-            "required_status_checks": {"checks": [{"context": "governance-trusted"}], "contexts": []}
+            "required_status_checks": {
+                "checks": [{"app_id": GITHUB_ACTIONS_APP_ID, "context": "governance-trusted"}],
+                "contexts": ["governance-trusted"],
+            }
         },
         ruleset_list_status=200,
         ruleset_details=(),
@@ -232,3 +259,46 @@ def test_branch_protection_context_requires_the_check():
     result = interpret_protection(probe)
     assert result.state == "required"
     assert result.required_checks == ("governance-trusted",)
+
+
+def test_check_name_any_source_is_not_required_protection():
+    # A required name without the GitHub Actions source can be satisfied by
+    # any commit status that reuses the job name.
+    for checks in (
+        [{"app_id": None, "context": "governance-trusted"}],
+        [{"app_id": -1, "context": "governance-trusted"}],
+        [{"app_id": 999, "context": "governance-trusted"}],
+        [{"context": "governance-trusted"}],
+    ):
+        probe = ProtectionProbe(
+            branch_protection_status=200,
+            branch_protection_body={"required_status_checks": {"checks": checks, "contexts": ["governance-trusted"]}},
+            ruleset_list_status=200,
+            ruleset_details=(),
+        )
+        result = interpret_protection(probe)
+        assert result.state == "required_any_source"
+        assert "trusted_check_source_unpinned" in result.evidence
+    legacy = ProtectionProbe(
+        branch_protection_status=200,
+        branch_protection_body={"required_status_checks": {"contexts": ["governance-trusted"]}},
+        ruleset_list_status=200,
+        ruleset_details=(),
+    )
+    assert interpret_protection(legacy).state == "required_any_source"
+    unbound = ProtectionProbe(
+        branch_protection_status=404,
+        branch_protection_body=None,
+        ruleset_list_status=200,
+        ruleset_details=(
+            RulesetFetch(4, _ruleset(4, ["~DEFAULT_BRANCH"], "governance-trusted", integration_id=None)),
+        ),
+    )
+    assert interpret_protection(unbound).state == "required_any_source"
+    report = assess_deployment(
+        repo=None,
+        trust_commit=None,
+        protection=interpret_protection(unbound),
+    )
+    assert report["required_check_confirmed"] is False
+    assert report["authority_established"] is False
