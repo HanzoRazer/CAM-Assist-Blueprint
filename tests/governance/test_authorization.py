@@ -287,3 +287,34 @@ def test_naive_as_of_fails_closed(policy, synthetic_bundle):
     verdict = _eval(policy, synthetic_bundle, when=datetime(2026, 1, 1))
     assert verdict.code == 4
     assert "INVALID_AS_OF_TIME" in verdict.reason_codes
+
+
+def test_effective_date_is_inclusive(policy, synthetic_bundle):
+    from governance.kernel.evaluate import parse_time
+
+    authorization = copy.deepcopy(synthetic_bundle["authorization"])
+    when = parse_time(authorization["effective_date"])
+    verdict = _eval(policy, synthetic_bundle, authorization=authorization, when=when)
+    assert verdict.code == 0
+    assert "AUTHORIZATION_NOT_YET_EFFECTIVE" not in verdict.reason_codes
+
+
+def test_future_effective_date_is_blocked(policy, synthetic_bundle):
+    from governance.kernel.evaluate import parse_time
+
+    authorization = copy.deepcopy(synthetic_bundle["authorization"])
+    when = parse_time(authorization["effective_date"]) - timedelta(seconds=1)
+    verdict = _eval(policy, synthetic_bundle, authorization=authorization, when=when)
+    assert verdict.verdict == "BLOCKED"
+    assert "AUTHORIZATION_NOT_YET_EFFECTIVE" in verdict.reason_codes
+
+
+def test_instant_before_expiry_stays_eligible(policy, synthetic_bundle):
+    from governance.kernel.evaluate import parse_time
+
+    authorization = copy.deepcopy(synthetic_bundle["authorization"])
+    when = parse_time(authorization["expires_at"]) - timedelta(seconds=1)
+    verdict = _eval(policy, synthetic_bundle, authorization=authorization, when=when)
+    assert verdict.code == 0
+    assert verdict.synthetic_only is True
+    assert "AUTHORIZATION_EXPIRED" not in verdict.reason_codes
