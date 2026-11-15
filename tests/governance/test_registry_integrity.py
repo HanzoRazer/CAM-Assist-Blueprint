@@ -86,3 +86,24 @@ def test_cli_blocks_pep_case_and_isolates_synthetic(root):
         text=True,
     )
     assert synthetic.returncode == 4
+    naive = subprocess.run(
+        [
+            sys.executable,
+            "scripts/governance/check_decision.py",
+            "--decision",
+            "governance/fixtures/pep_cam_contract_002_proposed.json",
+            "--repository",
+            "HanzoRazer/CAM-Assist-Blueprint",
+            "--revision",
+            "5f736e567dab31439df9b2b66fc5de43bec032f2",
+            "--scope",
+            "r2-contract-publication",
+            "--as-of",
+            "2026-10-29T12:00:00",
+        ],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert naive.returncode == 4

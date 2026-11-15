@@ -1,0 +1,6 @@
+# The governance verifier compares working-tree bytes with git blobs at the
+# pinned commit. A CRLF checkout would never match, so keep these LF.
+governance/** text eol=lf
+scripts/governance/** text eol=lf
+requirements/governance-*.txt text eol=lf
+.github/workflows/governance-*.yml text eol=lf

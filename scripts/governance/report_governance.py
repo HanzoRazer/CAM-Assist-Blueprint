@@ -1,27 +1,51 @@
 """Report the registered PEP-CAM-CONTRACT-002 verdict.
 
-The report is a pilot observation. It is not an implementation authorization.
+The report is a pilot observation unless GOVERNANCE_TRUST_COMMIT names a
+commit whose blobs supply policy and roles. The worktree is never a trust
+root. Production authorization stays disabled.
 """
 
 from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 
-from _runtime import ROOT, emit, load_json, policy_paths
+from _runtime import ROOT, load_json, policy_paths
 from governance.kernel.canonical import digest_of
 from governance.kernel.evaluate import evaluate_authorization, verify_registry
+from governance.kernel.trust_root import (
+    TrustRootError,
+    load_git_trust_root,
+    running_verifier_digest,
+    trust_commit_from_env,
+    unresolved_trust_root,
+)
+
+
+def _sources() -> tuple[dict, dict, dict]:
+    commit = trust_commit_from_env()
+    if commit is None:
+        policy, roles = policy_paths(ROOT)
+        return policy, roles, unresolved_trust_root(digest_of(policy))
+    loaded = load_git_trust_root(ROOT, commit)
+    try:
+        running = running_verifier_digest(ROOT)
+    except TrustRootError:
+        running = None
+    return loaded.policy, loaded.roles, loaded.provenance(running_digest=running)
 
 
 def main() -> int:
-    root = ROOT
-    policy, roles = policy_paths(root)
-    registry = load_json(root / "governance" / "registry" / "decisions.json")
-    authorizations = load_json(root / "governance" / "registry" / "authorizations.json")
+    policy, roles, trust = _sources()
+    registry = load_json(ROOT / "governance" / "registry" / "decisions.json")
+    authorizations = load_json(ROOT / "governance" / "registry" / "authorizations.json")
     registry_verdict = verify_registry(registry)
     authorization_verdict = verify_registry(authorizations)
-    decision = load_json(root / "governance" / "fixtures" / "pep_cam_contract_002_proposed.json")
+    decision = load_json(ROOT / "governance" / "fixtures" / "pep_cam_contract_002_proposed.json")
+    try:
+        candidate = load_json(ROOT / "governance" / "policy" / "governance_policy_v1.json")
+    except (OSError, ValueError):
+        candidate = {"schema_version": "unreadable-candidate"}
     verdict = evaluate_authorization(
         decision=decision,
         authorization=None,
@@ -32,17 +56,27 @@ def main() -> int:
             "scope": ["r2-contract-publication"],
         },
         trusted_policy=policy,
-        candidate_policy=policy,
+        candidate_policy=candidate,
         trusted_roles=roles,
         mode="production",
     )
+    enrolled = 0
+    for role in roles.get("roles", []):
+        if isinstance(role, dict):
+            enrolled += len(role.get("github_user_ids") or [])
     report = {
         "authorization_registry": authorization_verdict.to_dict(),
         "decision_registry": registry_verdict.to_dict(),
+        "evidence_verification": {
+            "enrolled_production_identities": enrolled,
+            "live_github": False,
+            "resolver": "not_configured",
+        },
         "interchange_r2": verdict.to_dict(),
         "pilot": True,
         "policy_digest": digest_of(policy),
         "production_authorization_operational": False,
+        "trust_root": trust,
     }
     json.dump(report, sys.stdout, sort_keys=True, separators=(",", ":"))
     sys.stdout.write("\n")
