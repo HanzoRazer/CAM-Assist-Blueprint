@@ -1,8 +1,9 @@
 """Report whether a protected governance deployment is in place.
 
-The trusted workflow is read from the pinned commit. Live branch protection
-and every listed ruleset document are required before a check can be reported
-absent. Exit 0 also requires the pin to be the default branch, or an ancestor
+The trusted workflow is read from the pinned commit. Live branch protection,
+every ruleset list page, and every listed ruleset document are required before
+a check can be reported absent. Exit 0 also requires the pin to be the default
+branch, or an ancestor
 whose verifier, policy, roles, and workflow bytes still match the tip, plus
 one successful run of this workflow file bound to a pull request number, base
 SHA, workflow id, and run id. A check name alone is not that proof. Missing
@@ -89,7 +90,7 @@ def _next_link(header: str) -> str | None:
     if found is None:
         return None
     if not found.startswith("https://api.github.com/"):
-        raise RuntimeError("workflow run page left the api host")
+        raise RuntimeError("github page left the api host")
     return found
 
 
@@ -110,30 +111,54 @@ def default_branch(repository: str) -> str | None:
     return branch if isinstance(branch, str) and branch else None
 
 
+def _ruleset_summaries(repository: str) -> tuple[int | None, list[dict]]:
+    """Every ruleset list page. One unread page is not a complete collection."""
+    path: str | None = f"repos/{repository}/rulesets?per_page=100"
+    collected: list[dict] = []
+    seen: set[str] = set()
+    while path:
+        if path in seen or len(seen) >= 10:
+            return None, []
+        seen.add(path)
+        status, headers, body = _gh(path)
+        if status != 200:
+            return None, []
+        try:
+            payload = json.loads(body)
+        except json.JSONDecodeError:
+            return None, []
+        if not isinstance(payload, list):
+            return None, []
+        for item in payload:
+            ruleset_id = item.get("id") if isinstance(item, dict) else None
+            if isinstance(ruleset_id, bool) or not isinstance(ruleset_id, int):
+                return None, []
+            collected.append(item)
+        try:
+            path = _next_link(headers.get("link", ""))
+        except RuntimeError:
+            return None, []
+    return 200, collected
+
+
 def probe_repository(repository: str, branch: str) -> ProtectionProbe:
-    """Read classic branch protection and the full document for every ruleset."""
+    """Read classic branch protection and the full document for every ruleset.
+
+    The ruleset list follows ``Link: rel="next"``. A later page that cannot
+    be read, a repeated link, or a next URL that leaves ``api.github.com``
+    discards the pages already collected.
+    """
     status, _headers, body = _gh(f"repos/{repository}/branches/{quote(branch, safe='')}/protection")
     protection_body = _json_object(body) if status == 200 else None
-    list_status, _headers, list_body = _gh(f"repos/{repository}/rulesets")
+    list_status, summaries = _ruleset_summaries(repository)
     details: list[RulesetFetch] = []
     if list_status == 200:
-        try:
-            payload = json.loads(list_body)
-        except json.JSONDecodeError:
-            payload = None
-        if not isinstance(payload, list):
-            list_status = None
-        else:
-            for item in payload:
-                if not isinstance(item, dict) or not isinstance(item.get("id"), int):
-                    list_status = None
-                    details = []
-                    break
-                ruleset_id = item["id"]
-                detail_status, _headers, detail_body = _gh(f"repos/{repository}/rulesets/{ruleset_id}")
-                document = _json_object(detail_body) if detail_status == 200 else None
-                error = None if document is not None else f"ruleset_http_{detail_status}"
-                details.append(RulesetFetch(ruleset_id, document, error))
+        for item in summaries:
+            ruleset_id = item["id"]
+            detail_status, _headers, detail_body = _gh(f"repos/{repository}/rulesets/{ruleset_id}")
+            document = _json_object(detail_body) if detail_status == 200 else None
+            error = None if document is not None else f"ruleset_http_{detail_status}"
+            details.append(RulesetFetch(ruleset_id, document, error))
     return ProtectionProbe(
         branch_protection_status=status,
         branch_protection_body=protection_body,

@@ -89,10 +89,13 @@ Do not require the path-filtered pilot job `governance`. A pull request that
 avoids those paths would not report that job. The enforced context is
 `governance-trusted`.
 
-The attestation command reads live branch protection and the full document
-for every listed ruleset. It reads the workflow from the pinned commit, not
-from the worktree. A ruleset id whose document was not read leaves the result
-unverified. Do not treat HTTP 403 as evidence that the branch is unprotected.
+The attestation command reads live branch protection, every ruleset list page,
+and the full document for every listed ruleset. It follows `Link: rel="next"`
+until the list ends. An unread page, a malformed page, a repeated link, or a
+next URL that leaves `api.github.com` leaves the result unverified. It reads
+the workflow from the pinned commit, not from the worktree. A ruleset id whose
+document was not read leaves the result unverified. Do not treat HTTP 403 as
+evidence that the branch is unprotected.
 
 ## Administrator evidence to keep
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
 import subprocess
@@ -358,3 +359,105 @@ def test_check_name_any_source_is_not_required_protection():
     )
     assert report["required_check_confirmed"] is False
     assert report["authority_established"] is False
+
+
+def _deployment(root):
+    script_dir = str(root / "scripts" / "governance")
+    if script_dir not in sys.path:
+        sys.path.insert(0, script_dir)
+    return importlib.import_module("verify_deployment")
+
+
+def _ruleset_pages(monkeypatch, deployment, responses):
+    calls = []
+
+    def fake(path):
+        calls.append(path)
+        if path not in responses:
+            return 500, {}, ""
+        return responses[path]
+
+    monkeypatch.setattr(deployment, "_gh", fake)
+    return calls
+
+
+def test_ruleset_required_check_on_page_two_is_read(root, monkeypatch):
+    deployment = _deployment(root)
+    repository = "HanzoRazer/CAM-Assist-Blueprint"
+    first = f"repos/{repository}/rulesets?per_page=100"
+    second = f"https://api.github.com/repos/{repository}/rulesets?per_page=100&page=2"
+    calls = _ruleset_pages(
+        monkeypatch,
+        deployment,
+        {
+            f"repos/{repository}/branches/main/protection": (404, {}, ""),
+            first: (200, {"link": f'<{second}>; rel="next"'}, json.dumps([{"id": 11}])),
+            second: (200, {}, json.dumps([{"id": 22}])),
+            f"repos/{repository}/rulesets/11": (
+                200,
+                {},
+                json.dumps(_ruleset(11, ["refs/heads/other"], "governance-trusted")),
+            ),
+            f"repos/{repository}/rulesets/22": (
+                200,
+                {},
+                json.dumps(_ruleset(22, ["~DEFAULT_BRANCH"], "governance-trusted")),
+            ),
+        },
+    )
+    probe = deployment.probe_repository(repository, "main")
+    result = interpret_protection(probe)
+    assert second in calls
+    assert [fetch.ruleset_id for fetch in probe.ruleset_details] == [11, 22]
+    assert result.state == "required"
+    assert "governance-trusted" in result.required_checks
+
+
+def test_ruleset_page_two_failure_discards_page_one(root, monkeypatch):
+    deployment = _deployment(root)
+    repository = "HanzoRazer/CAM-Assist-Blueprint"
+    first = f"repos/{repository}/rulesets?per_page=100"
+    second = f"https://api.github.com/repos/{repository}/rulesets?per_page=100&page=2"
+    calls = _ruleset_pages(
+        monkeypatch,
+        deployment,
+        {
+            f"repos/{repository}/branches/main/protection": (404, {}, ""),
+            first: (200, {"link": f'<{second}>; rel="next"'}, json.dumps([{"id": 11}])),
+            second: (503, {}, ""),
+        },
+    )
+    probe = deployment.probe_repository(repository, "main")
+    result = interpret_protection(probe)
+    assert second in calls
+    assert f"repos/{repository}/rulesets/11" not in calls
+    assert probe.ruleset_list_status is None
+    assert probe.ruleset_details == ()
+    assert result.state == "unverified"
+
+
+def test_ruleset_pagination_rejects_a_repeated_or_foreign_link(root, monkeypatch):
+    deployment = _deployment(root)
+    repository = "HanzoRazer/CAM-Assist-Blueprint"
+    first = f"repos/{repository}/rulesets?per_page=100"
+    second = f"https://api.github.com/repos/{repository}/rulesets?per_page=100&page=2"
+    protection = f"repos/{repository}/branches/main/protection"
+    cases = (
+        {
+            first: (200, {"link": f'<{second}>; rel="next"'}, json.dumps([{"id": 11}])),
+            second: (200, {"link": f'<{second}>; rel="next"'}, json.dumps([{"id": 22}])),
+        },
+        {first: (200, {"link": '<https://evil.example/rulesets?page=2>; rel="next"'}, json.dumps([{"id": 11}]))},
+        {
+            first: (200, {"link": f'<{second}>; rel="next"'}, json.dumps([{"id": 11}])),
+            second: (200, {}, '{"rulesets": []}'),
+        },
+    )
+    for pages in cases:
+        calls = _ruleset_pages(monkeypatch, deployment, {protection: (404, {}, ""), **pages})
+        probe = deployment.probe_repository(repository, "main")
+        result = interpret_protection(probe)
+        assert probe.ruleset_list_status is None
+        assert probe.ruleset_details == ()
+        assert result.state == "unverified"
+        assert f"repos/{repository}/rulesets/11" not in calls
